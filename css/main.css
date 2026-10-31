@@ -10,9 +10,11 @@ html {
     height: 100%;
 }
 
-body {
+body,
+body * {
     -webkit-user-select: none;
     user-select: none;
+}
     display: flex;
     flex-direction: column;
     align-items: stretch;
