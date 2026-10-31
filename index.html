@@ -8,17 +8,38 @@
     <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
-    <div class="cui-container">
-        <!-- Barra lateral típica de CUI -->
-        <aside class="sidebar">
+    <div class="cui-container" id="CUIContainer">
+        <aside class="sidebar" id="LeftSidebar" aria-label="Panel lateral">
             <div id="library">Biblioteca</div>
             <div id="controls">Botones Play/Pausa</div>
         </aside>
 
-        <!-- Panel principal con la playlist -->
+        <div
+            class="sidebar-resizer"
+            id="SidebarResizer"
+            role="separator"
+            aria-label="Cambiar ancho del panel lateral"
+            aria-orientation="vertical"
+            aria-valuemin="140"
+            aria-valuemax="520"
+            aria-valuenow="250"
+            tabindex="0"
+            title="Arrastrar para cambiar el ancho"
+        ></div>
+
         <main class="main-playlist">
             <section id="PlaylistPanel" aria-label="Playlist">
                 <header class="playlist-toolbar">
+                    <button
+                        id="SidebarToggle"
+                        class="sidebar-toggle"
+                        type="button"
+                        aria-controls="LeftSidebar"
+                        aria-expanded="true"
+                        aria-label="Ocultar panel lateral"
+                        title="Ocultar panel lateral"
+                    >☰</button>
+
                     <div class="playlist-heading">
                         <strong>Playlist</strong>
                         <span id="PlaylistSummary">Leyendo lista…</span>
