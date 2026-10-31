@@ -1,12 +1,13 @@
+/* style.css */
 :root {
-    color-scheme: light dark;
+    /* Colores por defecto (puedes imitar los de CUI) */
+    --bg-principal: #1e1e1e;
+    --bg-sidebar: #252526;
+    --texto-color: #ffffff;
+    --accent-color: #007acc;
 }
 
 html {
-    background-color: #191919;
-    color: #fff;
-    margin: 0;
-    padding: 0;
     height: 100%;
 }
 
@@ -15,23 +16,47 @@ body * {
     -webkit-user-select: none;
     user-select: none;
 }
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
+
+body {
+    min-width: 0;
+    min-height: 0;
+    height: 100vh;
+    overflow: hidden;
+    background-color: var(--bg-principal);
+    color: var(--texto-color);
+    font-family: Calibri, sans-serif;
+    font-size: 90%;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.cui-container {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
     height: 100vh;
     min-height: 0;
-    margin: 0;
-    padding: 0;
+}
+
+.sidebar {
+    min-width: 0;
+    overflow: auto;
+    background-color: var(--bg-sidebar);
+    border-right: 1px solid var(--accent-color);
+}
+
+.main-playlist {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
     overflow: hidden;
-    font: 90% Calibri, Sans-serif;
-    line-height: 1.2;
 }
 
 #PlaylistPanel {
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
+    min-width: 0;
     min-height: 0;
     width: 100%;
     text-align: left;
@@ -90,6 +115,7 @@ body * {
 
 .playlist-table-wrap {
     flex: 1 1 auto;
+    min-width: 0;
     min-height: 0;
     overflow: auto;
 }
@@ -149,7 +175,23 @@ body * {
     border-top: 1px solid rgba(128, 128, 128, .35);
 }
 
+/* Ejemplo de un botón interactivo que use el color de acento */
+button.play-btn {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 10px;
+}
+
 @media (max-width: 520px) {
+    .cui-container {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sidebar {
+        display: none;
+    }
+
     .playlist-heading {
         min-width: 75px;
     }

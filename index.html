@@ -1,34 +1,46 @@
-<!doctype html>
+<!-- index.html -->
+<!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="data:,">
     <title>fb2k-CrayonShell</title>
     <link rel="stylesheet" href="css/main.css">
-  </head>
-  <body>
-    <section id="PlaylistPanel" aria-label="Playlist">
-      <header class="playlist-toolbar">
-        <div class="playlist-heading">
-          <strong>Playlist</strong>
-          <span id="PlaylistSummary">Leyendo lista…</span>
-        </div>
-        <select id="PlaylistPicker" aria-label="Seleccionar playlist"></select>
-        <input id="PlaylistFilter" type="search" placeholder="Filtrar pistas…" aria-label="Filtrar pistas">
-        <button id="PlaylistRefresh" type="button" title="Actualizar playlist">↻</button>
-      </header>
+</head>
+<body>
+    <div class="cui-container">
+        <!-- Barra lateral típica de CUI -->
+        <aside class="sidebar">
+            <div id="library">Biblioteca</div>
+            <div id="controls">Botones Play/Pausa</div>
+        </aside>
 
-      <div class="playlist-table-wrap">
-        <table id="PlaylistTable" aria-label="Pistas de la playlist">
-          <tbody id="PlaylistRows"></tbody>
-        </table>
-        <div id="PlaylistEmpty">No hay pistas en la playlist activa.</div>
-      </div>
+        <!-- Panel principal con la playlist -->
+        <main class="main-playlist">
+            <section id="PlaylistPanel" aria-label="Playlist">
+                <header class="playlist-toolbar">
+                    <div class="playlist-heading">
+                        <strong>Playlist</strong>
+                        <span id="PlaylistSummary">Leyendo lista…</span>
+                    </div>
+                    <select id="PlaylistPicker" aria-label="Seleccionar playlist"></select>
+                    <input id="PlaylistFilter" type="search" placeholder="Filtrar pistas…" aria-label="Filtrar pistas">
+                    <button id="PlaylistRefresh" type="button" title="Actualizar playlist">↻</button>
+                </header>
 
-      <footer id="PlaylistStatus" aria-live="polite">Esperando WebView2…</footer>
-    </section>
+                <div class="playlist-table-wrap">
+                    <table id="PlaylistTable" aria-label="Pistas de la playlist">
+                        <tbody id="PlaylistRows"></tbody>
+                    </table>
+                    <div id="PlaylistEmpty">No hay pistas en la playlist activa.</div>
+                </div>
 
+                <footer id="PlaylistStatus" aria-live="polite">Esperando WebView2…</footer>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
     <script src="js/playlist.js"></script>
-  </body>
+</body>
 </html>
