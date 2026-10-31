@@ -5,6 +5,7 @@ __docs__/
 __sandbox__/
 .vscode/
 *.tmp
+*.bat
 
 # ##############################################################################
 # Archivos de transicion a React
