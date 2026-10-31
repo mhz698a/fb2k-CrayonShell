@@ -165,6 +165,33 @@ body {
     min-width: 0;
     min-height: 0;
     overflow: auto;
+
+    /* Keep the playlist scrollbar dark independently of the OS theme. */
+    scrollbar-color: #505050 #1b1b1b;
+    scrollbar-width: thin;
+}
+
+.playlist-table-wrap::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.playlist-table-wrap::-webkit-scrollbar-track {
+    background: #1b1b1b;
+}
+
+.playlist-table-wrap::-webkit-scrollbar-thumb {
+    background: #505050;
+    border: 2px solid #1b1b1b;
+    border-radius: 8px;
+}
+
+.playlist-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #686868;
+}
+
+.playlist-table-wrap::-webkit-scrollbar-corner {
+    background: #1b1b1b;
 }
 
 #PlaylistTable {
