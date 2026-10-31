@@ -3,6 +3,8 @@
 }
 
 html {
+    background-color: #191919;
+    color: #fff;
     margin: 0;
     padding: 0;
     height: 100%;
@@ -20,7 +22,6 @@ body {
     overflow: hidden;
     font: 90% Calibri, Sans-serif;
     line-height: 1.2;
-    color: #555753;
 }
 
 #PlaylistPanel {
