@@ -1,0 +1,4 @@
+__docs__/
+__sandbox__/
+.vscode/
+*.tmp
