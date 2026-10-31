@@ -2,7 +2,6 @@
     'use strict';
 
     const PAGE_SIZE = 200;
-    const TRACK_PROPERTIES_COMMAND = '{6F441057-1D18-4A58-9AC4-8F409CDA7DFD}';
 
     // Keep metadata formatting separate from playlist and playback state.
     // The playlist row number and playing marker are supplied by the API state.
@@ -34,8 +33,6 @@
         focusedItem: -1,
         playingItemIndex: -1,
         playbackState: 'stopped',
-        contextMenuId: '',
-        contextMenuItemIndex: -1,
         clickTimer: 0,
         refreshTimer: 0,
         refreshing: false,
@@ -290,65 +287,7 @@
         }
     }
 
-    function findContextCommand(items, guid) {
-        for (const item of items || []) {
-            if (item.type === 'command'
-                && String(item.guid || '').toUpperCase() === guid.toUpperCase()) {
-                return item;
-            }
-
-            const nested = findContextCommand(item.children, guid);
-            if (nested) return nested;
-        }
-
-        return null;
-    }
-
-    async function showTrackProperties(index) {
-        if (!state.playlistGuid) return;
-
-        await invoke('playlist.setSelection', {
-            playlistGuid: state.playlistGuid,
-            indices: [index],
-            clearOthers: true
-        });
-        await invoke('playlist.setFocusedTrack', {
-            playlistGuid: state.playlistGuid,
-            index
-        });
-
-        // Resolve Properties against the selected playlist row, not the now-playing track.
-        const context = await invoke('menu.getContextMenu', { mode: 'selection' });
-        const properties = findContextCommand(context.items, TRACK_PROPERTIES_COMMAND);
-
-        if (!properties || !Number.isInteger(properties.commandId)) {
-            throw new Error('No se encontró el comando Properties en el menú de la pista.');
-        }
-
-        const commandParams = {
-            id: properties.commandId,
-            mode: 'selection'
-        };
-
-        if (properties.path && context.targetKey) {
-            commandParams.expectPath = properties.path;
-            commandParams.expectTarget = context.targetKey;
-        }
-
-        await invoke('menu.runContextCommandById', commandParams);
-        setStatus('Propiedades de la pista: ' + (index + 1));
-    }
-
-    async function copyTrackFilename(index) {
-        const item = state.items.find((track) => track.index === index);
-        const name = item ? fileName(item.path) : '';
-        if (!name) throw new Error('No se encontró el nombre del archivo.');
-
-        await invoke('clipboard.write', { text: name });
-        setStatus('Nombre copiado: ' + name);
-    }
-
-    async function openContextMenu(index, event) {
+    async function openNativeContextMenu(index, event) {
         event.preventDefault();
         event.stopPropagation();
 
@@ -360,52 +299,12 @@
         if (!state.playlistGuid) return;
 
         try {
-            // Right-click must target the row under the pointer, even when it
-            // was not selected before opening the menu.
+            // Set the clicked row as the active selection first. The native
+            // foobar2000 menu is then built for this exact selection.
             await setSelectedItem(index);
-
-            const result = await invoke('menu.show', {
-                items: [
-                    { id: 'play', label: 'Play' },
-                    { id: 'copy-filename', label: 'Copy Filename' },
-                    { type: 'separator' },
-                    { id: 'properties', label: 'Properties' }
-                ],
-                // MouseEvent.screenX/screenY are already in the coordinate
-                // space expected by foo_ui_webview2; do not multiply by DPR.
-                x: Math.round(event.screenX),
-                y: Math.round(event.screenY),
-                windowModel: 'contentSized',
-                backdrop: 'none'
-            });
-
-            state.contextMenuItemIndex = index;
-            state.contextMenuId = result.menuId || '';
+            await invoke('menu.showNativePopup', { mode: 'selection' });
         } catch (error) {
-            state.contextMenuId = '';
-            state.contextMenuItemIndex = -1;
-            setStatus('No se pudo abrir el menú contextual', error);
-        }
-    }
-
-    async function handleContextMenuSelection(event) {
-        if (!event || event.menuId !== state.contextMenuId) return;
-
-        const action = event.itemId;
-        const index = state.contextMenuItemIndex;
-        state.contextMenuId = '';
-        state.contextMenuItemIndex = -1;
-
-        try {
-            if (action === 'play') {
-                await playItem(index);
-            } else if (action === 'copy-filename') {
-                await copyTrackFilename(index);
-            } else if (action === 'properties') {
-                await showTrackProperties(index);
-            }
-        } catch (error) {
-            setStatus('No se pudo ejecutar la acción', error);
+            setStatus('No se pudo abrir el menú contextual de foobar2000', error);
         }
     }
 
@@ -440,14 +339,12 @@
         playItem(Number(row.dataset.index));
     });
 
-    // Suppress WebView2's default context menu and invoke our playlist menu.
+    // Suppress the WebView2 menu and show foobar2000's native track menu.
     byId('PlaylistRows').addEventListener('contextmenu', (event) => {
         const row = event.target.closest('tr[data-index]');
         if (!row) return;
 
-        event.preventDefault();
-        event.stopPropagation();
-        openContextMenu(Number(row.dataset.index), event);
+        openNativeContextMenu(Number(row.dataset.index), event);
     });
 
     byId('PlaylistPicker').addEventListener('change', async (event) => {
@@ -464,6 +361,98 @@
 
     byId('PlaylistFilter').addEventListener('input', renderItems);
     byId('PlaylistRefresh').addEventListener('click', refreshPlaylist);
+
+    function initializeSidebar() {
+        const container = byId('CUIContainer');
+        const sidebar = byId('LeftSidebar');
+        const resizer = byId('SidebarResizer');
+        const toggle = byId('SidebarToggle');
+
+        if (!container || !sidebar || !resizer || !toggle) return;
+
+        const MIN_WIDTH = 140;
+        const MAX_WIDTH = 520;
+        let dragging = false;
+        let activePointerId = null;
+
+        const currentWidth = () => {
+            const value = Number.parseFloat(
+                getComputedStyle(container).getPropertyValue('--sidebar-width')
+            );
+            return Number.isFinite(value) ? value : 250;
+        };
+
+        function limitWidth(width) {
+            const max = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, container.clientWidth * 0.55));
+            return Math.round(Math.min(max, Math.max(Math.min(MIN_WIDTH, max), width)));
+        }
+
+        function setWidth(width) {
+            const value = limitWidth(width);
+            container.style.setProperty('--sidebar-width', value + 'px');
+            resizer.setAttribute('aria-valuenow', String(value));
+        }
+
+        function setCollapsed(collapsed) {
+            container.classList.toggle('sidebar-collapsed', collapsed);
+            toggle.setAttribute('aria-expanded', String(!collapsed));
+            toggle.setAttribute(
+                'aria-label',
+                collapsed ? 'Mostrar panel lateral' : 'Ocultar panel lateral'
+            );
+            toggle.title = collapsed ? 'Mostrar panel lateral' : 'Ocultar panel lateral';
+        }
+
+        toggle.addEventListener('click', () => {
+            setCollapsed(!container.classList.contains('sidebar-collapsed'));
+        });
+
+        resizer.addEventListener('pointerdown', (event) => {
+            if (container.classList.contains('sidebar-collapsed') || event.button !== 0) return;
+
+            dragging = true;
+            activePointerId = event.pointerId;
+            container.classList.add('resizing');
+            resizer.setPointerCapture(event.pointerId);
+            event.preventDefault();
+        });
+
+        resizer.addEventListener('pointermove', (event) => {
+            if (!dragging || event.pointerId !== activePointerId) return;
+
+            const bounds = container.getBoundingClientRect();
+            setWidth(event.clientX - bounds.left);
+        });
+
+        function stopDragging(event) {
+            if (!dragging || (event && event.pointerId !== activePointerId)) return;
+
+            dragging = false;
+            activePointerId = null;
+            container.classList.remove('resizing');
+        }
+
+        resizer.addEventListener('pointerup', stopDragging);
+        resizer.addEventListener('pointercancel', stopDragging);
+        resizer.addEventListener('lostpointercapture', () => stopDragging());
+
+        resizer.addEventListener('keydown', (event) => {
+            const step = event.shiftKey ? 40 : 10;
+            let nextWidth = currentWidth();
+
+            if (event.key === 'ArrowLeft') nextWidth -= step;
+            else if (event.key === 'ArrowRight') nextWidth += step;
+            else if (event.key === 'Home') nextWidth = MIN_WIDTH;
+            else if (event.key === 'End') nextWidth = MAX_WIDTH;
+            else return;
+
+            event.preventDefault();
+            setWidth(nextWidth);
+        });
+
+        resizer.addEventListener('dblclick', () => setWidth(250));
+        setWidth(currentWidth());
+    }
 
     const refreshEvents = [
         'playlist:defaultFormatChanged',
@@ -490,14 +479,8 @@
         refreshEvents.forEach((eventName) => {
             api().on(eventName, schedulePlaylistRefresh);
         });
-        api().on('menu:select', handleContextMenuSelection);
-        api().on('menu:dismiss', (event) => {
-            if (event && event.menuId === state.contextMenuId) {
-                state.contextMenuId = '';
-                state.contextMenuItemIndex = -1;
-            }
-        });
     }
 
+    initializeSidebar();
     refreshPlaylist();
 })();
