@@ -280,6 +280,20 @@
         }
     }
 
+    function findContextCommand(items, guid) {
+        for (const item of items || []) {
+            if (item.type === 'command'
+                && String(item.guid || '').toUpperCase() === guid.toUpperCase()) {
+                return item;
+            }
+
+            const nested = findContextCommand(item.children, guid);
+            if (nested) return nested;
+        }
+
+        return null;
+    }
+
     async function showTrackProperties(index) {
         if (!state.playlistGuid) return;
 
@@ -292,9 +306,26 @@
             playlistGuid: state.playlistGuid,
             index
         });
-        await invoke('menu.runContextCommand', {
-            command: TRACK_PROPERTIES_COMMAND
-        });
+
+        // Resolve Properties against the selected playlist row, not the now-playing track.
+        const context = await invoke('menu.getContextMenu', { mode: 'selection' });
+        const properties = findContextCommand(context.items, TRACK_PROPERTIES_COMMAND);
+
+        if (!properties || !Number.isInteger(properties.commandId)) {
+            throw new Error('No se encontró el comando Properties en el menú de la pista.');
+        }
+
+        const commandParams = {
+            id: properties.commandId,
+            mode: 'selection'
+        };
+
+        if (properties.path && context.targetKey) {
+            commandParams.expectPath = properties.path;
+            commandParams.expectTarget = context.targetKey;
+        }
+
+        await invoke('menu.runContextCommandById', commandParams);
         setStatus('Propiedades de la pista: ' + (index + 1));
     }
 
