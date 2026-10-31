@@ -1,10 +1,10 @@
 /* style.css */
 :root {
-    /* Colores por defecto (puedes imitar los de CUI) */
     --bg-principal: #1e1e1e;
     --bg-sidebar: #252526;
     --texto-color: #ffffff;
     --accent-color: #007acc;
+    --sidebar-width: 250px;
 }
 
 html {
@@ -32,19 +32,57 @@ body {
 
 .cui-container {
     display: grid;
-    grid-template-columns: 250px minmax(0, 1fr);
+    grid-template-columns: minmax(0, var(--sidebar-width)) 6px minmax(0, 1fr);
     height: 100vh;
     min-height: 0;
 }
 
 .sidebar {
+    grid-column: 1;
     min-width: 0;
     overflow: auto;
     background-color: var(--bg-sidebar);
     border-right: 1px solid var(--accent-color);
 }
 
+.sidebar-resizer {
+    grid-column: 2;
+    position: relative;
+    z-index: 2;
+    cursor: col-resize;
+    touch-action: none;
+    outline: none;
+    background: transparent;
+}
+
+.sidebar-resizer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    width: 2px;
+    background: transparent;
+    transition: background-color .12s ease;
+}
+
+.sidebar-resizer:hover::after,
+.sidebar-resizer:focus-visible::after,
+.cui-container.resizing .sidebar-resizer::after {
+    background: var(--accent-color);
+}
+
+.cui-container.sidebar-collapsed {
+    grid-template-columns: 0 0 minmax(0, 1fr);
+}
+
+.cui-container.sidebar-collapsed .sidebar,
+.cui-container.sidebar-collapsed .sidebar-resizer {
+    display: none;
+}
+
 .main-playlist {
+    grid-column: 3;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -71,6 +109,15 @@ body {
     gap: 7px;
     padding: 7px 9px;
     border-bottom: 1px solid rgba(128, 128, 128, .35);
+}
+
+.sidebar-toggle {
+    flex: 0 0 auto;
+    min-width: 28px;
+    min-height: 26px;
+    padding: 3px 7px;
+    cursor: pointer;
+    font: inherit;
 }
 
 .playlist-heading {
@@ -175,7 +222,6 @@ body {
     border-top: 1px solid rgba(128, 128, 128, .35);
 }
 
-/* Ejemplo de un botón interactivo que use el color de acento */
 button.play-btn {
     background-color: var(--accent-color);
     color: white;
@@ -184,12 +230,8 @@ button.play-btn {
 }
 
 @media (max-width: 520px) {
-    .cui-container {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .sidebar {
-        display: none;
+    :root {
+        --sidebar-width: 180px;
     }
 
     .playlist-heading {
