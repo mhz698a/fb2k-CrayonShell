@@ -1,11 +1,33 @@
 (() => {
     'use strict';
 
-    const hostSync = () => chrome.webview.hostObjects.sync.foo_uie_webview;
-    const hostAsync = () => chrome.webview.hostObjects.foo_uie_webview;
+    const PAGE_SIZE = 200;
+
+    // Evaluated by playlist.getTracks for each playlist row.
+    const PLAYLIST_LINE_FORMAT =
+        "$if(%isplaying%, $if(%ispaused%,❚❚   ,▶  ️ ),       ) " +
+        "$ascii('[')" +
+        "$ifgreater($div(%length_seconds%,3600),9," +
+        "$div(%length_seconds%,3600)," +
+        "0$div(%length_seconds%,3600))" +
+        ":" +
+        "$ifgreater($mod($div(%length_seconds%,60),60),9," +
+        "$mod($div(%length_seconds%,60),60)," +
+        "0$mod($div(%length_seconds%,60),60))" +
+        ":" +
+        "$ifgreater($mod(%length_seconds%,60),9," +
+        "$mod(%length_seconds%,60)," +
+        "0$mod(%length_seconds%,60))" +
+        "$ascii(']')  " +
+        "%list_index% :: " +
+        "$if(%length%,$substr(%path%,14,17). ,00. )" +
+        "$if(%length%,%filename% ,$if(%Artist%,%Artist% - )%Title%)" +
+        "$if($strstr(%filename_ext%,.mp4),$ascii('[')Video$ascii(']') ,)" +
+        "$ifgreater(%totaltracks%,1,$ascii('[[')%title%$ascii(']]') ,)";
 
     const state = {
         playlistIndex: -1,
+        playlistGuid: '',
         playlists: [],
         items: [],
         focusedItem: -1,
@@ -15,6 +37,22 @@
     };
 
     const byId = (id) => document.getElementById(id);
+    const api = () => window.fb2k;
+
+    async function invoke(method, params) {
+        const bridge = api();
+        if (!bridge || typeof bridge.invoke !== 'function') {
+            throw new Error('No se encontró la API fb2k.invoke de foo_ui_webview2.');
+        }
+
+        const result = await bridge.invoke(method, params || {});
+        if (result && result.success === false) {
+            const error = new Error(result.error || ('Falló ' + method));
+            error.code = result.code;
+            throw error;
+        }
+        return result || {};
+    }
 
     function fileName(path) {
         const value = String(path || '').replace(/\\/g, '/');
@@ -27,8 +65,9 @@
     }
 
     function setStatus(message, error) {
-        byId('PlaylistStatus').textContent = error
-            ? message + ' · ' + (error.message || String(error))
+        const detail = error ? (error.message || String(error)) : '';
+        byId('PlaylistStatus').textContent = detail
+            ? message + ' · ' + detail
             : message;
     }
 
@@ -38,50 +77,39 @@
 
         state.playlists.forEach((playlist) => {
             const option = document.createElement('option');
-            option.value = String(playlist.index);
-            option.textContent = playlist.name + ' (' + playlist.count + ')';
+            option.value = playlist.guid;
+            option.textContent = playlist.name + ' (' + playlist.trackCount + ')';
             picker.appendChild(option);
         });
 
-        if (state.playlistIndex >= 0) {
-            picker.value = String(state.playlistIndex);
-        }
-
+        picker.value = state.playlistGuid;
         picker.disabled = state.playlists.length === 0;
     }
 
     function renderItems() {
         const query = byId('PlaylistFilter').value.trim().toLocaleLowerCase();
         const rows = state.items.filter((item) => {
-            const title = fileName(item.path);
-            return !query || title.toLocaleLowerCase().includes(query)
+            const line = item.line || fileName(item.path);
+            return !query || line.toLocaleLowerCase().includes(query)
                 || String(item.path || '').toLocaleLowerCase().includes(query);
         });
 
         const fragment = document.createDocumentFragment();
 
         rows.forEach((item) => {
-            const index = item.index;
             const row = document.createElement('tr');
-            row.dataset.index = String(index);
+            row.dataset.index = String(item.index);
 
-            if (index === state.focusedItem) {
+            if (item.index === state.focusedItem) {
                 row.classList.add('focused');
             }
 
-            const number = document.createElement('td');
-            number.className = 'playlist-number';
-            number.textContent = String(index + 1);
+            const cell = document.createElement('td');
+            cell.className = 'playlist-line';
+            cell.textContent = item.line || fileName(item.path) || '(sin nombre)';
+            cell.title = cell.textContent;
 
-            const title = document.createElement('td');
-            title.textContent = fileName(item.path) || '(sin nombre)';
-            title.title = title.textContent;
-
-            const path = document.createElement('td');
-            path.textContent = item.path || '';
-            path.title = path.textContent;
-
-            row.append(number, title, path);
+            row.appendChild(cell);
             fragment.appendChild(row);
         });
 
@@ -98,40 +126,45 @@
                 : rows.length + ' / ' + state.items.length + ' pistas';
     }
 
-    async function readPlaylistItems(index) {
-        const text = await hostAsync().getPlaylistItems(index);
-        const items = JSON.parse(text || '[]');
+    async function readPlaylistItems(playlist) {
+        const items = [];
+        const total = Number(playlist.trackCount) || 0;
 
-        if (!Array.isArray(items)) {
-            throw new Error('getPlaylistItems no devolvió una lista JSON válida.');
+        for (let start = 0; start < total; start += PAGE_SIZE) {
+            const page = await invoke('playlist.getTracks', {
+                playlistGuid: playlist.guid,
+                start,
+                count: PAGE_SIZE,
+                formats: {
+                    playlistLine: PLAYLIST_LINE_FORMAT
+                }
+            });
+
+            const tracks = Array.isArray(page.tracks) ? page.tracks : [];
+            tracks.forEach((track) => {
+                items.push({
+                    index: Number(track.index),
+                    path: track.path ? String(track.path) : '',
+                    line: track.formats && track.formats.playlistLine
+                        ? String(track.formats.playlistLine)
+                        : ''
+                });
+            });
+
+            if (tracks.length === 0) break;
         }
 
-        return items.map((item, itemIndex) => ({
-            index: itemIndex,
-            path: item && item.path ? String(item.path) : '',
-            subsong: item && Number.isFinite(Number(item.subsong)) ? Number(item.subsong) : 0
-        }));
+        return items;
     }
 
     async function refreshPlaylistOnce() {
-        const host = hostSync();
-        const count = Number(host.playlistCount) || 0;
-        const active = Number(host.activePlaylist);
+        const result = await invoke('playlist.getAll');
+        state.playlists = Array.isArray(result.playlists) ? result.playlists : [];
 
-        state.playlists = [];
-        for (let index = 0; index < count; index += 1) {
-            state.playlists.push({
-                index,
-                name: String(host.getPlaylistName(index)),
-                count: Number(host.getPlaylistItemCount(index)) || 0
-            });
-        }
-
-        state.playlistIndex = Number.isInteger(active) && active >= 0 && active < count
-            ? active
-            : -1;
-
-        if (state.playlistIndex < 0) {
+        const active = state.playlists.find((playlist) => playlist.isActive);
+        if (!active) {
+            state.playlistIndex = -1;
+            state.playlistGuid = '';
             state.items = [];
             state.focusedItem = -1;
             renderPlaylists();
@@ -140,18 +173,20 @@
             return;
         }
 
-        const playlistName = state.playlists[state.playlistIndex].name;
-        const [items, focused] = await Promise.all([
-            readPlaylistItems(state.playlistIndex),
-            Promise.resolve(Number(host.getFocusedPlaylistItem(state.playlistIndex)))
+        state.playlistIndex = active.index;
+        state.playlistGuid = active.guid;
+
+        const [items, focus] = await Promise.all([
+            readPlaylistItems(active),
+            invoke('playlist.getFocusedTrack', { playlistGuid: active.guid })
         ]);
 
         state.items = items;
-        state.focusedItem = Number.isInteger(focused) ? focused : -1;
+        state.focusedItem = Number.isInteger(focus.index) ? focus.index : -1;
 
         renderPlaylists();
         renderItems();
-        setStatus('Playlist: ' + playlistName);
+        setStatus('Playlist: ' + active.name);
     }
 
     async function refreshPlaylist() {
@@ -179,12 +214,18 @@
     }
 
     async function selectItem(index) {
-        if (state.playlistIndex < 0) return;
+        if (!state.playlistGuid) return;
 
         try {
-            await hostAsync().selectPlaylistItem(state.playlistIndex, index);
-            await hostAsync().setFocusedPlaylistItem(state.playlistIndex, index);
-            await hostAsync().ensurePlaylistItemVisible(state.playlistIndex, index);
+            await invoke('playlist.setSelection', {
+                playlistGuid: state.playlistGuid,
+                indices: [index]
+            });
+            await invoke('playlist.setFocusedTrack', {
+                playlistGuid: state.playlistGuid,
+                index
+            });
+
             state.focusedItem = index;
             renderItems();
             setStatus('Seleccionada: ' + (index + 1));
@@ -194,13 +235,16 @@
     }
 
     async function playItem(index) {
-        if (state.playlistIndex < 0) return;
+        if (!state.playlistGuid) return;
 
         try {
-            await hostAsync().executePlaylistDefaultAction(state.playlistIndex, index);
+            await invoke('playlist.playTrack', {
+                playlistGuid: state.playlistGuid,
+                index
+            });
             state.focusedItem = index;
             renderItems();
-            setStatus('Acción de reproducción enviada: ' + (index + 1));
+            setStatus('Reproduciendo pista: ' + (index + 1));
         } catch (error) {
             setStatus('No se pudo reproducir la pista', error);
         }
@@ -216,12 +260,12 @@
         if (row) playItem(Number(row.dataset.index));
     });
 
-    byId('PlaylistPicker').addEventListener('change', (event) => {
-        const index = Number(event.target.value);
-        if (!Number.isInteger(index) || index < 0 || index >= state.playlists.length) return;
+    byId('PlaylistPicker').addEventListener('change', async (event) => {
+        const playlistGuid = event.target.value;
+        if (!playlistGuid) return;
 
         try {
-            hostSync().activePlaylist = index;
+            await invoke('playlist.setActive', { playlistGuid });
             schedulePlaylistRefresh();
         } catch (error) {
             setStatus('No se pudo cambiar la playlist', error);
@@ -231,30 +275,31 @@
     byId('PlaylistFilter').addEventListener('input', renderItems);
     byId('PlaylistRefresh').addEventListener('click', refreshPlaylist);
 
-    // foo_webview2 legacy playlist callbacks are global page functions.
-    window.onPlaylistItemsAdded = schedulePlaylistRefresh;
-    window.onPlaylistItemsReordered = schedulePlaylistRefresh;
-    window.onPlaylistItemsRemoving = schedulePlaylistRefresh;
-    window.onPlaylistItemsRemoved = schedulePlaylistRefresh;
-    window.onPlaylistItemsModified = schedulePlaylistRefresh;
-    window.onPlaylistItemsModifiedFromPlayback = schedulePlaylistRefresh;
-    window.onPlaylistItemsReplaced = schedulePlaylistRefresh;
-    window.onPlaylistCreated = schedulePlaylistRefresh;
-    window.onPlaylistRenamed = schedulePlaylistRefresh;
-    window.onPlaylistActivated = schedulePlaylistRefresh;
-    window.onPlaylistSelectedItemsChanged = schedulePlaylistRefresh;
-    window.onPlaylistFocusedItemChanged = schedulePlaylistRefresh;
-    window.onPlaylistsReordered = schedulePlaylistRefresh;
-    window.onPlaylistsRemoving = schedulePlaylistRefresh;
-    window.onPlaylistsRemoved = schedulePlaylistRefresh;
+    const refreshEvents = [
+        'playlist:defaultFormatChanged',
+        'playlist:itemsAdded',
+        'playlist:itemsRemoved',
+        'playlist:itemsReordered',
+        'playlist:selectionChanged',
+        'playlist:focusChanged',
+        'playlist:itemsReplaced',
+        'playlist:created',
+        'playlist:removed',
+        'playlist:reordered',
+        'playlist:activated',
+        'playlist:renamed',
+        'playback:trackChanged',
+        'playback:edited',
+        'playback:paused',
+        'playback:stopped',
+        'playback:stateChanged',
+        'playback:dynamicInfoTrack'
+    ];
 
-    // Keep the existing playback metadata callback and refresh the playlist focus as well.
-    if (typeof window.onPlaybackNewTrack === 'function') {
-        const previousOnPlaybackNewTrack = window.onPlaybackNewTrack;
-        window.onPlaybackNewTrack = function (...args) {
-            previousOnPlaybackNewTrack.apply(this, args);
-            schedulePlaylistRefresh();
-        };
+    if (api() && typeof api().on === 'function') {
+        refreshEvents.forEach((eventName) => {
+            api().on(eventName, schedulePlaylistRefresh);
+        });
     }
 
     refreshPlaylist();
