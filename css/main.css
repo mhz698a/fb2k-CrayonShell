@@ -23,50 +23,6 @@ body {
     color: #555753;
 }
 
-#Info {
-    flex: 0 1 auto;
-    max-height: 42vh;
-    min-height: 0;
-    width: 100%;
-    overflow: auto;
-    text-align: center;
-    border-bottom: 1px solid rgba(128, 128, 128, .35);
-}
-
-#Info > div,
-#Info > p {
-    display: block;
-    margin: 4px 0;
-    text-align: center;
-}
-
-#Info #Controls {
-    display: block;
-    padding: 4px 0;
-}
-
-#Info button {
-    margin: 1px;
-}
-
-#Info img {
-    display: inline-block;
-}
-
-.track {
-    font: 1.75em Cambria;
-    color: crimson;
-}
-
-.artist {
-    font: 1em Cambria;
-    color: crimson;
-}
-
-.value {
-    font-weight: 800;
-}
-
 #PlaylistPanel {
     display: flex;
     flex: 1 1 auto;
@@ -138,28 +94,11 @@ body {
     font: inherit;
 }
 
-#PlaylistTable thead {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background: color-mix(in srgb, Canvas 92%, GrayText 8%);
-}
-
-#PlaylistTable th {
-    padding: 6px 8px;
-    color: GrayText;
-    font-size: 10px;
-    font-weight: 600;
-    text-align: left;
-    text-transform: uppercase;
-    border-bottom: 1px solid rgba(128, 128, 128, .35);
-}
-
 #PlaylistTable td {
     padding: 5px 8px;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: pre;
     border-bottom: 1px solid rgba(128, 128, 128, .14);
 }
 
@@ -175,23 +114,9 @@ body {
     background: rgba(80, 130, 190, .22);
 }
 
-#PlaylistTable .playlist-number {
-    width: 42px;
-    text-align: right;
-    color: GrayText;
-}
-
-#PlaylistTable th:nth-child(2) {
-    width: 35%;
-}
-
-#PlaylistTable th:nth-child(3) {
-    width: auto;
-}
-
-#PlaylistTable td:nth-child(3) {
-    color: GrayText;
-    font-size: 11px;
+#PlaylistTable .playlist-line {
+    width: 100%;
+    font-variant-numeric: tabular-nums;
 }
 
 #PlaylistEmpty {
@@ -214,19 +139,7 @@ body {
 }
 
 @media (max-width: 520px) {
-    #Info {
-        max-height: 32vh;
-    }
-
     .playlist-heading {
         min-width: 75px;
-    }
-
-    #PlaylistTable th:nth-child(2) {
-        width: 48%;
-    }
-
-    #PlaylistTable th:nth-child(3) {
-        width: auto;
     }
 }
