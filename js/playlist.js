@@ -2,28 +2,29 @@
     'use strict';
 
     const PAGE_SIZE = 200;
+    const TRACK_PROPERTIES_COMMAND = '{6F441057-1D18-4A58-9AC4-8F409CDA7DFD}';
 
-    // Evaluated by playlist.getTracks for each playlist row.
-    const PLAYLIST_LINE_FORMAT =
-        "$if(%isplaying%, $if(%ispaused%,❚❚   ,▶  ️ ),       ) " +
-        "$ascii('[')" +
-        "$ifgreater($div(%length_seconds%,3600),9," +
-        "$div(%length_seconds%,3600)," +
-        "0$div(%length_seconds%,3600))" +
-        ":" +
-        "$ifgreater($mod($div(%length_seconds%,60),60),9," +
-        "$mod($div(%length_seconds%,60),60)," +
-        "0$mod($div(%length_seconds%,60),60))" +
-        ":" +
-        "$ifgreater($mod(%length_seconds%,60),9," +
-        "$mod(%length_seconds%,60)," +
-        "0$mod(%length_seconds%,60))" +
-        "$ascii(']')  " +
-        "%list_index% :: " +
-        "$if(%length%,$substr(%path%,14,17). ,00. )" +
-        "$if(%length%,%filename% ,$if(%Artist%,%Artist% - )%Title%)" +
-        "$if($strstr(%filename_ext%,.mp4),$ascii('[')Video$ascii(']') ,)" +
-        "$ifgreater(%totaltracks%,1,$ascii('[[')%title%$ascii(']]') ,)";
+    // Keep metadata formatting separate from playlist and playback state.
+    // The playlist row number and playing marker are supplied by the API state.
+    const PLAYLIST_FORMATS = {
+        duration:
+            "$ifgreater($div(%length_seconds%,3600),9," +
+            "$div(%length_seconds%,3600)," +
+            "0$div(%length_seconds%,3600))" +
+            ":" +
+            "$ifgreater($mod($div(%length_seconds%,60),60),9," +
+            "$mod($div(%length_seconds%,60),60)," +
+            "0$mod($div(%length_seconds%,60),60))" +
+            ":" +
+            "$ifgreater($mod(%length_seconds%,60),9," +
+            "$mod(%length_seconds%,60)," +
+            "0$mod(%length_seconds%,60))",
+        details:
+            "$if(%length%,$substr(%path%,14,17). ,00. )" +
+            "$if(%length%,%filename% ,$if(%Artist%,%Artist% - )%Title%)" +
+            "$if($strstr(%filename_ext%,.mp4),$ascii('[')Video$ascii(']') ,)" +
+            "$ifgreater(%totaltracks%,1,$ascii('[[')%title%$ascii(']]') ,)"
+    };
 
     const state = {
         playlistIndex: -1,
@@ -31,6 +32,10 @@
         playlists: [],
         items: [],
         focusedItem: -1,
+        playingItemIndex: -1,
+        playbackState: 'stopped',
+        contextMenuId: '',
+        contextMenuItemIndex: -1,
         refreshTimer: 0,
         refreshing: false,
         refreshAgain: false
@@ -86,10 +91,22 @@
         picker.disabled = state.playlists.length === 0;
     }
 
+    function playbackMarker(itemIndex) {
+        if (itemIndex !== state.playingItemIndex) return '        ';
+        return state.playbackState === 'paused' ? '❚❚   ' : '▶  ️ ';
+    }
+
+    function formatItemLine(item) {
+        const duration = item.duration || '00:00:00';
+        const details = item.details || fileName(item.path) || '(sin nombre)';
+        return playbackMarker(item.index) + '[' + duration + ']  '
+            + (item.index + 1) + ' :: ' + details;
+    }
+
     function renderItems() {
         const query = byId('PlaylistFilter').value.trim().toLocaleLowerCase();
         const rows = state.items.filter((item) => {
-            const line = item.line || fileName(item.path);
+            const line = formatItemLine(item);
             return !query || line.toLocaleLowerCase().includes(query)
                 || String(item.path || '').toLocaleLowerCase().includes(query);
         });
@@ -103,10 +120,13 @@
             if (item.index === state.focusedItem) {
                 row.classList.add('focused');
             }
+            if (item.index === state.playingItemIndex) {
+                row.classList.add('playing');
+            }
 
             const cell = document.createElement('td');
             cell.className = 'playlist-line';
-            cell.textContent = item.line || fileName(item.path) || '(sin nombre)';
+            cell.textContent = formatItemLine(item);
             cell.title = cell.textContent;
 
             row.appendChild(cell);
@@ -135,19 +155,17 @@
                 playlistGuid: playlist.guid,
                 start,
                 count: PAGE_SIZE,
-                formats: {
-                    playlistLine: PLAYLIST_LINE_FORMAT
-                }
+                formats: PLAYLIST_FORMATS
             });
 
             const tracks = Array.isArray(page.tracks) ? page.tracks : [];
             tracks.forEach((track) => {
+                const formats = track.formats || {};
                 items.push({
                     index: Number(track.index),
                     path: track.path ? String(track.path) : '',
-                    line: track.formats && track.formats.playlistLine
-                        ? String(track.formats.playlistLine)
-                        : ''
+                    duration: formats.duration ? String(formats.duration) : '',
+                    details: formats.details ? String(formats.details) : ''
                 });
             });
 
@@ -167,6 +185,8 @@
             state.playlistGuid = '';
             state.items = [];
             state.focusedItem = -1;
+            state.playingItemIndex = -1;
+            state.playbackState = 'stopped';
             renderPlaylists();
             renderItems();
             setStatus('No hay playlist activa');
@@ -176,13 +196,21 @@
         state.playlistIndex = active.index;
         state.playlistGuid = active.guid;
 
-        const [items, focus] = await Promise.all([
+        const [items, focus, playingTrack, playback] = await Promise.all([
             readPlaylistItems(active),
-            invoke('playlist.getFocusedTrack', { playlistGuid: active.guid })
+            invoke('playlist.getFocusedTrack', { playlistGuid: active.guid }),
+            invoke('playback.getCurrentTrackIndex'),
+            invoke('playback.getState')
         ]);
 
         state.items = items;
         state.focusedItem = Number.isInteger(focus.index) ? focus.index : -1;
+        state.playbackState = playback.state || 'stopped';
+        state.playingItemIndex = playingTrack.found
+            && playingTrack.playlistGuid === active.guid
+            && state.playbackState !== 'stopped'
+            ? Number(playingTrack.index)
+            : -1;
 
         renderPlaylists();
         renderItems();
@@ -219,7 +247,8 @@
         try {
             await invoke('playlist.setSelection', {
                 playlistGuid: state.playlistGuid,
-                indices: [index]
+                indices: [index],
+                clearOthers: true
             });
             await invoke('playlist.setFocusedTrack', {
                 playlistGuid: state.playlistGuid,
@@ -245,8 +274,97 @@
             state.focusedItem = index;
             renderItems();
             setStatus('Reproduciendo pista: ' + (index + 1));
+            schedulePlaylistRefresh();
         } catch (error) {
             setStatus('No se pudo reproducir la pista', error);
+        }
+    }
+
+    async function showTrackProperties(index) {
+        if (!state.playlistGuid) return;
+
+        await invoke('playlist.setSelection', {
+            playlistGuid: state.playlistGuid,
+            indices: [index],
+            clearOthers: true
+        });
+        await invoke('playlist.setFocusedTrack', {
+            playlistGuid: state.playlistGuid,
+            index
+        });
+        await invoke('menu.runContextCommand', {
+            command: TRACK_PROPERTIES_COMMAND
+        });
+        setStatus('Propiedades de la pista: ' + (index + 1));
+    }
+
+    async function copyTrackFilename(index) {
+        const item = state.items.find((track) => track.index === index);
+        const name = item ? fileName(item.path) : '';
+        if (!name) throw new Error('No se encontró el nombre del archivo.');
+
+        await invoke('clipboard.write', { text: name });
+        setStatus('Nombre copiado: ' + name);
+    }
+
+    async function openContextMenu(index, event) {
+        event.preventDefault();
+        if (!state.playlistGuid) return;
+
+        try {
+            await invoke('playlist.setSelection', {
+                playlistGuid: state.playlistGuid,
+                indices: [index],
+                clearOthers: true
+            });
+            await invoke('playlist.setFocusedTrack', {
+                playlistGuid: state.playlistGuid,
+                index
+            });
+
+            state.focusedItem = index;
+            renderItems();
+
+            const result = await invoke('menu.show', {
+                items: [
+                    { id: 'play', label: 'Play' },
+                    { id: 'copy-filename', label: 'Copy Filename' },
+                    { type: 'separator' },
+                    { id: 'properties', label: 'Properties' }
+                ],
+                x: Math.round(event.screenX * (window.devicePixelRatio || 1)),
+                y: Math.round(event.screenY * (window.devicePixelRatio || 1)),
+                windowModel: 'contentSized',
+                backdrop: 'none'
+            });
+
+            state.contextMenuItemIndex = index;
+            state.contextMenuId = result.menuId || '';
+        } catch (error) {
+            state.contextMenuId = '';
+            state.contextMenuItemIndex = -1;
+            setStatus('No se pudo abrir el menú contextual', error);
+        }
+    }
+
+    async function handleContextMenuSelection(event) {
+        if (!event || event.menuId !== state.contextMenuId) return;
+
+        const action = event.itemId;
+        const index = state.contextMenuItemIndex;
+        state.contextMenuId = '';
+        state.contextMenuItemIndex = -1;
+
+        try {
+            if (action === 'play') {
+                await playItem(index);
+            } else if (action === 'copy-filename') {
+                await copyTrackFilename(index);
+            } else if (action === 'properties') {
+                await showTrackProperties(index);
+            }
+        } catch (error) {
+            setStatus('No se pudo ejecutar la acción', error);
         }
     }
 
@@ -258,6 +376,11 @@
     byId('PlaylistRows').addEventListener('dblclick', (event) => {
         const row = event.target.closest('tr[data-index]');
         if (row) playItem(Number(row.dataset.index));
+    });
+
+    byId('PlaylistRows').addEventListener('contextmenu', (event) => {
+        const row = event.target.closest('tr[data-index]');
+        if (row) openContextMenu(Number(row.dataset.index), event);
     });
 
     byId('PlaylistPicker').addEventListener('change', async (event) => {
@@ -299,6 +422,13 @@
     if (api() && typeof api().on === 'function') {
         refreshEvents.forEach((eventName) => {
             api().on(eventName, schedulePlaylistRefresh);
+        });
+        api().on('menu:select', handleContextMenuSelection);
+        api().on('menu:dismiss', (event) => {
+            if (event && event.menuId === state.contextMenuId) {
+                state.contextMenuId = '';
+                state.contextMenuItemIndex = -1;
+            }
         });
     }
 
