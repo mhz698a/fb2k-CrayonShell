@@ -36,6 +36,7 @@
         playbackState: 'stopped',
         contextMenuId: '',
         contextMenuItemIndex: -1,
+        clickTimer: 0,
         refreshTimer: 0,
         refreshing: false,
         refreshAgain: false
@@ -241,22 +242,30 @@
         state.refreshTimer = window.setTimeout(refreshPlaylist, 120);
     }
 
+    async function setSelectedItem(index) {
+        if (!state.playlistGuid) {
+            throw new Error('No hay una playlist activa.');
+        }
+
+        await invoke('playlist.setSelection', {
+            playlistGuid: state.playlistGuid,
+            indices: [index],
+            clearOthers: true
+        });
+        await invoke('playlist.setFocusedTrack', {
+            playlistGuid: state.playlistGuid,
+            index
+        });
+
+        state.focusedItem = index;
+        renderItems();
+    }
+
     async function selectItem(index) {
         if (!state.playlistGuid) return;
 
         try {
-            await invoke('playlist.setSelection', {
-                playlistGuid: state.playlistGuid,
-                indices: [index],
-                clearOthers: true
-            });
-            await invoke('playlist.setFocusedTrack', {
-                playlistGuid: state.playlistGuid,
-                index
-            });
-
-            state.focusedItem = index;
-            renderItems();
+            await setSelectedItem(index);
             setStatus('Seleccionada: ' + (index + 1));
         } catch (error) {
             setStatus('No se pudo seleccionar la pista', error);
@@ -267,12 +276,13 @@
         if (!state.playlistGuid) return;
 
         try {
+            // Double-click and the context-menu Play action both select first.
+            await setSelectedItem(index);
             await invoke('playlist.playTrack', {
                 playlistGuid: state.playlistGuid,
                 index
             });
-            state.focusedItem = index;
-            renderItems();
+
             setStatus('Reproduciendo pista: ' + (index + 1));
             schedulePlaylistRefresh();
         } catch (error) {
@@ -340,21 +350,19 @@
 
     async function openContextMenu(index, event) {
         event.preventDefault();
+        event.stopPropagation();
+
+        if (state.clickTimer) {
+            window.clearTimeout(state.clickTimer);
+            state.clickTimer = 0;
+        }
+
         if (!state.playlistGuid) return;
 
         try {
-            await invoke('playlist.setSelection', {
-                playlistGuid: state.playlistGuid,
-                indices: [index],
-                clearOthers: true
-            });
-            await invoke('playlist.setFocusedTrack', {
-                playlistGuid: state.playlistGuid,
-                index
-            });
-
-            state.focusedItem = index;
-            renderItems();
+            // Right-click must target the row under the pointer, even when it
+            // was not selected before opening the menu.
+            await setSelectedItem(index);
 
             const result = await invoke('menu.show', {
                 items: [
@@ -363,8 +371,10 @@
                     { type: 'separator' },
                     { id: 'properties', label: 'Properties' }
                 ],
-                x: Math.round(event.screenX * (window.devicePixelRatio || 1)),
-                y: Math.round(event.screenY * (window.devicePixelRatio || 1)),
+                // MouseEvent.screenX/screenY are already in the coordinate
+                // space expected by foo_ui_webview2; do not multiply by DPR.
+                x: Math.round(event.screenX),
+                y: Math.round(event.screenY),
                 windowModel: 'contentSized',
                 backdrop: 'none'
             });
@@ -400,18 +410,44 @@
     }
 
     byId('PlaylistRows').addEventListener('click', (event) => {
+        if (event.button !== 0) return;
+
         const row = event.target.closest('tr[data-index]');
-        if (row) selectItem(Number(row.dataset.index));
+        if (!row) return;
+
+        // Delay single-click selection so the browser's dblclick event can
+        // cancel it. This prevents two independent selections racing the play.
+        if (state.clickTimer) {
+            window.clearTimeout(state.clickTimer);
+        }
+
+        const index = Number(row.dataset.index);
+        state.clickTimer = window.setTimeout(() => {
+            state.clickTimer = 0;
+            selectItem(index);
+        }, 220);
     });
 
     byId('PlaylistRows').addEventListener('dblclick', (event) => {
         const row = event.target.closest('tr[data-index]');
-        if (row) playItem(Number(row.dataset.index));
+        if (!row) return;
+
+        if (state.clickTimer) {
+            window.clearTimeout(state.clickTimer);
+            state.clickTimer = 0;
+        }
+
+        playItem(Number(row.dataset.index));
     });
 
+    // Suppress WebView2's default context menu and invoke our playlist menu.
     byId('PlaylistRows').addEventListener('contextmenu', (event) => {
         const row = event.target.closest('tr[data-index]');
-        if (row) openContextMenu(Number(row.dataset.index), event);
+        if (!row) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        openContextMenu(Number(row.dataset.index), event);
     });
 
     byId('PlaylistPicker').addEventListener('change', async (event) => {
