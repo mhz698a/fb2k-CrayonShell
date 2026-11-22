@@ -1,4 +1,4 @@
-import { access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { isAbsolute, resolve, join } from 'node:path';
 import config from '../vite.config.js';
@@ -33,4 +33,17 @@ if (missingFiles.length > 0) {
     );
 }
 
-console.log('\\nArchivos de producción verificados en: ' + outputDirectory);
+const html = await readFile(join(outputDirectory, 'index.html'), 'utf8');
+const expectedReferences = [
+    './crayonshell.iife.js',
+    './crayonshell.css'
+];
+
+for (const reference of expectedReferences) {
+    if (!html.includes(reference)) {
+        throw new Error('index.html no referencia el archivo: ' + reference);
+    }
+    console.log('OK  index.html referencia ' + reference);
+}
+
+console.log('\nArchivos de producción verificados en: ' + outputDirectory);

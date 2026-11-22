@@ -8,7 +8,73 @@
     <link rel="stylesheet" href="./crayonshell.css">
 </head>
 <body>
-    <div id="root"></div>
-    <script src="./crayonshell.iife.js"></script>
+    <div id="root">
+        <div style="padding:16px;color:#fff;background:#1e1e1e;font:14px Consolas,monospace">
+            Iniciando CrayonShell…
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const root = document.getElementById('root');
+
+            function showError(title, detail) {
+                if (!root) return;
+
+                const panel = document.createElement('div');
+                panel.style.cssText = [
+                    'box-sizing:border-box',
+                    'padding:16px',
+                    'height:100vh',
+                    'overflow:auto',
+                    'background:#1e1e1e',
+                    'color:#fff',
+                    'font:13px Consolas,monospace',
+                    'white-space:pre-wrap'
+                ].join(';');
+
+                const heading = document.createElement('strong');
+                heading.style.color = '#ff8585';
+                heading.textContent = title;
+
+                const message = document.createElement('pre');
+                message.style.cssText = 'margin-top:12px;white-space:pre-wrap;overflow-wrap:anywhere';
+                message.textContent = String(detail || 'No hay información adicional del error.');
+
+                panel.append(heading, message);
+                root.replaceChildren(panel);
+            }
+
+            window.addEventListener('error', (event) => {
+                const target = event.target;
+                const resourceUrl = target && (target.src || target.href);
+                const detail = event.error?.stack
+                    || event.message
+                    || resourceUrl
+                    || 'Error de ejecución JavaScript sin detalles.';
+
+                showError(
+                    resourceUrl ? 'No se pudo cargar un recurso de CrayonShell' : 'Error al iniciar CrayonShell',
+                    detail
+                );
+            }, true);
+
+            window.addEventListener('unhandledrejection', (event) => {
+                const reason = event.reason;
+                showError(
+                    'Error asíncrono al iniciar CrayonShell',
+                    reason?.stack || reason?.message || reason
+                );
+            });
+
+            const bundle = document.createElement('script');
+            bundle.src = './crayonshell.iife.js';
+            bundle.onerror = () => showError(
+                'No se pudo cargar crayonshell.iife.js',
+                'Comprueba que index.html y crayonshell.iife.js estén en la misma carpeta de compilación.'
+            );
+            document.body.appendChild(bundle);
+        })();
+    </script>
 </body>
 </html>
