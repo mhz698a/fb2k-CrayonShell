@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "foo-webview-sdk": "^2.2.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
