@@ -7,7 +7,7 @@ export default defineConfig({
     base: './',
     publicDir: 'public',
     build: {
-        outDir: 'dist',
+        outDir: resolve(process.cwd(), '../fb2k-CrayonShell-Build'),
         emptyOutDir: true,
         cssCodeSplit: false,
         lib: {
