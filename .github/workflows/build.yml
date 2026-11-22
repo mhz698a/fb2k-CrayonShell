@@ -28,16 +28,3 @@ jobs:
       - name: Build production files
         run: npm run build
 
-      - name: Verify WebView2 output files
-        shell: pwsh
-        run: |
-          $requiredFiles = @(
-            "dist/index.html",
-            "dist/crayonshell.iife.js",
-            "dist/crayonshell.css"
-          )
-          foreach ($file in $requiredFiles) {
-            if (-not (Test-Path $file)) {
-              throw "Build artifact missing: $file"
-            }
-          }

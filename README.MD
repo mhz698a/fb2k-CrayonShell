@@ -46,15 +46,26 @@ El servidor de desarrollo sirve para aprender y modificar la interfaz. La integr
 npm run build
 ~~~
 
-Vite genera la versión de producción en la carpeta dist. La entrada que debes cargar desde foo_ui_webview2 es:
+La salida de producción se escribe fuera del repositorio, en la carpeta configurada en vite.config.js. Actualmente es:
 
 ~~~text
-dist/index.html
+../fb2k-CrayonShell-Build/
 ~~~
 
-Configura el panel o la página de foo_ui_webview2 para abrir ese archivo. No cargues el index.html de la raíz para la prueba de producción: ese archivo es la entrada del servidor de desarrollo.
+La entrada que debes cargar desde foo_ui_webview2 es:
 
-La compilación genera un JavaScript IIFE clásico y un CSS separado. Esto evita depender de imports ES modules en el HTML de producción cargado como archivo local. La carpeta dist es generada; no edites sus archivos manualmente.
+~~~text
+../fb2k-CrayonShell-Build/index.html
+~~~
+
+La raíz del repositorio contiene dos entradas con propósitos diferentes:
+
+- index.html: entrada del servidor de desarrollo de Vite.
+- webview.html: plantilla HTML estática que se genera como index.html en la salida de producción.
+
+La compilación genera un JavaScript IIFE clásico, un CSS separado y la página index.html. El IIFE permite cargar el script como archivo clásico desde el HTML local de WebView2, sin depender de imports ES modules. No edites manualmente los archivos generados.
+
+Al finalizar, npm run build comprueba explícitamente que existan index.html, crayonshell.iife.js y crayonshell.css en la carpeta de salida. Si falta cualquiera, el comando termina con error en lugar de dar la compilación por válida.
 
 Cada vez que cambies el código y quieras comprobarlo dentro de foobar2000, vuelve a ejecutar npm run build y recarga la página en el panel.
 
@@ -63,8 +74,9 @@ Cada vez que cambies el código y quieras comprobarlo dentro de foobar2000, vuel
 ~~~text
 fb2k-CrayonShell/
 ├── index.html                 # Entrada del servidor de desarrollo
-├── public/
-│   └── index.html             # Entrada estática de producción
+├── webview.html              # Plantilla HTML de producción
+├── scripts/
+│   └── verify-build.mjs       # Comprueba los archivos de salida
 ├── src/
 │   ├── components/
 │   │   ├── PlaylistStatus.jsx
@@ -177,5 +189,5 @@ npm run preview
 ~~~
 
 - dev: servidor de desarrollo con recarga automática y puente simulado.
-- build: genera la versión estática para foo_ui_webview2 en dist.
+- build: genera y verifica index.html, el bundle IIFE y el CSS en la carpeta configurada en vite.config.js.
 - preview: sirve localmente la compilación para revisar sus archivos.
