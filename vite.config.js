@@ -14,7 +14,7 @@ export default defineConfig({
             entry: resolve(process.cwd(), 'src/main.jsx'),
             name: 'CrayonShell',
             formats: ['iife'],
-            fileName: () => 'crayonshell',
+            fileName: () => 'crayonshell.iife.js',
             cssFileName: 'crayonshell'
         }
     }
