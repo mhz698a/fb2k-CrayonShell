@@ -1,12 +1,9 @@
 import { access, readFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { isAbsolute, resolve, join } from 'node:path';
-import config from '../vite.config.js';
+import { join } from 'node:path';
+import { buildOutputDirectory } from '../vite.config.js';
 
-const configuredOutDir = config.build?.outDir || 'dist';
-const outputDirectory = isAbsolute(configuredOutDir)
-    ? configuredOutDir
-    : resolve(process.cwd(), configuredOutDir);
+const outputDirectory = buildOutputDirectory;
 
 const requiredFiles = [
     'index.html',

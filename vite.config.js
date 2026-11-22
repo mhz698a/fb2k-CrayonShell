@@ -3,6 +3,11 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+export const buildOutputDirectory = resolve(
+    process.cwd(),
+    '../fb2k-CrayonShell-Build'
+);
+
 function webviewEntryPlugin() {
     return {
         name: 'crayonshell-webview-entry',
@@ -36,7 +41,7 @@ export default defineConfig(({ command }) => ({
     base: './',
     publicDir: false,
     build: {
-        outDir: resolve(process.cwd(), '../fb2k-CrayonShell-Build'),
+        outDir: buildOutputDirectory,
         emptyOutDir: true,
         cssCodeSplit: false,
         lib: {
