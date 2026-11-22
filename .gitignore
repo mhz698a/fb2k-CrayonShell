@@ -4,6 +4,7 @@ __sandbox__/
 .vscode/
 *.tmp
 *.bat
+fb2k-webview-react/
 
 # Dependencias
 node_modules/
