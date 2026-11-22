@@ -79,6 +79,8 @@ fb2k-CrayonShell/
 │   │   └── playlistFormats.js # Formatos de título de foobar2000
 │   ├── styles/
 │   │   └── main.css
+│   ├── utils/
+│   │   └── playlistDisplay.js
 │   ├── App.jsx
 │   └── main.jsx
 ├── package.json

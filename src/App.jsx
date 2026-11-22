@@ -24,7 +24,7 @@ function clampSidebarWidth(width, containerWidth) {
 export default function App() {
     const containerRef = useRef(null);
     const draggingRef = useRef(false);
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
     const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
     const [filter, setFilter] = useState('');
 
