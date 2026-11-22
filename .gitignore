@@ -1,27 +1,16 @@
-# ##############################################################################
-# ARCHIVOS Y CARPETAS UTILITARIAS (Por el usuario)
-# ##############################################################################
+# Archivos y carpetas utilitarias locales
 __docs__/
 __sandbox__/
 .vscode/
 *.tmp
 *.bat
 
-# ##############################################################################
-# Archivos de transicion a React
-# ##############################################################################
-fb2k-webview-react/
-
-# ##############################################################################
-# DEPENDENCIAS (Nunca se suben, se regeneran con 'npm install')
-# ##############################################################################
+# Dependencias
 node_modules/
 jspm_packages/
 web_modules/
 
-# ##############################################################################
-# ARCHIVOS DE ENTORNO Y SECRETOS (Contienen claves de API, contraseñas, etc.)
-# ##############################################################################
+# Entornos y secretos
 .env
 .env.local
 .env.development.local
@@ -29,10 +18,8 @@ web_modules/
 .env.production.local
 *.env
 
-# ##############################################################################
-# REGISTROS Y ERRORES (Logs)
-# ##############################################################################
-logs
+# Registros
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -40,9 +27,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# ##############################################################################
-# COMPILACIÓN Y PRODUCCIÓN (Salidas de TypeScript, Babel, Webpack, etc.)
-# ##############################################################################
+# Compilación
 dist/
 build/
 out/
@@ -51,18 +36,13 @@ out/
 .cache/
 .parcel-cache/
 
-# ##############################################################################
-# COBERTURA DE PRUEBAS (Testing)
-# ##############################################################################
+# Cobertura de pruebas
 coverage/
 .nyc_output/
 
-# ##############################################################################
-# CONFIGURACIÓN DEL SISTEMA OPERATIVO E IDEs (Opcional, pero recomendado)
-# ##############################################################################
+# Sistema operativo e IDEs
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
 *.suo
 *.ntvs*
