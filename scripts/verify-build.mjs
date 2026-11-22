@@ -46,4 +46,13 @@ for (const reference of expectedReferences) {
     console.log('OK  index.html referencia ' + reference);
 }
 
+const bundle = await readFile(join(outputDirectory, 'crayonshell.iife.js'), 'utf8');
+
+if (/\bprocess\.env\.NODE_ENV\b/.test(bundle)) {
+    throw new Error(
+        'El bundle conserva process.env.NODE_ENV, que no existe en el navegador WebView2.'
+    );
+}
+
+console.log('OK  bundle sin referencias a process.env.NODE_ENV');
 console.log('\nArchivos de producción verificados en: ' + outputDirectory);

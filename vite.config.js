@@ -21,11 +21,18 @@ function webviewEntryPlugin() {
     };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
     plugins: [
         react(),
         webviewEntryPlugin()
     ],
+    // React's library build keeps process.env.NODE_ENV by default.
+    // WebView2 is a browser runtime and does not provide the Node.js process global.
+    define: command === 'build'
+        ? {
+            'process.env.NODE_ENV': JSON.stringify('production')
+        }
+        : {},
     base: './',
     publicDir: false,
     build: {
@@ -40,4 +47,4 @@ export default defineConfig({
             cssFileName: 'crayonshell'
         }
     }
-});
+}));
