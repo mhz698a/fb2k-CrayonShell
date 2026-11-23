@@ -196,9 +196,9 @@ export async function inspectCurrentMediaTrack() {
         throw error;
     }
 
-    const videoTrack = Array.isArray(container.tracks)
-        ? container.tracks.find((track) => track.type === 'video') || null
-        : null;
+    const tracks = Array.isArray(container.tracks) ? container.tracks : [];
+    const videoTrack = tracks.find((track) => track.type === 'video') || null;
+    const audioTracks = tracks.filter((track) => track.type === 'audio');
 
     const chapter = Array.isArray(container.chapters)
         ? container.chapters.find(
@@ -217,7 +217,9 @@ export async function inspectCurrentMediaTrack() {
         recognized: Boolean(container.recognized),
         containerFormat: container.container || 'Desconocido',
         videoTrack,
-        trackCount: Array.isArray(container.tracks) ? container.tracks.length : 0,
+        audioTracks,
+        tracks,
+        trackCount: tracks.length,
         chapter,
         sourcePath: chapter
             ? normalized.path + '|subsong:' + normalized.subsong
@@ -228,15 +230,12 @@ export async function inspectCurrentMediaTrack() {
     };
 }
 
-export async function inspectVideoStream(path, track) {
+export async function inspectVideoStream(path, tracks) {
     const sdk = getSdk();
+    const mediaTracks = Array.isArray(tracks) ? tracks : [tracks];
     const diagnostics = {
-        canPlayType: 'unknown',
-        supported: 'unknown',
-        smooth: 'unknown',
-        powerEfficient: 'unknown',
-        declaredMimeType: track?.mimeType || 'Desconocido',
-        codecs: track?.codecs || track?.codec || 'Desconocido',
+        trackCapabilities: [],
+        streamMimeType: 'Desconocido',
         streamMimeType: 'Desconocido',
         size: null,
         headStatus: null,
@@ -253,14 +252,27 @@ export async function inspectVideoStream(path, track) {
             : null;
 
     if (canPlay) {
-        try {
-            const capability = await canPlay(track);
-            diagnostics.canPlayType = capability.canPlayType ?? 'unknown';
-            diagnostics.supported = capability.supported ?? 'unknown';
-            diagnostics.smooth = capability.smooth ?? 'unknown';
-            diagnostics.powerEfficient = capability.powerEfficient ?? 'unknown';
-        } catch (error) {
-            diagnostics.capabilityError = error.message || String(error);
+        for (const track of mediaTracks.filter((item) => item && (item.type === 'video' || item.type === 'audio'))) {
+            const entry = {
+                type: track.type,
+                codec: track.codec || 'Códec desconocido',
+                codecs: track.codecs || '',
+                mimeType: track.mimeType || 'Desconocido',
+                canPlayType: 'unknown',
+                supported: 'unknown',
+                smooth: 'unknown',
+                powerEfficient: 'unknown'
+            };
+            try {
+                const capability = await canPlay(track);
+                entry.canPlayType = capability.canPlayType ?? 'unknown';
+                entry.supported = capability.supported ?? 'unknown';
+                entry.smooth = capability.smooth ?? 'unknown';
+                entry.powerEfficient = capability.powerEfficient ?? 'unknown';
+            } catch (error) {
+                entry.error = error.message || String(error);
+            }
+            diagnostics.trackCapabilities.push(entry);
         }
     } else {
         diagnostics.capabilityError = 'La función canPlay no está disponible en esta versión del SDK.';
