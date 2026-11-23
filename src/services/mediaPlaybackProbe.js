@@ -18,6 +18,21 @@ function getSdk() {
     return fb;
 }
 
+function compareVersions(left, right) {
+    const parse = (value) => {
+        const match = String(value || '').match(/^(\d+)\.(\d+)\.(\d+)/);
+        return match ? match.slice(1).map(Number) : null;
+    };
+    const a = parse(left);
+    const b = parse(right);
+    if (!a || !b) return null;
+
+    for (let index = 0; index < 3; index += 1) {
+        if (a[index] !== b[index]) return a[index] - b[index];
+    }
+    return 0;
+}
+
 function unwrap(response, operation) {
     if (!response) {
         const error = new Error(operation + ' no devolvió una respuesta.');
@@ -103,6 +118,21 @@ export async function inspectWebViewEnvironment() {
 
     let sourceInfo = null;
     let sourceError = '';
+    let pluginVersion = '';
+    let mediaRouteSupported = null;
+    let versionError = '';
+
+    try {
+        const versionInfo = unwrap(
+            await fb.config.getVersionInfo(),
+            'config.getVersionInfo'
+        );
+        pluginVersion = versionInfo.plugin?.version || '';
+        const comparison = compareVersions(pluginVersion, '2.2.0');
+        mediaRouteSupported = comparison === null ? null : comparison >= 0;
+    } catch (error) {
+        versionError = error.message || String(error);
+    }
 
     try {
         sourceInfo = unwrap(
@@ -125,6 +155,9 @@ export async function inspectWebViewEnvironment() {
         templateName: sourceInfo?.templateName || '',
         activeTemplateName: sourceInfo?.activeTemplateName || '',
         sourceUrl: sourceInfo?.url || '',
+        pluginVersion,
+        mediaRouteSupported,
+        versionError,
         hasMediaApi: Boolean(
             fb.media
             && typeof fb.media.getContainerInfo === 'function'
