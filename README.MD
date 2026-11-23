@@ -7,7 +7,7 @@ Interfaz de foobar2000 construida con React y Vite, preparada para ejecutarse de
 - Windows 10/11.
 - Node.js 22.12 o posterior (o Node.js 20.19 o posterior).
 - npm.
-- foobar2000 con foo_ui_webview2 para probar la integración real.
+- foobar2000 con **foo_ui_webview2 2.2.0 o posterior** para probar la integración multimedia real.
 
 ## Primer arranque en VS Code
 
@@ -69,6 +69,8 @@ Para instalar la compilación:
 
 WebView2 sirve las plantillas locales mediante el origen HTTPS local `https://foo-ui-webview2.local/`. Los archivos permanecen en el disco; no se instala un servidor HTTPS propio ni se necesita un certificado manual.
 
+**Requisito de versión:** la prueba de streams multimedia necesita `foo_ui_webview2 2.2.0` o posterior. En 2.1.0, el host emitía las URL `/fb2k-media/` bajo `foo-ui-webview2.local`, un host reservado al mapeo de carpetas de las plantillas. WebView2 resolvía esas solicitudes como recursos del mapeo y devolvía `ERR_FILE_NOT_FOUND` en lugar de entregarlas al manejador nativo. La versión 2.2.0 cambió el dominio de las rutas multimedia a `fb2k-routes.invalid` para evitar esa colisión.
+
 La raíz del repositorio contiene dos entradas con propósitos diferentes:
 
 - index.html: entrada del servidor de desarrollo de Vite.
@@ -92,7 +94,7 @@ Esta rama añade un panel temporal llamado **Prueba multimedia · Fase 1**. Impo
 6. Sin usar controles propios del video, prueba pausar, reanudar, adelantar/retroceder desde foobar2000 y cambiar a otro archivo. Al cambiar de pista, el panel vuelve a inspeccionar la fuente y actualiza o libera el video.
 7. Pulsa **Detener** para liberar el elemento, el reloj y las suscripciones.
 
-`media.getContainerInfo` y `media.getStreamUrl` requieren un origen HTTP(S) confiable. `getStreamUrl` también requiere el runtime WebView2 con `ICoreWebView2_22`. El panel separa los errores de origen, puente, contenedor y decodificación real del elemento de video. La API multimedia es experimental.
+`media.getContainerInfo` y `media.getStreamUrl` requieren un origen HTTP(S) confiable. `getStreamUrl` también requiere `foo_ui_webview2 2.2.0` o posterior y el runtime WebView2 con `ICoreWebView2_22`. El panel consulta la versión del componente nativo y deshabilita el inicio del seguidor cuando detecta una versión anterior a 2.2.0. Separa los errores de origen, puente, contenedor y decodificación real del elemento de video. La API multimedia es experimental.
 
 ## Estructura del proyecto
 
