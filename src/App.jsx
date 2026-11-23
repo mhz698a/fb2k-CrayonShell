@@ -28,6 +28,8 @@ export default function App() {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
     const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
     const [filter, setFilter] = useState('');
+    const [contentView, setContentView] = useState('playlist');
+    const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
 
     const {
         playlists,
@@ -154,6 +156,11 @@ export default function App() {
                         onRefresh={refreshPlaylist}
                         sidebarCollapsed={sidebarCollapsed}
                         onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
+                        contentView={contentView}
+                        onToggleContentView={() => setContentView((value) => (
+                            value === 'playlist' ? 'video' : 'playlist'
+                        ))}
+                        onOpenDiagnostics={() => setDiagnosticsOpen(true)}
                     />
 
                     {isDemoMode && (
@@ -162,19 +169,29 @@ export default function App() {
                         </div>
                     )}
 
-                    <MediaPlaybackProbe />
-
-                    <PlaylistTable
-                        items={visibleItems}
-                        totalItems={items.length}
-                        focusedItem={focusedItem}
-                        playingItemIndex={playingItemIndex}
-                        playbackState={playbackState}
-                        playlistGuid={activePlaylistGuid}
-                        onSelect={selectItem}
-                        onPlay={playItem}
-                        onContextMenu={openNativeContextMenu}
-                    />
+                    <div className="playlist-content">
+                        <div
+                            className={'playlist-list-view' + (contentView === 'playlist' ? '' : ' is-hidden')}
+                            aria-hidden={contentView !== 'playlist'}
+                        >
+                            <PlaylistTable
+                                items={visibleItems}
+                                totalItems={items.length}
+                                focusedItem={focusedItem}
+                                playingItemIndex={playingItemIndex}
+                                playbackState={playbackState}
+                                playlistGuid={activePlaylistGuid}
+                                onSelect={selectItem}
+                                onPlay={playItem}
+                                onContextMenu={openNativeContextMenu}
+                            />
+                        </div>
+                        <MediaPlaybackProbe
+                            viewMode={contentView}
+                            diagnosticsOpen={diagnosticsOpen}
+                            onCloseDiagnostics={() => setDiagnosticsOpen(false)}
+                        />
+                    </div>
 
                     <PlaylistStatus message={status} />
                 </section>
