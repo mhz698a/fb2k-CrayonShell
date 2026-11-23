@@ -325,6 +325,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
         if (mountedRef.current) {
             setIsFollowing(false);
             setIsVideoVisible(false);
+            setIsInspecting(false);
             setVideoTime(0);
         }
     }, []);
@@ -395,6 +396,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             if (!mountedRef.current || requestId !== requestIdRef.current) return;
 
             setInspection(result);
+            inspectionRef.current = result;
             addDiagnosticLog('info', result.hasTrack
                 ? 'Pista detectada: ' + getMediaFileName(result.path || result.rawPath)
                     + ' · contenedor ' + (result.containerFormat || 'desconocido')
@@ -404,6 +406,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             if (!result.hasTrack) {
                 releaseFollowing();
                 setEmbeddedArtwork(null);
+                setMediaDiagnostics(null);
                 setStatus('foobar2000 no tiene una pista en reproducción.');
                 setLastEvent('Inspección completada: sin pista activa');
                 return;
@@ -417,6 +420,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
 
                 releaseFollowing();
                 setEmbeddedArtwork(null);
+                setMediaDiagnostics(null);
                 setStatus('Archivo activo detectado, pero el contenedor no pertenece a MP4, MOV, Matroska o WebM.');
                 setLastEvent('Contenedor no reconocido');
                 addDiagnosticLog('warning', 'Se liberó la fuente anterior porque el nuevo contenedor no es compatible.');
@@ -429,6 +433,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 } else {
                     releaseFollowing();
                     setEmbeddedArtwork(null);
+                    setMediaDiagnostics(null);
                     setStatus('Pista activa detectada: ' + result.containerFormat + ', sin pista de video ni pista de audio.');
                     setLastEvent('Archivo multimedia sin video');
                 }
@@ -436,6 +441,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             }
 
             setEmbeddedArtwork(null);
+            setMediaDiagnostics(null);
             setStatus('Video detectado: ' + result.containerFormat
                 + (result.videoTrack.codec ? ' · ' + result.videoTrack.codec : '')
                 + '. Listo para iniciar el seguimiento.');
@@ -473,6 +479,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 }
                 : null;
             setInspection(diagnostic);
+            inspectionRef.current = diagnostic;
             releaseFollowing();
             setEmbeddedArtwork(null);
 
@@ -691,6 +698,24 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             addDiagnosticLog('info', 'MediaElementFollower inició correctamente.');
         } catch (error) {
             if (startGeneration !== startGenerationRef.current) return;
+
+            const audioPath = error.mediaContext?.path || error.mediaContext?.rawPath || '';
+            if (isLikelyAudioFilePath(audioPath)) {
+                const requestId = ++requestIdRef.current;
+                const diagnostic = {
+                    ...error.mediaContext,
+                    inspectionFailed: true,
+                    inspectionError: error.message || String(error),
+                    inspectionErrorCode: error.code || '',
+                    inspectionStage: error.operation || error.mediaContext.inspectionStage
+                };
+                setInspection(diagnostic);
+                inspectionRef.current = diagnostic;
+                await showAudioArtwork(audioPath, requestId);
+                setLastEvent('Pista de audio detectada durante el inicio del visor');
+                return;
+            }
+
             const message = error.message || String(error);
             const code = error.code ? ' [' + error.code + ']' : '';
             setStatus('No se pudo iniciar el seguimiento: ' + message + code);
@@ -698,7 +723,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
 
             releaseFollowing();
         }
-    }, [addDiagnosticLog, environment, releaseFollowing]);
+    }, [addDiagnosticLog, environment, releaseFollowing, showAudioArtwork]);
 
     startFollowingRef.current = startFollowing;
 
