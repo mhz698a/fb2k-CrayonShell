@@ -41,7 +41,7 @@ Para desarrollar con la integración real, mantén Vite ejecutándose y configur
 3. Escribe `http://localhost:5173` en `URL`.
 4. Pulsa `Apply`.
 
-foobar2000 cargará Vite dentro de WebView2, inyectará el SDK y las detecciones podrán utilizar el puente real. Al guardar un archivo JSX o CSS, Vite actualizará la vista. Detén el servidor con Ctrl+C.
+foobar2000 cargará Vite dentro de WebView2 e inyectará el puente nativo window.fb2k. CrayonShell incorpora la fachada tipada fb.* porque importa foo-webview-sdk desde su bundle; la mera inyección del puente nativo no expone fb.player ni fb.media. Al guardar un archivo JSX o CSS, Vite actualizará la vista. Detén el servidor con Ctrl+C.
 
 ## Probar en foobar2000
 
@@ -74,7 +74,7 @@ La raíz del repositorio contiene dos entradas con propósitos diferentes:
 - index.html: entrada del servidor de desarrollo de Vite.
 - webview.html: plantilla HTML estática que se genera como index.html en la salida de producción.
 
-La compilación genera un JavaScript IIFE clásico, un CSS separado y la página index.html. El IIFE permite cargar el script como archivo clásico desde el HTML local de WebView2, sin depender de imports ES modules. No edites manualmente los archivos generados.
+La compilación genera un JavaScript IIFE clásico, un CSS separado y la página index.html. El IIFE incluye React y foo-webview-sdk dentro de un único bundle clásico, de modo que las APIs fb.player, fb.media y MediaElementFollower quedan disponibles sin depender de imports ES modules en tiempo de ejecución. No edites manualmente los archivos generados.
 
 Al finalizar, npm run build comprueba explícitamente que existan index.html, crayonshell.iife.js y crayonshell.css en la carpeta de salida. Si falta cualquiera, el comando termina con error en lugar de dar la compilación por válida.
 
@@ -82,7 +82,7 @@ Cada vez que cambies el código y quieras comprobarlo dentro de foobar2000, vuel
 
 ### Fase 1: prueba de viabilidad de video
 
-Esta rama añade un panel temporal llamado **Prueba multimedia · Fase 1**. No reemplaza ni desactiva `foo_mpv` o Artwork View.
+Esta rama añade un panel temporal llamado **Prueba multimedia · Fase 1**. Importa `foo-webview-sdk` desde el bundle React para disponer de la fachada tipada `fb.*`; el puente nativo `window.fb2k` por sí solo sólo proporciona `invoke()` y eventos. No reemplaza ni desactiva `foo_mpv` o Artwork View.
 
 1. Elige uno de estos dos modos: **Vite** (servidor activo y configurado en `WebView2 UI → Developer`) o **build** (archivos copiados a una plantilla instalada desde `WebView2 UI → Manage...`). No pruebes la integración abriendo la página en Chrome/Edge ni mediante `file://`.
 2. Confirma que el panel muestre `Host foobar2000: Conectado` y un origen HTTP(S). En Vite, el origen será `http://localhost:5173`; en una plantilla local será `https://foo-ui-webview2.local`.
