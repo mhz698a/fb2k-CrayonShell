@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     getMediaSdk,
     inspectCurrentMediaTrack,
-    inspectEmbeddedFrontCover,
+    inspectTrackFrontCover,
     inspectVideoStream,
     inspectWebViewEnvironment
 } from '../services/mediaPlaybackProbe.js';
@@ -351,20 +351,20 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
         if (!path) return null;
 
         try {
-            const cover = await inspectEmbeddedFrontCover(path);
+            const cover = await inspectTrackFrontCover(path);
             if (!mountedRef.current || requestId !== requestIdRef.current) return null;
 
             setEmbeddedArtwork(cover);
             if (cover.available) {
-                setStatus('Pista de audio · Carátula incrustada disponible.');
+                setStatus('Pista de audio · Carátula frontal disponible.');
                 setLastEvent('Carátula incrustada del archivo cargada');
                 addDiagnosticLog('info', 'Carátula frontal incrustada detectada · '
                     + (cover.mimeType || 'MIME desconocido') + ' · '
                     + (cover.size == null ? 'tamaño desconocido' : cover.size + ' bytes'));
             } else {
-                setStatus('Pista de audio · El archivo no contiene una carátula frontal incrustada.');
+                setStatus('Pista de audio · No se encontró una carátula frontal para esta pista.');
                 setLastEvent('Pista de audio sin carátula incrustada');
-                addDiagnosticLog('info', 'No se encontró una carátula frontal incrustada en el archivo.');
+                addDiagnosticLog('info', 'No se encontró una carátula frontal para esta pista.');
             }
             return cover;
         } catch (error) {
@@ -373,10 +373,10 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 available: false,
                 error: error.message || String(error)
             });
-            setStatus('Pista de audio · No se pudo leer la carátula incrustada: '
+            setStatus('Pista de audio · No se pudo leer la carátula de la pista: '
                 + (error.message || String(error)));
             setLastEvent('Error al leer la carátula incrustada');
-            addDiagnosticLog('warning', 'No se pudo leer la carátula incrustada: '
+            addDiagnosticLog('warning', 'No se pudo leer la carátula de la pista: '
                 + (error.message || String(error)));
             return null;
         }
@@ -783,10 +783,12 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 videoElement: getVideoElementDiagnostics(video)
             },
             track: getTrackDiagnostics(inspection),
-            embeddedArtwork: embeddedArtwork ? {
+            artwork: embeddedArtwork ? {
                 available: Boolean(embeddedArtwork.available),
                 type: embeddedArtwork.type || 'front',
                 mimeType: embeddedArtwork.mimeType || '',
+                width: embeddedArtwork.width ?? null,
+                height: embeddedArtwork.height ?? null,
                 size: embeddedArtwork.size ?? null,
                 error: sanitizeDiagnosticText(embeddedArtwork.error || '')
             } : null,
@@ -867,7 +869,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                     <img
                         className="media-viewer-artwork"
                         src={embeddedArtwork.dataUrl}
-                        alt="Carátula incrustada del archivo de audio"
+                        alt="Carátula del archivo de audio"
                     />
                 )}
                 {!isVideoVisible && !embeddedArtwork?.available && (
@@ -992,14 +994,14 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                                     ].filter(Boolean).join(' · ')).join(' | ')
                                     : 'Ninguna declarada'}</div>
                                 {embeddedArtwork && (
-                                    <div><b>Carátula frontal incrustada:</b> {embeddedArtwork.available
+                                    <div><b>Carátula frontal:</b> {embeddedArtwork.available
                                         ? 'Encontrada · ' + (embeddedArtwork.mimeType || 'MIME desconocido')
                                             + ' · ' + (embeddedArtwork.size == null
                                                 ? 'tamaño desconocido'
                                                 : embeddedArtwork.size + ' bytes')
                                         : embeddedArtwork.error
                                             ? 'No disponible · ' + embeddedArtwork.error
-                                            : 'No encontrada en el archivo'}</div>
+                                            : 'No encontrada para esta pista'}</div>
                                 )}
                                 <div><b>Artwork API:</b> {environment
                                     ? (environment.hasArtworkApi ? 'Disponible' : 'No disponible')
