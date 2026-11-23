@@ -181,7 +181,7 @@ export default function MediaPlaybackProbe() {
 
             if (error.code === 'ORIGIN_DENIED') {
                 setStatus('El host rechazó el origen de esta página. Carga Vite desde Developer > Use development server o usa una plantilla de WebView2. ' + message + code);
-            } else if (error.code === 'PERMISSION_DENIED' && /open\\s*\\(5\\)/i.test(message)) {
+            } else if (error.code === 'PERMISSION_DENIED' && message.includes('open (5)')) {
                 setStatus('Windows rechazó la apertura del archivo (ERROR_ACCESS_DENIED, 5). La ruta pasó la validación MediaRead del host, pero media.getContainerInfo no pudo abrir el archivo para leer su contenedor. ' + message + code);
             } else {
                 setStatus('No se pudo inspeccionar la pista: ' + message + code);
