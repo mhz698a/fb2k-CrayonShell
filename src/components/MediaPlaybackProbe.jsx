@@ -46,7 +46,15 @@ function describeVideoElement(video) {
         'readyState=' + video.readyState,
         'currentTime=' + formatTime(video.currentTime),
         'videoWidth=' + video.videoWidth,
-        'videoHeight=' + video.videoHeight
+        'videoHeight=' + video.videoHeight,
+        'source=' + (() => {
+            try {
+                const source = new URL(video.currentSrc || video.src, window.location.href);
+                return source.origin + source.pathname.replace(/\\/[^/]+$/, '/[token]');
+            } catch {
+                return video.currentSrc || video.src || '—';
+            }
+        })()
     ].join(' · ');
 }
 
@@ -429,6 +437,9 @@ export default function MediaPlaybackProbe() {
                             ? ' · Plantilla: ' + (environment.templateName || environment.activeTemplateName)
                             : ''}
                     </div>
+                    {environment?.sourceUrl && (
+                        <div><b>URL reportada por WebView2:</b> {environment.sourceUrl}</div>
+                    )}
                     <div><b>Media API:</b> {environment
                         ? (environment.hasMediaApi ? 'Disponible' : 'No disponible')
                             + ' · '
@@ -485,6 +496,10 @@ export default function MediaPlaybackProbe() {
                                 {' · '}Tamaño={mediaDiagnostics.size == null
                                     ? '—'
                                     : (mediaDiagnostics.size / (1024 * 1024)).toFixed(2) + ' MiB'}
+                            </div>
+                            <div><b>Ruta virtual:</b> {mediaDiagnostics.streamUrlProtocol || '—'}//{mediaDiagnostics.streamUrlOrigin?.replace(/^https?:\\/\\//, '') || '—'}
+                                {mediaDiagnostics.streamUrlPath || ''}
+                                {' · '}Origen de documento={mediaDiagnostics.pageOrigin || '—'}
                             </div>
                             <div><b>Respuesta HTTP:</b> HEAD={mediaDiagnostics.headStatus ?? '—'}
                                 {' · '}Range={mediaDiagnostics.rangeStatus ?? '—'}
