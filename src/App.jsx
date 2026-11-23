@@ -5,7 +5,7 @@ import PlaylistTable from './components/PlaylistTable.jsx';
 import PlaylistStatus from './components/PlaylistStatus.jsx';
 import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
-import { formatItemLine } from './utils/playlistDisplay.js';
+import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
 
 const MIN_SIDEBAR_WIDTH = 140;
 const MAX_SIDEBAR_WIDTH = 520;
@@ -55,8 +55,10 @@ export default function App() {
     const normalizedFilter = filter.trim().toLocaleLowerCase();
     const visibleItems = items.filter((item) => {
         const line = formatItemLine(item, playingItemIndex, playbackState);
+        const subtitle = formatItemSubtitle(item);
+        const searchableText = line + ' ' + subtitle;
         return !normalizedFilter
-            || line.toLocaleLowerCase().includes(normalizedFilter)
+            || searchableText.toLocaleLowerCase().includes(normalizedFilter)
             || String(item.path || '').toLocaleLowerCase().includes(normalizedFilter);
     });
 
