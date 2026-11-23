@@ -82,7 +82,7 @@ Al finalizar, npm run build comprueba explícitamente que existan index.html, cr
 
 Cada vez que cambies el código y quieras comprobarlo dentro de foobar2000, vuelve a ejecutar npm run build y recarga la página en el panel.
 
-### Fase 1: prueba de viabilidad de video
+### Monitor multimedia y diagnóstico
 
 Esta rama añade un panel temporal llamado **Prueba multimedia · Fase 1**. Importa `foo-webview-sdk` desde el bundle React para disponer de la fachada tipada `fb.*`; el puente nativo `window.fb2k` por sí solo sólo proporciona `invoke()` y eventos. No reemplaza ni desactiva `foo_mpv` o Artwork View.
 
