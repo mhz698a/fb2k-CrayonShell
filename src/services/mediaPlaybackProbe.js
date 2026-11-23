@@ -1,9 +1,5 @@
 function getSdk() {
-    if (typeof window === 'undefined' || !window.fb) {
-        throw new Error('No se encontró el SDK fb de foo_ui_webview2.');
-    }
-
-    return window.fb;
+    return typeof window !== 'undefined' ? window.fb || null : null;
 }
 
 function unwrap(response, operation) {
@@ -12,15 +8,17 @@ function unwrap(response, operation) {
     }
 
     if (response.success === false) {
-        const code = response.code ? ' (' + response.code + ')' : '';
-        throw new Error((response.error || operation + ' falló') + code);
+        const code = response.code || 'UNKNOWN_ERROR';
+        const error = new Error((response.error || operation + ' falló') + ' [' + code + ']');
+        error.code = code;
+        throw error;
     }
 
     return response;
 }
 
 function normalizeTrackPath(path, position) {
-    const suffix = String(path).match(/^(.*)\|subsong:(\d+)$/i);
+    const suffix = String(path).match(/^(.*)\\|subsong:(\\d+)$/i);
     const basePath = suffix ? suffix[1] : String(path);
     const reportedSubsong = position.subsong === undefined || position.subsong === null
         ? NaN
@@ -45,12 +43,24 @@ export async function inspectWebViewEnvironment() {
     const sdk = getSdk();
     const origin = window.location.origin;
     const protocol = window.location.protocol;
-    let source = null;
+
+    if (!sdk) {
+        return {
+            hasHostBridge: false,
+            origin,
+            protocol,
+            isHttpOrigin: protocol === 'http:' || protocol === 'https:',
+            source: 'Navegador externo',
+            sourceError: 'No existe window.fb. Abre la URL de Vite desde WebView2 UI > Developer, no desde Chrome o Edge.'
+        };
+    }
+
+    let sourceInfo = null;
     let sourceError = '';
 
     if (sdk.webview && typeof sdk.webview.getSource === 'function') {
         try {
-            source = unwrap(
+            sourceInfo = unwrap(
                 await sdk.webview.getSource(),
                 'webview.getSource'
             );
@@ -62,12 +72,16 @@ export async function inspectWebViewEnvironment() {
     }
 
     return {
+        hasHostBridge: true,
         origin,
         protocol,
         isHttpOrigin: protocol === 'http:' || protocol === 'https:',
-        source: source?.source || 'No disponible',
-        directory: source?.directory || '',
-        templateName: source?.templateName || '',
+        isFileOrigin: protocol === 'file:',
+        source: sourceInfo?.source || 'No disponible',
+        directory: sourceInfo?.directory || '',
+        templateName: sourceInfo?.templateName || '',
+        activeTemplateName: sourceInfo?.activeTemplateName || '',
+        sourceUrl: sourceInfo?.url || '',
         hasMediaApi: Boolean(
             sdk.media
             && typeof sdk.media.getContainerInfo === 'function'
@@ -85,6 +99,10 @@ export async function inspectWebViewEnvironment() {
 
 export async function inspectCurrentMediaTrack() {
     const sdk = getSdk();
+
+    if (!sdk) {
+        throw new Error('No existe el puente de foo_ui_webview2 en esta página.');
+    }
 
     if (!sdk.player || typeof sdk.player.getPosition !== 'function') {
         throw new Error('El SDK no expone fb.player.getPosition().');
@@ -118,21 +136,6 @@ export async function inspectCurrentMediaTrack() {
         ? container.tracks.find((track) => track.type === 'video') || null
         : null;
 
-    let capabilities = null;
-    let capabilityError = '';
-
-    if (videoTrack && typeof sdk.media.canPlay === 'function') {
-        try {
-            capabilities = await sdk.media.canPlay(videoTrack);
-            if (capabilities?.success === false) {
-                capabilityError = capabilities.error || 'La consulta de capacidades falló.';
-                capabilities = null;
-            }
-        } catch (error) {
-            capabilityError = error.message || String(error);
-        }
-    }
-
     const chapter = normalized.subsong === null
         ? null
         : (Array.isArray(container.chapters)
@@ -150,12 +153,9 @@ export async function inspectCurrentMediaTrack() {
         recognized: Boolean(container.recognized),
         containerFormat: container.container || 'Desconocido',
         videoTrack,
-        capabilities,
-        capabilityError,
+        trackCount: Array.isArray(container.tracks) ? container.tracks.length : 0,
         chapter,
-        sourcePath: chapter
-            ? normalized.path + '|subsong:' + normalized.subsong
-            : normalized.path,
+        sourcePath: normalized.path,
         timelineOffset: Number.isFinite(Number(chapter?.start))
             ? Number(chapter.start)
             : 0
