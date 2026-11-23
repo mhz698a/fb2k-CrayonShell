@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     getMediaSdk,
     inspectCurrentMediaTrack,
+    inspectEmbeddedFrontCover,
     inspectVideoStream,
     inspectWebViewEnvironment
 } from '../services/mediaPlaybackProbe.js';
@@ -64,6 +65,11 @@ function formatSupport(value) {
             : value === '' ? 'No compatible'
                 : value === 'unknown' || value == null ? 'Desconocido'
                     : String(value);
+}
+
+function isLikelyAudioFilePath(path) {
+    const value = String(path || '').replace(/\\|subsong:\\d+$/i, '').split(/[?#]/, 1)[0];
+    return /\\.(?:aac|aif|aiff|alac|ape|dff|dsf|flac|m4a|m4b|mka|mp3|mpc|oga|ogg|opus|tak|tta|wav|wave|wma|wv)$/i.test(value);
 }
 
 const DIAGNOSTIC_LOG_KEY = 'crayonshell.mediaPlaybackProbe.logs.v1';
@@ -230,6 +236,9 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
     const diagnosticsDialogRef = useRef(null);
     const previousViewRef = useRef(viewMode);
     const previousTrackSourceRef = useRef('');
+    const viewModeRef = useRef(viewMode);
+    const inspectionRef = useRef(inspection);
+    const startFollowingRef = useRef(null);
     const followerRef = useRef(null);
     const hostSubscriptionsRef = useRef([]);
     const followerErrorUnsubscribeRef = useRef(null);
@@ -244,8 +253,13 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
     const [videoTime, setVideoTime] = useState(0);
     const [isInspecting, setIsInspecting] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
+    const [isVideoVisible, setIsVideoVisible] = useState(false);
+    const [embeddedArtwork, setEmbeddedArtwork] = useState(null);
     const [diagnosticLogs, setDiagnosticLogs] = useState(readDiagnosticLogs);
     const [copyFeedback, setCopyFeedback] = useState('');
+
+    viewModeRef.current = viewMode;
+    inspectionRef.current = inspection;
 
     useEffect(() => {
         const dialog = diagnosticsDialogRef.current;
@@ -286,8 +300,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
         hostSubscriptionsRef.current = [];
     }, []);
 
-    const stopFollowing = useCallback((updateStatus = true) => {
-        requestIdRef.current += 1;
+    const releaseFollowing = useCallback(() => {
         if (followerErrorUnsubscribeRef.current) {
             followerErrorUnsubscribeRef.current();
             followerErrorUnsubscribeRef.current = null;
@@ -304,13 +317,63 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             videoRef.current.load();
         }
 
-        if (updateStatus) {
+        if (mountedRef.current) {
             setIsFollowing(false);
+            setIsVideoVisible(false);
             setVideoTime(0);
-            setStatus('Seguimiento detenido.');
-            addDiagnosticLog('info', 'Seguimiento multimedia detenido.');
         }
-    }, [addDiagnosticLog]);
+    }, []);
+
+    const stopFollowing = useCallback((
+        updateStatus = true,
+        message = 'Seguimiento detenido.'
+    ) => {
+        requestIdRef.current += 1;
+        releaseFollowing();
+
+        if (updateStatus && mountedRef.current) {
+            setStatus(message);
+            addDiagnosticLog('info', message);
+        }
+    }, [addDiagnosticLog, releaseFollowing]);
+
+    const showAudioArtwork = useCallback(async (path, requestId) => {
+        releaseFollowing();
+        setEmbeddedArtwork(null);
+
+        if (!path) return null;
+
+        try {
+            const cover = await inspectEmbeddedFrontCover(path);
+            if (!mountedRef.current || requestId !== requestIdRef.current) return null;
+
+            setEmbeddedArtwork(cover);
+            if (cover.available) {
+                setStatus('Pista de audio · Carátula incrustada disponible.');
+                setLastEvent('Carátula incrustada del archivo cargada');
+                addDiagnosticLog('info', 'Carátula frontal incrustada detectada · '
+                    + (cover.mimeType || 'MIME desconocido') + ' · '
+                    + (cover.size == null ? 'tamaño desconocido' : cover.size + ' bytes'));
+            } else {
+                setStatus('Pista de audio · El archivo no contiene una carátula frontal incrustada.');
+                setLastEvent('Pista de audio sin carátula incrustada');
+                addDiagnosticLog('info', 'No se encontró una carátula frontal incrustada en el archivo.');
+            }
+            return cover;
+        } catch (error) {
+            if (!mountedRef.current || requestId !== requestIdRef.current) return null;
+            setEmbeddedArtwork({
+                available: false,
+                error: error.message || String(error)
+            });
+            setStatus('Pista de audio · No se pudo leer la carátula incrustada: '
+                + (error.message || String(error)));
+            setLastEvent('Error al leer la carátula incrustada');
+            addDiagnosticLog('warning', 'No se pudo leer la carátula incrustada: '
+                + (error.message || String(error)));
+            return null;
+        }
+    }, [addDiagnosticLog, releaseFollowing]);
 
     const inspectCurrentTrack = useCallback(async (options = {}) => {
         const requestId = ++requestIdRef.current;
@@ -333,22 +396,21 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 : 'Inspección completada: no hay una pista activa.');
 
             if (!result.hasTrack) {
-                if (followerRef.current) {
-                    await followerRef.current.setSource(null);
-                }
-                setIsFollowing(false);
-                setVideoTime(0);
+                releaseFollowing();
+                setEmbeddedArtwork(null);
                 setStatus('foobar2000 no tiene una pista en reproducción.');
                 setLastEvent('Inspección completada: sin pista activa');
                 return;
             }
 
             if (!result.recognized) {
-                if (followerRef.current) {
-                    await followerRef.current.setSource(null);
+                if (isLikelyAudioFilePath(result.path)) {
+                    await showAudioArtwork(result.path, requestId);
+                    return;
                 }
-                setIsFollowing(false);
-                setVideoTime(0);
+
+                releaseFollowing();
+                setEmbeddedArtwork(null);
                 setStatus('Archivo activo detectado, pero el contenedor no pertenece a MP4, MOV, Matroska o WebM.');
                 setLastEvent('Contenedor no reconocido');
                 addDiagnosticLog('warning', 'Se liberó la fuente anterior porque el nuevo contenedor no es compatible.');
@@ -356,17 +418,18 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             }
 
             if (!result.videoTrack) {
-                setStatus('Pista activa detectada: ' + result.containerFormat + ', sin pista de video. No se inicia el seguidor.');
-                setLastEvent('Archivo multimedia sin video');
-                addDiagnosticLog('warning', 'El contenedor ' + result.containerFormat + ' no contiene una pista de video.');
-                if (followerRef.current) {
-                    await followerRef.current.setSource(null);
+                if ((result.audioTracks?.length || 0) > 0 || isLikelyAudioFilePath(result.path)) {
+                    await showAudioArtwork(result.path, requestId);
+                } else {
+                    releaseFollowing();
+                    setEmbeddedArtwork(null);
+                    setStatus('Pista activa detectada: ' + result.containerFormat + ', sin pista de video ni pista de audio.');
+                    setLastEvent('Archivo multimedia sin video');
                 }
-                setIsFollowing(false);
-                setVideoTime(0);
                 return;
             }
 
+            setEmbeddedArtwork(null);
             setStatus('Video detectado: ' + result.containerFormat
                 + (result.videoTrack.codec ? ' · ' + result.videoTrack.codec : '')
                 + '. Listo para iniciar el seguimiento.');
@@ -382,6 +445,8 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 });
                 if (requestId === requestIdRef.current) {
                     setIsFollowing(true);
+                    setIsVideoVisible(true);
+                    setEmbeddedArtwork(null);
                     setStatus('Fuente de video actualizada y enlazada al reloj de foobar2000.');
                 }
             }
@@ -402,16 +467,15 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 }
                 : null;
             setInspection(diagnostic);
-            if (followerRef.current) {
-                try {
-                    await followerRef.current.setSource(null);
-                } catch (sourceError) {
-                    addDiagnosticLog('warning', 'No se pudo liberar la fuente anterior: '
-                        + (sourceError.message || String(sourceError)));
-                }
+            releaseFollowing();
+            setEmbeddedArtwork(null);
+
+            const failedPath = error.mediaContext?.path || error.mediaContext?.rawPath || '';
+            if (isLikelyAudioFilePath(failedPath)) {
+                await showAudioArtwork(failedPath, requestId);
+                setLastEvent('Archivo de audio: inspección de video no aplicable');
+                return;
             }
-            setIsFollowing(false);
-            setVideoTime(0);
 
             if (error.code === 'ORIGIN_DENIED') {
                 setStatus('El host rechazó el origen de esta página. Carga Vite desde Developer > Use development server o usa una plantilla de WebView2. ' + message + code);
@@ -429,7 +493,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 setIsInspecting(false);
             }
         }
-    }, [addDiagnosticLog]);
+    }, [addDiagnosticLog, releaseFollowing, showAudioArtwork]);
 
     useEffect(() => {
         mountedRef.current = true;
@@ -461,9 +525,28 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
 
             hostSubscriptionsRef.current.push(
                 sdk.on('playback:stateChanged', (payload) => {
+                    const playbackState = String(payload?.state || '').toLowerCase();
                     const stateMessage = 'Estado de foobar2000: ' + (payload?.state || 'actualizado');
                     setLastEvent(stateMessage);
                     addDiagnosticLog('info', stateMessage);
+
+                    if ((playbackState === 'stopped' || playbackState === 'stop')
+                        && followerRef.current) {
+                        stopFollowing(true, 'Reproducción detenida en foobar2000. El video se ocultó.');
+                    } else if (playbackState === 'playing'
+                        && viewModeRef.current === 'video'
+                        && inspectionRef.current?.videoTrack
+                        && !followerRef.current) {
+                        void startFollowingRef.current?.();
+                    }
+                })
+            );
+
+            hostSubscriptionsRef.current.push(
+                sdk.on('playback:stopped', () => {
+                    if (!followerRef.current) return;
+                    setLastEvent('foobar2000 detuvo la reproducción.');
+                    stopFollowing(true, 'Reproducción detenida en foobar2000. El video se ocultó.');
                 })
             );
         }
@@ -524,8 +607,17 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 throw new Error('MediaElementFollower no está disponible en el SDK.');
             }
 
+            const playback = unwrap(await sdk.player.getState(), 'player.getState');
+            if (String(playback.state || '').toLowerCase() === 'stopped') {
+                releaseFollowing();
+                setStatus('foobar2000 está detenido. El video permanece oculto hasta que comience la reproducción.');
+                return;
+            }
+
             const result = await inspectCurrentMediaTrack();
             setInspection(result);
+            inspectionRef.current = result;
+            setEmbeddedArtwork(null);
 
             if (!result.hasTrack || !result.videoTrack) {
                 throw new Error('La pista activa no contiene video.');
@@ -564,6 +656,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 setLastEvent('MediaElementFollower informó un error');
                 addDiagnosticLog('error', 'MediaElementFollower: ' + (error.message || String(error))
                     + ' · ' + elementState);
+                releaseFollowing();
             });
 
             await follower.setSource(result.sourcePath, {
@@ -577,6 +670,8 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             }
 
             setIsFollowing(true);
+            setIsVideoVisible(true);
+            setEmbeddedArtwork(null);
             setStatus('Video enlazado al reloj de foobar2000. Prueba pausa, reanudación y búsqueda desde el reproductor.');
             setLastEvent('MediaElementFollower iniciado');
             addDiagnosticLog('info', 'MediaElementFollower inició correctamente.');
@@ -586,23 +681,17 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             setStatus('No se pudo iniciar el seguimiento: ' + message + code);
             addDiagnosticLog('error', 'No se pudo iniciar el seguimiento: ' + message + code);
 
-            if (followerRef.current) {
-                followerRef.current.dispose();
-                followerRef.current = null;
-            }
-
-            if (followerErrorUnsubscribeRef.current) {
-                followerErrorUnsubscribeRef.current();
-                followerErrorUnsubscribeRef.current = null;
-            }
-            setIsFollowing(false);
+            releaseFollowing();
         }
-    }, [addDiagnosticLog, environment]);
+    }, [addDiagnosticLog, environment, releaseFollowing]);
+
+    startFollowingRef.current = startFollowing;
 
     const handleVideoError = useCallback((event) => {
         const message = describeMediaError(event.currentTarget);
         const elementState = describeVideoElement(event.currentTarget);
         setStatus('El elemento de video no pudo reproducir la fuente: ' + message);
+        setIsVideoVisible(false);
         setLastEvent('HTMLVideoElement error');
         addDiagnosticLog('error', 'HTMLVideoElement: ' + message + ' · ' + elementState);
     }, [addDiagnosticLog]);
@@ -636,6 +725,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 sdkFacadeAvailable: environment?.hasSdkFacade ?? null,
                 playbackApiAvailable: environment?.hasPlaybackApi ?? null,
                 mediaApiAvailable: environment?.hasMediaApi ?? null,
+                artworkApiAvailable: environment?.hasArtworkApi ?? null,
                 mediaElementFollowerAvailable: environment?.hasMediaElementFollower ?? null,
                 sdkPackage: 'foo-webview-sdk ^2.2.0',
                 userAgent: navigator.userAgent,
@@ -647,10 +737,18 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 lastEvent: sanitizeDiagnosticText(lastEvent),
                 isInspecting,
                 isFollowing,
+                isVideoVisible,
                 videoTime,
                 videoElement: getVideoElementDiagnostics(video)
             },
             track: getTrackDiagnostics(inspection),
+            embeddedArtwork: embeddedArtwork ? {
+                available: Boolean(embeddedArtwork.available),
+                type: embeddedArtwork.type || 'front',
+                mimeType: embeddedArtwork.mimeType || '',
+                size: embeddedArtwork.size ?? null,
+                error: sanitizeDiagnosticText(embeddedArtwork.error || '')
+            } : null,
             stream: mediaDiagnostics || null,
             eventLog: diagnosticLogs
         };
@@ -666,8 +764,8 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             addDiagnosticLog('error', 'No se pudo copiar el informe: ' + (error.message || String(error)));
         }
     }, [
-        addDiagnosticLog, diagnosticLogs, environment, inspection, isFollowing,
-        isInspecting, lastEvent, mediaDiagnostics, status, videoTime
+        addDiagnosticLog, diagnosticLogs, embeddedArtwork, environment, inspection,
+        isFollowing, isInspecting, isVideoVisible, lastEvent, mediaDiagnostics, status, videoTime
     ]);
 
     const canInspect = Boolean(
@@ -714,7 +812,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             >
                 <video
                     ref={videoRef}
-                    className="media-viewer-video"
+                    className={'media-viewer-video' + (isVideoVisible ? '' : ' is-hidden')}
                     muted
                     crossOrigin="anonymous"
                     playsInline
@@ -724,7 +822,14 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                     onPlaying={handleVideoPlaying}
                     onError={handleVideoError}
                 />
-                {(!inspection?.videoTrack || !isFollowing) && (
+                {!inspection?.videoTrack && embeddedArtwork?.available && (
+                    <img
+                        className="media-viewer-artwork"
+                        src={embeddedArtwork.dataUrl}
+                        alt="Carátula incrustada del archivo de audio"
+                    />
+                )}
+                {!isVideoVisible && !embeddedArtwork?.available && (
                     <div className="media-viewer-placeholder">
                         {inspection?.videoTrack
                             ? status
@@ -733,7 +838,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                                 : 'No hay video activo. Reproduce un video en foobar2000.'}
                     </div>
                 )}
-                {inspection?.videoTrack && isFollowing && (
+                {isVideoVisible && inspection?.videoTrack && isFollowing && (
                     <div className="media-viewer-time">
                         {formatTime(videoTime)}
                         {videoRef.current?.duration && Number.isFinite(videoRef.current.duration)
@@ -845,6 +950,19 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                                         track.mimeType || ''
                                     ].filter(Boolean).join(' · ')).join(' | ')
                                     : 'Ninguna declarada'}</div>
+                                {embeddedArtwork && (
+                                    <div><b>Carátula frontal incrustada:</b> {embeddedArtwork.available
+                                        ? 'Encontrada · ' + (embeddedArtwork.mimeType || 'MIME desconocido')
+                                            + ' · ' + (embeddedArtwork.size == null
+                                                ? 'tamaño desconocido'
+                                                : embeddedArtwork.size + ' bytes')
+                                        : embeddedArtwork.error
+                                            ? 'No disponible · ' + embeddedArtwork.error
+                                            : 'No encontrada en el archivo'}</div>
+                                )}
+                                <div><b>Artwork API:</b> {environment
+                                    ? (environment.hasArtworkApi ? 'Disponible' : 'No disponible')
+                                    : 'Consultando…'}</div>
                                 {mediaDiagnostics && (
                                     <>
                                         {mediaDiagnostics.trackCapabilities?.map((track, index) => (
