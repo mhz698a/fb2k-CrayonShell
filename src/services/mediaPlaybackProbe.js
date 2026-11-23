@@ -148,7 +148,7 @@ export async function inspectCurrentMediaTrack() {
         position: Number(position.position) || 0,
         duration: Number(position.duration) || 0,
         recognized: Boolean(container.recognized),
-        containerFormat: container.format || 'Desconocido',
+        containerFormat: container.container || 'Desconocido',
         videoTrack,
         capabilities,
         capabilityError,
