@@ -82,21 +82,20 @@ Al finalizar, npm run build comprueba explícitamente que existan index.html, cr
 
 Cada vez que cambies el código y quieras comprobarlo dentro de foobar2000, vuelve a ejecutar npm run build y recarga la página en el panel.
 
-### Monitor multimedia y diagnóstico
+### Visor de video y diagnóstico
 
-Esta rama añade un panel temporal llamado **Prueba multimedia · Fase 1**. Importa `foo-webview-sdk` desde el bundle React para disponer de la fachada tipada `fb.*`; el puente nativo `window.fb2k` por sí solo sólo proporciona `invoke()` y eventos. No reemplaza ni desactiva `foo_mpv` o Artwork View.
+CrayonShell integra un visor sincronizado con la reproducción de foobar2000. El audio continúa bajo el control de foobar2000; el elemento HTML de video se reproduce silenciado y sigue el reloj del reproductor mediante `MediaElementFollower`. No reemplaza ni desactiva `foo_mpv` o Artwork View.
 
-1. Elige uno de estos dos modos: **Vite** (servidor activo y configurado en `WebView2 UI → Developer`) o **build** (archivos copiados a una plantilla instalada desde `WebView2 UI → Manage...`). No pruebes la integración abriendo la página en Chrome/Edge ni mediante `file://`.
-2. Confirma que el panel muestre `Host foobar2000: Conectado` y un origen HTTP(S). En Vite, el origen será `http://localhost:5173`; en una plantilla local será `https://foo-ui-webview2.local`.
-3. Reproduce en foobar2000 un archivo local MP4, MOV, MKV o WebM. El panel inspecciona automáticamente la pista activa al cargar y cada vez que recibe un cambio de pista. **Volver a inspeccionar** fuerza una nueva consulta.
-4. Comprueba el contenedor detectado, la pista de video, el códec y sus dimensiones.
-5. Pulsa **Iniciar seguimiento**. El video se presenta silenciado y sigue el reloj de foobar2000.
-6. Sin usar controles propios del video, prueba pausar, reanudar, adelantar/retroceder desde foobar2000 y cambiar a otro archivo. Al cambiar de pista, el panel vuelve a inspeccionar la fuente y actualiza o libera el video.
-7. Pulsa **Detener** para liberar el elemento, el reloj y las suscripciones.
-8. El panel conserva hasta 100 eventos recientes en el almacenamiento local del origen o de la plantilla. El registro permanece disponible después de recargar CrayonShell.
-9. Pulsa **Copiar informe técnico** para copiar al portapapeles el estado del host, versiones, origen, datos de pista y códecs, diagnóstico HTTP del stream, estado del elemento HTMLVideoElement y el historial de eventos. El informe excluye la ruta local completa del archivo y el token temporal del stream; conserva el nombre del archivo.
+- El botón **Video / Playlist** de la barra alterna el contenido inferior entre la playlist y el visor. La barra superior de la playlist y la barra de estado permanecen visibles; el visor no se superpone a ellas.
+- Al entrar al visor, si la pista activa contiene video, CrayonShell inicia automáticamente el seguimiento. Los cambios de pista actualizan la fuente; una pista sin video no inicia el seguidor.
+- La playlist identifica con la etiqueta **[Video]** los archivos MP4, MKV y WebM. La detección de estas extensiones no distingue entre mayúsculas y minúsculas.
+- El botón **Diagnóstico** abre un diálogo separado. Allí se conservan los datos de host, versión del componente, origen, archivo, contenedor, códecs, características de las pistas, compatibilidad, respuesta HTTP y estado de `HTMLVideoElement`.
+- El diálogo conserva hasta 100 eventos recientes en el almacenamiento local del origen o de la plantilla, incluso después de recargar CrayonShell. **Copiar informe técnico** copia los datos de diagnóstico y el historial; omite la ruta local completa y el token temporal del stream, pero conserva el nombre del archivo.
+- El diálogo incluye acciones para volver a inspeccionar, iniciar o detener manualmente el seguimiento. Estas acciones son herramientas de diagnóstico; el funcionamiento habitual del visor no requiere iniciar el seguimiento manualmente.
 
-`media.getContainerInfo` y `media.getStreamUrl` requieren un origen HTTP(S) confiable. `getStreamUrl` también requiere `foo_ui_webview2 2.2.0` o posterior y el runtime WebView2 con `ICoreWebView2_22`. El panel consulta la versión del componente nativo y deshabilita el inicio del seguidor cuando detecta una versión anterior a 2.2.0. Separa los errores de origen, puente, contenedor y decodificación real del elemento de video. La API multimedia es experimental.
+Para probar la integración real, utiliza **Vite** cargado desde `WebView2 UI → Developer` o la compilación instalada como plantilla desde `WebView2 UI → Manage...`. No abras la página en Chrome/Edge ni mediante `file://`.
+
+`media.getContainerInfo` y `media.getStreamUrl` requieren un origen HTTP(S) confiable. `getStreamUrl` también requiere `foo_ui_webview2 2.2.0` o posterior y el runtime WebView2 con `ICoreWebView2_22`. La API multimedia es experimental.
 
 ## Estructura del proyecto
 
@@ -108,7 +107,7 @@ fb2k-CrayonShell/
 │   └── verify-build.mjs       # Comprueba los archivos de salida
 ├── src/
 │   ├── components/
-│   │   ├── MediaPlaybackProbe.jsx # Prueba temporal de video sincronizado
+│   │   ├── MediaPlaybackProbe.jsx # Visor sincronizado y diálogo de diagnóstico
 │   │   ├── PlaylistStatus.jsx
 │   │   ├── PlaylistTable.jsx
 │   │   ├── PlaylistToolbar.jsx
@@ -117,7 +116,7 @@ fb2k-CrayonShell/
 │   │   └── usePlaylist.js     # Estado y operaciones de la playlist
 │   ├── services/
 │   │   ├── foobarApi.js       # Puente existente de playlist
-│   │   ├── mediaPlaybackProbe.js # Diagnóstico del SDK multimedia
+│   │   ├── mediaPlaybackProbe.js # Integración y diagnóstico del SDK multimedia
 │   │   ├── mockFb2k.js        # Datos ficticios para desarrollo
 │   │   └── playlistFormats.js # Formatos de título de foobar2000
 │   ├── styles/
