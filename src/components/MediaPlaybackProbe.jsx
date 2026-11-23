@@ -280,7 +280,7 @@ export default function MediaPlaybackProbe() {
                     <div className="media-probe-status">{status}</div>
                     <div><b>Origen:</b> {environment?.origin || 'Consultando…'}</div>
                     <div><b>Origen HTTP(S):</b> {environment ? (environment.isHttpOrigin ? 'Sí' : 'No') : '—'}</div>
-                    <div><b>Origen de la página:</b> {environment?.source || '—'}</div>
+                    <div><b>Origen de la página:</b> {environment?.source || '—'}{environment?.templateName ? ' · Plantilla: ' + environment.templateName : ''}</div>
                     <div><b>Media API / Follower:</b> {environment
                         ? (environment.hasMediaApi ? 'Media API disponible' : 'Media API ausente')
                             + ' · '
