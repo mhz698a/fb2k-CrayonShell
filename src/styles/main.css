@@ -181,6 +181,15 @@ select {
     scrollbar-width: thin;
 }
 
+.playlist-table-wrap:focus {
+    outline: none;
+}
+
+.playlist-table-wrap:focus-visible {
+    outline: 1px solid var(--accent-color);
+    outline-offset: -1px;
+}
+
 .playlist-table-wrap::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -214,9 +223,8 @@ select {
 #PlaylistTable td {
     padding: 5px 8px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: pre;
     border-bottom: 1px solid rgba(128, 128, 128, .14);
+    white-space: normal;
 }
 
 #PlaylistTable tbody tr {
@@ -231,13 +239,32 @@ select {
     background: rgba(80, 130, 190, .22);
 }
 
-#PlaylistTable tbody tr.playing > td {
+#PlaylistTable tbody tr.playing .playlist-primary-line {
     font-weight: 700;
 }
 
 #PlaylistTable .playlist-line {
     width: 100%;
     font-variant-numeric: tabular-nums;
+}
+
+#PlaylistTable .playlist-primary-line {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: pre;
+}
+
+#PlaylistTable .playlist-secondary-line {
+    display: block;
+    margin-top: 2px;
+    padding-left: 2em; /* Ajusta este valor para desplazar la segunda línea. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .88em;
+    font-weight: 400;
+    opacity: .72;
 }
 
 #PlaylistEmpty {
@@ -274,4 +301,343 @@ button.play-btn {
     .playlist-heading {
         min-width: 75px;
     }
+}
+
+
+/* Playlist/video content switch. The playlist toolbar and status stay outside this area. */
+.playlist-content {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.playlist-list-view {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.playlist-list-view.is-hidden {
+    display: none;
+}
+
+.playlist-list-view .playlist-table-wrap {
+    flex: 1 1 auto;
+}
+
+/* The video is a persistent element so changing views does not recreate its stream. */
+.media-viewer {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+    background: #090909;
+}
+
+.media-viewer.is-hidden {
+    display: none;
+}
+
+.media-viewer-video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    object-fit: contain;
+    background: #000;
+}
+
+.media-viewer-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    color: #a8a8a8;
+    text-align: center;
+    pointer-events: none;
+    overflow-wrap: anywhere;
+}
+
+.media-viewer-time {
+    position: absolute;
+    left: 9px;
+    bottom: 8px;
+    padding: 4px 7px;
+    color: #d0d0d0;
+    background: rgba(0, 0, 0, .68);
+    border-radius: 3px;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+
+.toolbar-action {
+    flex: 0 0 auto;
+    min-height: 26px;
+    padding: 3px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.toolbar-action[aria-pressed="true"] {
+    color: white;
+    background: rgba(0, 122, 204, .28);
+    border-color: var(--accent-color);
+}
+
+.diagnostics-toolbar-action {
+    margin-left: auto;
+}
+
+/* The technical monitor is available only inside this modal dialog. */
+.media-probe-dialog {
+    width: min(1080px, calc(100vw - 32px));
+    max-width: none;
+    max-height: calc(100vh - 32px);
+    margin: auto;
+    padding: 0;
+    overflow: hidden;
+    color: var(--texto-color);
+    background: #252526;
+    border: 1px solid rgba(128, 128, 128, .38);
+    border-radius: 6px;
+    box-shadow: 0 14px 48px rgba(0, 0, 0, .55);
+}
+
+.media-probe-dialog::backdrop {
+    background: rgba(0, 0, 0, .68);
+}
+
+.media-probe-dialog-inner {
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.media-probe {
+    margin: 0;
+    padding: 14px;
+    min-width: 0;
+    color: var(--texto-color);
+    background: transparent;
+    font-size: 11px;
+}
+
+.media-probe-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.media-probe-heading > div {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.media-probe-heading strong {
+    font-size: 14px;
+}
+
+.media-probe-heading span {
+    color: #a0a0a0;
+    font-size: 10px;
+}
+
+.media-probe-state {
+    flex: 0 0 auto;
+    padding: 3px 6px;
+    color: #c5c5c5;
+    border: 1px solid rgba(128, 128, 128, .35);
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+.media-probe-state.is-active {
+    color: #a5d6a7;
+    border-color: rgba(105, 180, 110, .55);
+}
+
+.media-probe-close {
+    flex: 0 0 auto;
+    width: 28px;
+    min-height: 28px;
+    padding: 0;
+    color: #ddd;
+    background: #353535;
+    border: 1px solid rgba(128, 128, 128, .4);
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.media-probe-content {
+    min-width: 0;
+}
+
+.media-probe-details {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    color: #c8c8c8;
+    overflow-wrap: anywhere;
+}
+
+.media-probe-details > div {
+    padding-bottom: 3px;
+    border-bottom: 1px solid rgba(128, 128, 128, .12);
+}
+
+.media-probe-details b {
+    color: #eeeeee;
+    font-weight: 600;
+}
+
+.media-probe-status {
+    margin-bottom: 2px;
+    color: #e6c47a;
+    font-weight: 600;
+}
+
+.media-probe-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.media-probe-actions button {
+    min-height: 27px;
+    padding: 4px 9px;
+    color: var(--texto-color);
+    background: #353535;
+    border: 1px solid rgba(128, 128, 128, .4);
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+}
+
+.media-probe-actions button:hover:not(:disabled),
+.media-probe-close:hover {
+    background: #454545;
+    border-color: var(--accent-color);
+}
+
+.media-probe-actions button:disabled {
+    opacity: .45;
+    cursor: default;
+}
+
+.media-probe-copy-feedback {
+    align-self: center;
+    color: #a5d6a7;
+    font-size: 10px;
+}
+
+.media-probe-log {
+    margin-top: 12px;
+    border-top: 1px solid rgba(128, 128, 128, .28);
+    padding-top: 7px;
+}
+
+.media-probe-log summary {
+    color: #d6d6d6;
+    cursor: pointer;
+    font-weight: 600;
+    user-select: none;
+}
+
+.media-probe-log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 220px;
+    overflow: auto;
+    margin-top: 7px;
+    padding-right: 4px;
+}
+
+.media-probe-log-entry {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 8px;
+    color: #c8c8c8;
+    font-size: 10px;
+    overflow-wrap: anywhere;
+}
+
+.media-probe-log-entry time {
+    color: #888888;
+    font-variant-numeric: tabular-nums;
+}
+
+.media-probe-log-entry.is-warning {
+    color: #e6c47a;
+}
+
+.media-probe-log-entry.is-error {
+    color: #ef9a9a;
+}
+
+.media-probe-log-empty {
+    padding: 5px 0;
+    color: #888888;
+    font-size: 10px;
+}
+
+@media (max-width: 680px) {
+    .media-probe-heading {
+        flex-wrap: wrap;
+    }
+
+    .media-probe-state {
+        order: 3;
+    }
+
+    .media-probe-dialog {
+        width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+    }
+
+    .media-probe-dialog-inner {
+        max-height: calc(100vh - 16px);
+    }
+
+    .media-probe-log-entry {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1px;
+    }
+}
+
+
+/* Video transport and audio-cover presentation. */
+.media-viewer-video.is-hidden {
+    display: none;
+}
+
+.media-viewer-artwork {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    object-fit: contain;
+    background: #090909;
 }

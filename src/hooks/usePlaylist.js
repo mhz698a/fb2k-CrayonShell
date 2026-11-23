@@ -38,10 +38,16 @@ export function usePlaylist() {
     const [playingItemIndex, setPlayingItemIndex] = useState(-1);
     const [playbackState, setPlaybackState] = useState('stopped');
     const [status, setStatus] = useState('Esperando WebView2…');
+    const [scrollRequest, setScrollRequest] = useState({ version: 0, target: 'playing' });
 
     const mountedRef = useRef(true);
-    const refreshControlRef = useRef({ running: false, queued: false });
+    const refreshControlRef = useRef({ running: false, queued: false, waiters: [] });
     const refreshTimerRef = useRef(null);
+    const scrollRequestVersionRef = useRef(0);
+    const pendingScrollTargetRef = useRef(null);
+    const selectionQueueRef = useRef(Promise.resolve());
+    const activePlaylistGuidRef = useRef(activePlaylistGuid);
+    activePlaylistGuidRef.current = activePlaylistGuid;
 
     const setStatusMessage = useCallback((message, error) => {
         const detail = error ? (error.message || String(error)) : '';
@@ -68,6 +74,8 @@ export function usePlaylist() {
                     index: Number(track.index),
                     path: track.path ? String(track.path) : '',
                     duration: formats.duration ? String(formats.duration) : '',
+                    title: formats.title ? String(formats.title) : '',
+                    artist: formats.artist ? String(formats.artist) : '',
                     details: formats.details ? String(formats.details) : ''
                 });
             });
@@ -133,7 +141,9 @@ export function usePlaylist() {
 
         if (control.running) {
             control.queued = true;
-            return;
+            return new Promise((resolve) => {
+                control.waiters.push(resolve);
+            });
         }
 
         control.running = true;
@@ -147,14 +157,30 @@ export function usePlaylist() {
             setStatusMessage('No se pudo leer la playlist', error);
         } finally {
             control.running = false;
+            const waiters = control.waiters.splice(0);
+            waiters.forEach((resolve) => resolve());
         }
     }, [refreshPlaylistOnce, setStatusMessage]);
 
-    const schedulePlaylistRefresh = useCallback(() => {
+    const schedulePlaylistRefresh = useCallback((scrollTarget = null) => {
+        if (scrollTarget === 'playing' || scrollTarget === 'focused') {
+            pendingScrollTargetRef.current = scrollTarget;
+        }
+
         window.clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = window.setTimeout(() => {
+        refreshTimerRef.current = window.setTimeout(async () => {
             refreshTimerRef.current = null;
-            refreshPlaylist();
+            await refreshPlaylist();
+
+            const target = pendingScrollTargetRef.current;
+            pendingScrollTargetRef.current = null;
+            if (target && mountedRef.current) {
+                scrollRequestVersionRef.current += 1;
+                setScrollRequest({
+                    version: scrollRequestVersionRef.current,
+                    target
+                });
+            }
         }, 120);
     }, [refreshPlaylist]);
 
@@ -174,7 +200,15 @@ export function usePlaylist() {
         }
 
         const unsubscribe = REFRESH_EVENTS.map((eventName) =>
-            subscribe(eventName, schedulePlaylistRefresh)
+            subscribe(eventName, () => {
+                const scrollTarget = eventName === 'playback:trackChanged'
+                    || eventName === 'playlist:activated'
+                    ? 'playing'
+                    : eventName === 'playlist:focusChanged'
+                        ? 'focused'
+                        : null;
+                schedulePlaylistRefresh(scrollTarget);
+            })
         );
 
         refreshPlaylist();
@@ -184,22 +218,36 @@ export function usePlaylist() {
         };
     }, [refreshPlaylist, schedulePlaylistRefresh, setStatusMessage]);
 
-    const setSelectedItem = useCallback(async (index) => {
-        if (!activePlaylistGuid) {
-            throw new Error('No hay una playlist activa.');
-        }
+    const setSelectedItem = useCallback((index) => {
+        const requestedPlaylistGuid = activePlaylistGuid;
 
-        await invoke('playlist.setSelection', {
-            playlistGuid: activePlaylistGuid,
-            indices: [index],
-            clearOthers: true
-        });
-        await invoke('playlist.setFocusedTrack', {
-            playlistGuid: activePlaylistGuid,
-            index
-        });
+        const operation = async () => {
+            if (!requestedPlaylistGuid) {
+                throw new Error('No hay una playlist activa.');
+            }
 
-        setFocusedItem(index);
+            if (activePlaylistGuidRef.current !== requestedPlaylistGuid) {
+                throw new Error('La playlist activa cambió antes de completar la selección.');
+            }
+
+            await invoke('playlist.setSelection', {
+                playlistGuid: requestedPlaylistGuid,
+                indices: [index],
+                clearOthers: true
+            });
+            await invoke('playlist.setFocusedTrack', {
+                playlistGuid: requestedPlaylistGuid,
+                index
+            });
+
+            if (mountedRef.current && activePlaylistGuidRef.current === requestedPlaylistGuid) {
+                setFocusedItem(index);
+            }
+        };
+
+        const queued = selectionQueueRef.current.then(operation, operation);
+        selectionQueueRef.current = queued.catch(() => {});
+        return queued;
     }, [activePlaylistGuid]);
 
     const selectItem = useCallback(async (index) => {
@@ -265,6 +313,7 @@ export function usePlaylist() {
         playingItemIndex,
         playbackState,
         status,
+        scrollRequest,
         isDemoMode,
         refreshPlaylist,
         changePlaylist,

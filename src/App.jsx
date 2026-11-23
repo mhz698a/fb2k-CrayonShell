@@ -3,8 +3,9 @@ import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
 import PlaylistStatus from './components/PlaylistStatus.jsx';
+import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
-import { formatItemLine } from './utils/playlistDisplay.js';
+import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
 
 const MIN_SIDEBAR_WIDTH = 140;
 const MAX_SIDEBAR_WIDTH = 520;
@@ -27,6 +28,8 @@ export default function App() {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
     const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
     const [filter, setFilter] = useState('');
+    const [contentView, setContentView] = useState('playlist');
+    const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
 
     const {
         playlists,
@@ -36,6 +39,7 @@ export default function App() {
         playingItemIndex,
         playbackState,
         status,
+        scrollRequest,
         isDemoMode,
         refreshPlaylist,
         changePlaylist,
@@ -51,8 +55,10 @@ export default function App() {
     const normalizedFilter = filter.trim().toLocaleLowerCase();
     const visibleItems = items.filter((item) => {
         const line = formatItemLine(item, playingItemIndex, playbackState);
+        const subtitle = formatItemSubtitle(item);
+        const searchableText = line + ' ' + subtitle;
         return !normalizedFilter
-            || line.toLocaleLowerCase().includes(normalizedFilter)
+            || searchableText.toLocaleLowerCase().includes(normalizedFilter)
             || String(item.path || '').toLocaleLowerCase().includes(normalizedFilter);
     });
 
@@ -153,6 +159,11 @@ export default function App() {
                         onRefresh={refreshPlaylist}
                         sidebarCollapsed={sidebarCollapsed}
                         onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
+                        contentView={contentView}
+                        onToggleContentView={() => setContentView((value) => (
+                            value === 'playlist' ? 'video' : 'playlist'
+                        ))}
+                        onOpenDiagnostics={() => setDiagnosticsOpen(true)}
                     />
 
                     {isDemoMode && (
@@ -161,17 +172,30 @@ export default function App() {
                         </div>
                     )}
 
-                    <PlaylistTable
-                        items={visibleItems}
-                        totalItems={items.length}
-                        focusedItem={focusedItem}
-                        playingItemIndex={playingItemIndex}
-                        playbackState={playbackState}
-                        playlistGuid={activePlaylistGuid}
-                        onSelect={selectItem}
-                        onPlay={playItem}
-                        onContextMenu={openNativeContextMenu}
-                    />
+                    <div className="playlist-content">
+                        <div
+                            className={'playlist-list-view' + (contentView === 'playlist' ? '' : ' is-hidden')}
+                            aria-hidden={contentView !== 'playlist'}
+                        >
+                            <PlaylistTable
+                                items={visibleItems}
+                                totalItems={items.length}
+                                focusedItem={focusedItem}
+                                playingItemIndex={playingItemIndex}
+                                playbackState={playbackState}
+                                playlistGuid={activePlaylistGuid}
+                                scrollRequest={scrollRequest}
+                                onSelect={selectItem}
+                                onPlay={playItem}
+                                onContextMenu={openNativeContextMenu}
+                            />
+                        </div>
+                        <MediaPlaybackProbe
+                            viewMode={contentView}
+                            diagnosticsOpen={diagnosticsOpen}
+                            onCloseDiagnostics={() => setDiagnosticsOpen(false)}
+                        />
+                    </div>
 
                     <PlaylistStatus message={status} />
                 </section>

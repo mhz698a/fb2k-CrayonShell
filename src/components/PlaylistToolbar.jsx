@@ -7,7 +7,10 @@ export default function PlaylistToolbar({
     onPlaylistChange,
     onRefresh,
     sidebarCollapsed,
-    onToggleSidebar
+    onToggleSidebar,
+    contentView,
+    onToggleContentView,
+    onOpenDiagnostics
 }) {
     return (
         <header className="playlist-toolbar">
@@ -28,6 +31,18 @@ export default function PlaylistToolbar({
                 <strong>Playlist</strong>
                 <span id="PlaylistSummary">{summary}</span>
             </div>
+
+            <button
+                id="MediaViewToggle"
+                className="toolbar-action"
+                type="button"
+                aria-label={contentView === 'playlist' ? 'Mostrar visor de video' : 'Mostrar playlist'}
+                aria-pressed={contentView === 'video'}
+                title={contentView === 'playlist' ? 'Mostrar visor de video' : 'Mostrar playlist'}
+                onClick={onToggleContentView}
+            >
+                {contentView === 'playlist' ? 'Video' : 'Playlist'}
+            </button>
 
             <select
                 id="PlaylistPicker"
@@ -60,6 +75,17 @@ export default function PlaylistToolbar({
                 onClick={onRefresh}
             >
                 ↻
+            </button>
+
+            <button
+                id="MediaDiagnostics"
+                className="toolbar-action diagnostics-toolbar-action"
+                type="button"
+                title="Abrir diagnóstico multimedia"
+                aria-label="Abrir diagnóstico multimedia"
+                onClick={onOpenDiagnostics}
+            >
+                Diagnóstico
             </button>
         </header>
     );

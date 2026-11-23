@@ -7,7 +7,7 @@ Interfaz de foobar2000 construida con React y Vite, preparada para ejecutarse de
 - Windows 10/11.
 - Node.js 22.12 o posterior (o Node.js 20.19 o posterior).
 - npm.
-- foobar2000 con foo_ui_webview2 para probar la integración real.
+- foobar2000 con **foo_ui_webview2 2.2.0 o posterior** para probar la integración multimedia real.
 
 ## Primer arranque en VS Code
 
@@ -32,11 +32,16 @@ npm install
 npm run dev
 ~~~
 
-6. Abre en el navegador la dirección local que Vite muestra en la terminal, normalmente http://localhost:5173.
+6. Vite muestra `http://localhost:5173`. Abrir esa dirección en Chrome o Edge sirve para revisar únicamente la interfaz: el navegador externo no recibe el puente nativo `window.fb2k` de foobar2000 y no puede ejecutar operaciones del reproductor ni las detecciones multimedia.
 
-En desarrollo, si no existe window.fb2k, CrayonShell activa automáticamente un puente de demostración. Puedes probar el filtro, cambiar la selección, hacer doble clic para reproducir una pista simulada, ocultar el panel lateral y redimensionarlo. Los datos de demostración no modifican foobar2000.
+Para desarrollar con la integración real, mantén Vite ejecutándose y configura foobar2000:
 
-Al guardar un archivo JSX o CSS, Vite actualiza la vista del navegador sin tener que reiniciar el servidor. Detén el servidor con Ctrl+C.
+1. Abre `File → Preferences → Display → WebView2 UI → Developer`.
+2. Activa `Use development server (HMR hot reload)`.
+3. Escribe `http://localhost:5173` en `URL`.
+4. Pulsa `Apply`.
+
+foobar2000 cargará Vite dentro de WebView2 e inyectará el puente nativo window.fb2k. CrayonShell incorpora la fachada tipada fb.* porque importa foo-webview-sdk desde su bundle; la mera inyección del puente nativo no expone fb.player ni fb.media. Al guardar un archivo JSX o CSS, Vite actualizará la vista. Detén el servidor con Ctrl+C.
 
 ## Probar en foobar2000
 
@@ -52,22 +57,51 @@ La salida de producción se escribe fuera del repositorio, en la carpeta configu
 ../fb2k-CrayonShell-Build/
 ~~~
 
-La entrada que debes cargar desde foo_ui_webview2 es:
+La carpeta `../fb2k-CrayonShell-Build/` contiene los archivos que se instalarán como plantilla. **No abras `index.html` directamente desde el disco ni lo cargues mediante `file://`**, porque ese origen no puede utilizar la Media API.
 
-~~~text
-../fb2k-CrayonShell-Build/index.html
-~~~
+Para instalar la compilación:
+
+1. En foobar2000 abre `File → Preferences → Display → WebView2 UI`.
+2. Pulsa `Manage...` y crea una plantilla nueva (o abre la carpeta de una plantilla existente que no estés usando en otro proyecto).
+3. Pulsa `Open...` para abrir su carpeta.
+4. Copia dentro de esa carpeta todo el contenido de `../fb2k-CrayonShell-Build/`, incluyendo `index.html`, `crayonshell.iife.js` y `crayonshell.css`.
+5. Selecciona esa plantilla y pulsa `Apply`.
+
+WebView2 sirve las plantillas locales mediante el origen HTTPS local `https://foo-ui-webview2.local/`. Los archivos permanecen en el disco; no se instala un servidor HTTPS propio ni se necesita un certificado manual.
+
+**Requisito de versión:** la prueba de streams multimedia necesita `foo_ui_webview2 2.2.0` o posterior. En 2.1.0, el host emitía las URL `/fb2k-media/` bajo `foo-ui-webview2.local`, un host reservado al mapeo de carpetas de las plantillas. WebView2 resolvía esas solicitudes como recursos del mapeo y devolvía `ERR_FILE_NOT_FOUND` en lugar de entregarlas al manejador nativo. La versión 2.2.0 cambió el dominio de las rutas multimedia a `fb2k-routes.invalid` para evitar esa colisión.
 
 La raíz del repositorio contiene dos entradas con propósitos diferentes:
 
 - index.html: entrada del servidor de desarrollo de Vite.
 - webview.html: plantilla HTML estática que se genera como index.html en la salida de producción.
 
-La compilación genera un JavaScript IIFE clásico, un CSS separado y la página index.html. El IIFE permite cargar el script como archivo clásico desde el HTML local de WebView2, sin depender de imports ES modules. No edites manualmente los archivos generados.
+La compilación genera un JavaScript IIFE clásico, un CSS separado y la página index.html. El IIFE incluye React y foo-webview-sdk dentro de un único bundle clásico, de modo que las APIs fb.player, fb.media y MediaElementFollower quedan disponibles sin depender de imports ES modules en tiempo de ejecución. No edites manualmente los archivos generados.
 
 Al finalizar, npm run build comprueba explícitamente que existan index.html, crayonshell.iife.js y crayonshell.css en la carpeta de salida. Si falta cualquiera, el comando termina con error en lugar de dar la compilación por válida.
 
 Cada vez que cambies el código y quieras comprobarlo dentro de foobar2000, vuelve a ejecutar npm run build y recarga la página en el panel.
+
+### Visor de video y diagnóstico
+
+CrayonShell integra un visor sincronizado con la reproducción de foobar2000. El audio continúa bajo el control de foobar2000; el elemento HTML de video se reproduce silenciado y sigue el reloj del reproductor mediante `MediaElementFollower`. No reemplaza ni desactiva `foo_mpv` o Artwork View.
+
+- El botón **Video / Playlist** de la barra alterna el contenido inferior entre la playlist y el visor. La barra superior de la playlist y la barra de estado permanecen visibles; el visor no se superpone a ellas.
+- Al entrar al visor, si la pista activa contiene video, CrayonShell inicia automáticamente el seguimiento. Los cambios de pista actualizan la fuente; una pista sin video no inicia el seguidor.
+- La playlist identifica con la etiqueta **[Video]** los archivos MP4, MKV y WebM. La detección de estas extensiones no distingue entre mayúsculas y minúsculas.
+- Cada elemento de la playlist muestra dos líneas: la principal conserva el índice y el formato de identificación de la pista, sin duración; la secundaria muestra duración, título y artista. Si falta el artista después de un título, se muestra `?`; si falta el título pero hay artista, solo se muestra el artista; si faltan ambos, se utiliza el nombre del archivo sin extensión.
+- En la playlist, **↑ / ↓** mueve la selección entre las pistas visibles y evita el desplazamiento nativo de la página. **Enter** reproduce la pista seleccionada. El contenedor de la playlist recibe el foco al hacer clic en una fila; también puede recibirlo mediante Tab.
+- Cuando cambia la pista en reproducción, se ejecuta **Active Now Playing**, se activa otra playlist o cambia el foco de una fila, CrayonShell desplaza el contenedor hasta la fila correspondiente. El desplazamiento afecta únicamente al área de la playlist.
+- Cuando la pista es de audio, el visor consulta la carátula frontal mediante `fb.artwork.getForTrack(path, 'front')`. Usa el gestor de artwork de foobar2000, por lo que puede mostrar una imagen incrustada en el archivo o una portada asociada en la carpeta, siempre que foobar2000 la reconozca.
+- Si la pista de audio no tiene una carátula disponible, el visor muestra un estado vacío y no conserva la portada de la pista anterior.
+- Cuando foobar2000 pasa a `stopped`, CrayonShell elimina la fuente del elemento de video y lo oculta. Al reanudarse la reproducción, vuelve a crear el seguidor si sigue seleccionada la vista de video.
+- El botón **Diagnóstico** abre un diálogo separado. Allí se conservan los datos de host, versión del componente, origen, archivo, contenedor, códecs, características de las pistas, compatibilidad, respuesta HTTP y estado de `HTMLVideoElement`.
+- El diálogo conserva hasta 100 eventos recientes en el almacenamiento local del origen o de la plantilla, incluso después de recargar CrayonShell. **Copiar informe técnico** copia los datos de diagnóstico y el historial; omite la ruta local completa y el token temporal del stream, pero conserva el nombre del archivo.
+- El diálogo incluye acciones para volver a inspeccionar, iniciar o detener manualmente el seguimiento. Estas acciones son herramientas de diagnóstico; el funcionamiento habitual del visor no requiere iniciar el seguimiento manualmente.
+
+Para probar la integración real, utiliza **Vite** cargado desde `WebView2 UI → Developer` o la compilación instalada como plantilla desde `WebView2 UI → Manage...`. No abras la página en Chrome/Edge ni mediante `file://`.
+
+`media.getContainerInfo` y `media.getStreamUrl` requieren un origen HTTP(S) confiable. `getStreamUrl` también requiere `foo_ui_webview2 2.2.0` o posterior y el runtime WebView2 con `ICoreWebView2_22`. La API multimedia es experimental.
 
 ## Estructura del proyecto
 
@@ -79,6 +113,7 @@ fb2k-CrayonShell/
 │   └── verify-build.mjs       # Comprueba los archivos de salida
 ├── src/
 │   ├── components/
+│   │   ├── MediaPlaybackProbe.jsx # Visor sincronizado y diálogo de diagnóstico
 │   │   ├── PlaylistStatus.jsx
 │   │   ├── PlaylistTable.jsx
 │   │   ├── PlaylistToolbar.jsx
@@ -86,7 +121,8 @@ fb2k-CrayonShell/
 │   ├── hooks/
 │   │   └── usePlaylist.js     # Estado y operaciones de la playlist
 │   ├── services/
-│   │   ├── foobarApi.js       # Puente real con foo_ui_webview2
+│   │   ├── foobarApi.js       # Puente existente de playlist
+│   │   ├── mediaPlaybackProbe.js # Integración y diagnóstico del SDK multimedia
 │   │   ├── mockFb2k.js        # Datos ficticios para desarrollo
 │   │   └── playlistFormats.js # Formatos de título de foobar2000
 │   ├── styles/
