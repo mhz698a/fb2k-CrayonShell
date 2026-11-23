@@ -415,3 +415,68 @@ button.play-btn {
         max-width: 360px;
     }
 }
+
+
+.media-probe-copy-feedback {
+    align-self: center;
+    color: #a5d6a7;
+    font-size: 10px;
+}
+
+.media-probe-log {
+    margin-top: 8px;
+    border-top: 1px solid rgba(128, 128, 128, .28);
+    padding-top: 6px;
+}
+
+.media-probe-log summary {
+    color: #d6d6d6;
+    cursor: pointer;
+    font-weight: 600;
+    user-select: none;
+}
+
+.media-probe-log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 150px;
+    overflow: auto;
+    margin-top: 6px;
+    padding-right: 4px;
+}
+
+.media-probe-log-entry {
+    display: grid;
+    grid-template-columns: 138px minmax(0, 1fr);
+    gap: 8px;
+    color: #c8c8c8;
+    font-size: 10px;
+    overflow-wrap: anywhere;
+}
+
+.media-probe-log-entry time {
+    color: #888888;
+    font-variant-numeric: tabular-nums;
+}
+
+.media-probe-log-entry.is-warning {
+    color: #e6c47a;
+}
+
+.media-probe-log-entry.is-error {
+    color: #ef9a9a;
+}
+
+.media-probe-log-empty {
+    padding: 5px 0;
+    color: #888888;
+    font-size: 10px;
+}
+
+@media (max-width: 520px) {
+    .media-probe-log-entry {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1px;
+    }
+}
