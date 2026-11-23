@@ -344,8 +344,14 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             }
 
             if (!result.recognized) {
+                if (followerRef.current) {
+                    await followerRef.current.setSource(null);
+                }
+                setIsFollowing(false);
+                setVideoTime(0);
                 setStatus('Archivo activo detectado, pero el contenedor no pertenece a MP4, MOV, Matroska o WebM.');
                 setLastEvent('Contenedor no reconocido');
+                addDiagnosticLog('warning', 'Se liberó la fuente anterior porque el nuevo contenedor no es compatible.');
                 return;
             }
 
@@ -396,6 +402,16 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 }
                 : null;
             setInspection(diagnostic);
+            if (followerRef.current) {
+                try {
+                    await followerRef.current.setSource(null);
+                } catch (sourceError) {
+                    addDiagnosticLog('warning', 'No se pudo liberar la fuente anterior: '
+                        + (sourceError.message || String(sourceError)));
+                }
+            }
+            setIsFollowing(false);
+            setVideoTime(0);
 
             if (error.code === 'ORIGIN_DENIED') {
                 setStatus('El host rechazó el origen de esta página. Carga Vite desde Developer > Use development server o usa una plantilla de WebView2. ' + message + code);
