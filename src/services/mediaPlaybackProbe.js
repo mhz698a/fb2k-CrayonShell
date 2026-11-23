@@ -48,7 +48,7 @@ function classifyMediaPath(path) {
 }
 
 function normalizeTrackPath(path, position) {
-    const suffix = String(path).match(/^(.*)\\|subsong:(\\d+)$/i);
+    const suffix = String(path).match(/^(.*)\|subsong:(\d+)$/i);
     const basePath = suffix ? suffix[1] : String(path);
     const reportedSubsong = position.subsong === undefined || position.subsong === null
         ? NaN
