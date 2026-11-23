@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { formatItemLine } from '../utils/playlistDisplay.js';
+import { formatItemLine, formatItemSubtitle } from '../utils/playlistDisplay.js';
 
 export default function PlaylistTable({
     items,
@@ -170,6 +170,7 @@ export default function PlaylistTable({
                         const isFocused = item.index === focusedItem;
                         const isPlaying = item.index === playingItemIndex;
                         const line = formatItemLine(item, playingItemIndex, playbackState);
+                        const subtitle = formatItemSubtitle(item);
 
                         return (
                             <tr
@@ -181,7 +182,10 @@ export default function PlaylistTable({
                                 onDoubleClick={() => handleDoubleClick(item.index)}
                                 onContextMenu={(event) => handleContextMenu(event, item.index)}
                             >
-                                <td className="playlist-line" title={line}>{line}</td>
+                                <td className="playlist-line" title={line + '\n' + subtitle}>
+                                    <div className="playlist-primary-line">{line}</div>
+                                    <div className="playlist-secondary-line">{subtitle}</div>
+                                </td>
                             </tr>
                         );
                     })}
