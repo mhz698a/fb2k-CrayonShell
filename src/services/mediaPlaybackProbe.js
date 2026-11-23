@@ -293,7 +293,7 @@ export async function inspectVideoStream(path, tracks) {
         diagnostics.streamUrlOrigin = streamUrl.origin;
         diagnostics.streamUrlProtocol = streamUrl.protocol;
         // Keep the opaque document-bound token out of the visible diagnostics.
-        diagnostics.streamUrlPath = streamUrl.pathname.replace(/\\/[^/]+$/, '/[token]');
+        diagnostics.streamUrlPath = streamUrl.pathname.replace(/\/[^/]+$/, '/[token]');
     } catch (error) {
         diagnostics.streamUrlError = error.message || String(error);
     }
