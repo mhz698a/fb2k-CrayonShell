@@ -68,8 +68,8 @@ function formatSupport(value) {
 }
 
 function isLikelyAudioFilePath(path) {
-    const value = String(path || '').replace(/\\|subsong:\\d+$/i, '').split(/[?#]/, 1)[0];
-    return /\\.(?:aac|aif|aiff|alac|ape|dff|dsf|flac|m4a|m4b|mka|mp3|mpc|oga|ogg|opus|tak|tta|wav|wave|wma|wv)$/i.test(value);
+    const value = String(path || '').replace(/\|subsong:\d+$/i, '').split(/[?#]/, 1)[0];
+    return /\.(?:aac|aif|aiff|alac|ape|dff|dsf|flac|m4a|m4b|mka|mp3|mpc|oga|ogg|opus|tak|tta|wav|wave|wma|wv)$/i.test(value);
 }
 
 const DIAGNOSTIC_LOG_KEY = 'crayonshell.mediaPlaybackProbe.logs.v1';
@@ -663,9 +663,8 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 timelineOffset: result.timelineOffset
             });
 
-            if (!mountedRef.current) {
+            if (!mountedRef.current || followerRef.current !== follower) {
                 follower.dispose();
-                followerRef.current = null;
                 return;
             }
 
@@ -694,7 +693,8 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
         setIsVideoVisible(false);
         setLastEvent('HTMLVideoElement error');
         addDiagnosticLog('error', 'HTMLVideoElement: ' + message + ' · ' + elementState);
-    }, [addDiagnosticLog]);
+        releaseFollowing();
+    }, [addDiagnosticLog, releaseFollowing]);
 
     const handleVideoMetadata = useCallback(() => {
         setLastEvent('Metadata de video cargada');
