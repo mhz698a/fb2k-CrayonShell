@@ -17,5 +17,7 @@ export const PLAYLIST_FORMATS = {
         "$if($strstr($lower(%filename_ext%),.mp4),$ascii('[')Video$ascii(']') ,)" +
         "$if($strstr($lower(%filename_ext%),.mkv),$ascii('[')Video$ascii(']') ,)" +
         "$if($strstr($lower(%filename_ext%),.webm),$ascii('[')Video$ascii(']') ,)" +
-        "$ifgreater(%totaltracks%,1,$ascii('[[')%title%$ascii(']]') ,)"
+        "$ifgreater(%totaltracks%,1,$ascii('[[')%title%$ascii(']]') ,)",
+    title: "%title%",
+    artist: "%artist%"
 };
