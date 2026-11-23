@@ -27,6 +27,10 @@ function webviewEntryPlugin() {
 }
 
 export default defineConfig(({ command }) => ({
+    server: {
+        port: 5173,
+        strictPort: true
+    },
     plugins: [
         react(),
         webviewEntryPlugin()
