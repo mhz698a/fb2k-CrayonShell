@@ -32,7 +32,11 @@ function describeMediaError(video) {
 
 function getEnvironmentStatus(environment) {
     if (!environment?.hasHostBridge) {
-        return 'Sin puente de foobar2000. Para probar Vite, ábrelo dentro de WebView2 UI mediante Developer > Use development server. Un navegador externo no recibe window.fb.';
+        return 'Sin puente nativo. Para probar Vite, ábrelo dentro de foobar2000 mediante WebView2 UI > Developer > Use development server. Un navegador externo no recibe window.fb2k.';
+    }
+
+    if (!environment.hasSdkFacade) {
+        return 'El puente nativo está conectado, pero la fachada tipada foo-webview-sdk no se enlazó. Comprueba que CrayonShell se haya compilado con el paquete npm importado.';
     }
 
     if (environment.isFileOrigin) {
