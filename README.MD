@@ -32,11 +32,16 @@ npm install
 npm run dev
 ~~~
 
-6. Abre en el navegador la dirección local que Vite muestra en la terminal, normalmente http://localhost:5173.
+6. Vite muestra `http://localhost:5173`. Abrir esa dirección en Chrome o Edge sirve para revisar únicamente la interfaz: el navegador externo no recibe el puente `window.fb` de foobar2000 y no puede ejecutar operaciones del reproductor ni las detecciones multimedia.
 
-En desarrollo, si no existe window.fb2k, CrayonShell activa automáticamente un puente de demostración. Puedes probar el filtro, cambiar la selección, hacer doble clic para reproducir una pista simulada, ocultar el panel lateral y redimensionarlo. Los datos de demostración no modifican foobar2000.
+Para desarrollar con la integración real, mantén Vite ejecutándose y configura foobar2000:
 
-Al guardar un archivo JSX o CSS, Vite actualiza la vista del navegador sin tener que reiniciar el servidor. Detén el servidor con Ctrl+C.
+1. Abre `File → Preferences → Display → WebView2 UI → Developer`.
+2. Activa `Use development server (HMR hot reload)`.
+3. Escribe `http://localhost:5173` en `URL`.
+4. Pulsa `Apply`.
+
+foobar2000 cargará Vite dentro de WebView2, inyectará el SDK y las detecciones podrán utilizar el puente real. Al guardar un archivo JSX o CSS, Vite actualizará la vista. Detén el servidor con Ctrl+C.
 
 ## Probar en foobar2000
 
@@ -52,11 +57,17 @@ La salida de producción se escribe fuera del repositorio, en la carpeta configu
 ../fb2k-CrayonShell-Build/
 ~~~
 
-La entrada que debes cargar desde foo_ui_webview2 es:
+La carpeta `../fb2k-CrayonShell-Build/` contiene los archivos que se instalarán como plantilla. **No abras `index.html` directamente desde el disco ni lo cargues mediante `file://`**, porque ese origen no puede utilizar la Media API.
 
-~~~text
-../fb2k-CrayonShell-Build/index.html
-~~~
+Para instalar la compilación:
+
+1. En foobar2000 abre `File → Preferences → Display → WebView2 UI`.
+2. Pulsa `Manage...` y crea una plantilla nueva (o abre la carpeta de una plantilla existente que no estés usando en otro proyecto).
+3. Pulsa `Open...` para abrir su carpeta.
+4. Copia dentro de esa carpeta todo el contenido de `../fb2k-CrayonShell-Build/`, incluyendo `index.html`, `crayonshell.iife.js` y `crayonshell.css`.
+5. Selecciona esa plantilla y pulsa `Apply`.
+
+WebView2 sirve las plantillas locales mediante el origen HTTPS local `https://foo-ui-webview2.local/`. Los archivos permanecen en el disco; no se instala un servidor HTTPS propio ni se necesita un certificado manual.
 
 La raíz del repositorio contiene dos entradas con propósitos diferentes:
 
@@ -73,14 +84,15 @@ Cada vez que cambies el código y quieras comprobarlo dentro de foobar2000, vuel
 
 Esta rama añade un panel temporal llamado **Prueba multimedia · Fase 1**. No reemplaza ni desactiva `foo_mpv` o Artwork View.
 
-1. Ejecuta `npm run build` y carga la salida como plantilla/página de `foo_ui_webview2`. No abras el HTML mediante `file://`: `media.getStreamUrl` exige un origen HTTP(S) confiable.
-2. Reproduce en foobar2000 un archivo local MP4, MOV, MKV o WebM.
-3. En CrayonShell, pulsa **Inspeccionar pista actual**. El panel informa el origen de WebView2, el tipo de página, el contenedor detectado, la pista de video y las señales de compatibilidad del decodificador.
-4. Pulsa **Iniciar seguimiento**. El video se presenta silenciado y sigue el reloj de foobar2000.
-5. Sin usar controles propios del video, prueba pausar, reanudar, adelantar/retroceder desde foobar2000 y cambiar a otro archivo. Al cambiar de pista, el panel vuelve a inspeccionar la fuente y actualiza o libera el video.
-6. Pulsa **Detener** para liberar el elemento, el reloj y las suscripciones.
+1. Elige uno de estos dos modos: **Vite** (servidor activo y configurado en `WebView2 UI → Developer`) o **build** (archivos copiados a una plantilla instalada desde `WebView2 UI → Manage...`). No pruebes la integración abriendo la página en Chrome/Edge ni mediante `file://`.
+2. Confirma que el panel muestre `Host foobar2000: Conectado` y un origen HTTP(S). En Vite, el origen será `http://localhost:5173`; en una plantilla local será `https://foo-ui-webview2.local`.
+3. Reproduce en foobar2000 un archivo local MP4, MOV, MKV o WebM. El panel inspecciona automáticamente la pista activa al cargar y cada vez que recibe un cambio de pista. **Volver a inspeccionar** fuerza una nueva consulta.
+4. Comprueba el contenedor detectado, la pista de video, el códec y sus dimensiones.
+5. Pulsa **Iniciar seguimiento**. El video se presenta silenciado y sigue el reloj de foobar2000.
+6. Sin usar controles propios del video, prueba pausar, reanudar, adelantar/retroceder desde foobar2000 y cambiar a otro archivo. Al cambiar de pista, el panel vuelve a inspeccionar la fuente y actualiza o libera el video.
+7. Pulsa **Detener** para liberar el elemento, el reloj y las suscripciones.
 
-La consulta `canPlay` es orientativa; la reproducción real del archivo es la prueba definitiva. Un error `NOT_SUPPORTED` al obtener la URL multimedia indica incompatibilidad del origen o del runtime WebView2 (se requiere `ICoreWebView2_22`), no necesariamente un códec incompatible. La API multimedia es experimental.
+`media.getContainerInfo` y `media.getStreamUrl` requieren un origen HTTP(S) confiable. `getStreamUrl` también requiere el runtime WebView2 con `ICoreWebView2_22`. El panel separa los errores de origen, puente, contenedor y decodificación real del elemento de video. La API multimedia es experimental.
 
 ## Estructura del proyecto
 
