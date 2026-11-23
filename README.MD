@@ -69,6 +69,19 @@ Al finalizar, npm run build comprueba explícitamente que existan index.html, cr
 
 Cada vez que cambies el código y quieras comprobarlo dentro de foobar2000, vuelve a ejecutar npm run build y recarga la página en el panel.
 
+### Fase 1: prueba de viabilidad de video
+
+Esta rama añade un panel temporal llamado **Prueba multimedia · Fase 1**. No reemplaza ni desactiva `foo_mpv` o Artwork View.
+
+1. Ejecuta `npm run build` y carga la salida como plantilla/página de `foo_ui_webview2`. No abras el HTML mediante `file://`: `media.getStreamUrl` exige un origen HTTP(S) confiable.
+2. Reproduce en foobar2000 un archivo local MP4, MOV, MKV o WebM.
+3. En CrayonShell, pulsa **Inspeccionar pista actual**. El panel informa el origen de WebView2, el tipo de página, el contenedor detectado, la pista de video y las señales de compatibilidad del decodificador.
+4. Pulsa **Iniciar seguimiento**. El video se presenta silenciado y sigue el reloj de foobar2000.
+5. Sin usar controles propios del video, prueba pausar, reanudar, adelantar/retroceder desde foobar2000 y cambiar a otro archivo. Al cambiar de pista, el panel vuelve a inspeccionar la fuente y actualiza o libera el video.
+6. Pulsa **Detener** para liberar el elemento, el reloj y las suscripciones.
+
+La consulta `canPlay` es orientativa; la reproducción real del archivo es la prueba definitiva. Un error `NOT_SUPPORTED` al obtener la URL multimedia indica incompatibilidad del origen o del runtime WebView2 (se requiere `ICoreWebView2_22`), no necesariamente un códec incompatible. La API multimedia es experimental.
+
 ## Estructura del proyecto
 
 ~~~text
