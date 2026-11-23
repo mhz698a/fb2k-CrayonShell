@@ -164,7 +164,7 @@ export async function inspectWebViewEnvironment() {
             && typeof fb.media.getStreamUrl === 'function'
         ),
         hasMediaElementFollower: typeof fb.MediaElementFollower === 'function',
-        hasArtworkApi: Boolean(fb.artwork && typeof fb.artwork.getByPath === 'function'),
+        hasArtworkApi: Boolean(fb.artwork && typeof fb.artwork.getForTrack === 'function'),
         hasPlaybackApi: Boolean(
             fb.player
             && typeof fb.player.getPosition === 'function'
