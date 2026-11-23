@@ -277,35 +277,154 @@ button.play-btn {
 }
 
 
-/* Persistent multimedia monitor and diagnostics. */
-.media-probe {
-    flex: 0 0 auto;
-    margin: 8px;
-    padding: 9px;
+/* Playlist/video content switch. The playlist toolbar and status stay outside this area. */
+.playlist-content {
+    display: flex;
+    flex: 1 1 auto;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.playlist-list-view {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.playlist-list-view.is-hidden {
+    display: none;
+}
+
+.playlist-list-view .playlist-table-wrap {
+    flex: 1 1 auto;
+}
+
+/* The video is a persistent element so changing views does not recreate its stream. */
+.media-viewer {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+    background: #090909;
+}
+
+.media-viewer.is-hidden {
+    display: none;
+}
+
+.media-viewer-video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    object-fit: contain;
+    background: #000;
+}
+
+.media-viewer-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    color: #a8a8a8;
+    text-align: center;
+    pointer-events: none;
+    overflow-wrap: anywhere;
+}
+
+.media-viewer-time {
+    position: absolute;
+    left: 9px;
+    bottom: 8px;
+    padding: 4px 7px;
+    color: #d0d0d0;
+    background: rgba(0, 0, 0, .68);
+    border-radius: 3px;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+
+.toolbar-action {
+    flex: 0 0 auto;
+    min-height: 26px;
+    padding: 3px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.toolbar-action[aria-pressed="true"] {
+    color: white;
+    background: rgba(0, 122, 204, .28);
+    border-color: var(--accent-color);
+}
+
+.diagnostics-toolbar-action {
+    margin-left: auto;
+}
+
+/* The technical monitor is available only inside this modal dialog. */
+.media-probe-dialog {
+    width: min(1080px, calc(100vw - 32px));
+    max-width: none;
+    max-height: calc(100vh - 32px);
+    margin: auto;
+    padding: 0;
+    overflow: hidden;
     color: var(--texto-color);
     background: #252526;
-    border: 1px solid rgba(128, 128, 128, .28);
-    border-radius: 4px;
+    border: 1px solid rgba(128, 128, 128, .38);
+    border-radius: 6px;
+    box-shadow: 0 14px 48px rgba(0, 0, 0, .55);
+}
+
+.media-probe-dialog::backdrop {
+    background: rgba(0, 0, 0, .68);
+}
+
+.media-probe-dialog-inner {
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.media-probe {
+    margin: 0;
+    padding: 14px;
+    min-width: 0;
+    color: var(--texto-color);
+    background: transparent;
     font-size: 11px;
 }
 
 .media-probe-heading {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
+    align-items: center;
     gap: 12px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .media-probe-heading > div {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     gap: 3px;
+    min-width: 0;
 }
 
 .media-probe-heading strong {
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .media-probe-heading span {
@@ -327,44 +446,36 @@ button.play-btn {
     border-color: rgba(105, 180, 110, .55);
 }
 
+.media-probe-close {
+    flex: 0 0 auto;
+    width: 28px;
+    min-height: 28px;
+    padding: 0;
+    color: #ddd;
+    background: #353535;
+    border: 1px solid rgba(128, 128, 128, .4);
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
 .media-probe-content {
-    display: grid;
-    grid-template-columns: minmax(180px, 34%) minmax(0, 1fr);
-    gap: 10px;
     min-width: 0;
-}
-
-.media-probe-preview {
-    min-width: 0;
-    align-self: start;
-    background: #090909;
-    border: 1px solid rgba(128, 128, 128, .25);
-}
-
-.media-probe-video {
-    display: block;
-    width: 100%;
-    max-height: 150px;
-    aspect-ratio: 16 / 9;
-    object-fit: contain;
-    background: #090909;
-}
-
-.media-probe-video-time {
-    padding: 3px 6px;
-    color: #bdbdbd;
-    background: #171717;
-    font-variant-numeric: tabular-nums;
-    font-size: 10px;
 }
 
 .media-probe-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
     min-width: 0;
     color: #c8c8c8;
     overflow-wrap: anywhere;
+}
+
+.media-probe-details > div {
+    padding-bottom: 3px;
+    border-bottom: 1px solid rgba(128, 128, 128, .12);
 }
 
 .media-probe-details b {
@@ -382,12 +493,12 @@ button.play-btn {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-top: 8px;
+    margin-top: 12px;
 }
 
 .media-probe-actions button {
-    min-height: 25px;
-    padding: 3px 8px;
+    min-height: 27px;
+    padding: 4px 9px;
     color: var(--texto-color);
     background: #353535;
     border: 1px solid rgba(128, 128, 128, .4);
@@ -396,7 +507,8 @@ button.play-btn {
     font-size: 10px;
 }
 
-.media-probe-actions button:hover:not(:disabled) {
+.media-probe-actions button:hover:not(:disabled),
+.media-probe-close:hover {
     background: #454545;
     border-color: var(--accent-color);
 }
@@ -406,17 +518,6 @@ button.play-btn {
     cursor: default;
 }
 
-@media (max-width: 680px) {
-    .media-probe-content {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .media-probe-preview {
-        max-width: 360px;
-    }
-}
-
-
 .media-probe-copy-feedback {
     align-self: center;
     color: #a5d6a7;
@@ -424,9 +525,9 @@ button.play-btn {
 }
 
 .media-probe-log {
-    margin-top: 8px;
+    margin-top: 12px;
     border-top: 1px solid rgba(128, 128, 128, .28);
-    padding-top: 6px;
+    padding-top: 7px;
 }
 
 .media-probe-log summary {
@@ -439,16 +540,16 @@ button.play-btn {
 .media-probe-log-list {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    max-height: 150px;
+    gap: 4px;
+    max-height: 220px;
     overflow: auto;
-    margin-top: 6px;
+    margin-top: 7px;
     padding-right: 4px;
 }
 
 .media-probe-log-entry {
     display: grid;
-    grid-template-columns: 138px minmax(0, 1fr);
+    grid-template-columns: 150px minmax(0, 1fr);
     gap: 8px;
     color: #c8c8c8;
     font-size: 10px;
@@ -474,9 +575,27 @@ button.play-btn {
     font-size: 10px;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 680px) {
+    .media-probe-heading {
+        flex-wrap: wrap;
+    }
+
+    .media-probe-state {
+        order: 3;
+    }
+
+    .media-probe-dialog {
+        width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+    }
+
+    .media-probe-dialog-inner {
+        max-height: calc(100vh - 16px);
+    }
+
     .media-probe-log-entry {
         grid-template-columns: minmax(0, 1fr);
         gap: 1px;
     }
 }
+
