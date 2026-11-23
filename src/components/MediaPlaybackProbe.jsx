@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     getMediaSdk,
     inspectCurrentMediaTrack,
+    inspectVideoStream,
     inspectWebViewEnvironment
 } from '../services/mediaPlaybackProbe.js';
 
@@ -28,6 +29,33 @@ function describeMediaError(video) {
 
     return (names[error.code] || 'MEDIA_ERR_UNKNOWN')
         + (error.message ? ': ' + error.message : '');
+}
+
+function describeVideoElement(video) {
+    if (!video) return 'Elemento de video no disponible.';
+    const error = video.error;
+    const names = {
+        1: 'MEDIA_ERR_ABORTED',
+        2: 'MEDIA_ERR_NETWORK',
+        3: 'MEDIA_ERR_DECODE',
+        4: 'MEDIA_ERR_SRC_NOT_SUPPORTED'
+    };
+    return [
+        error ? (names[error.code] || 'MEDIA_ERR_UNKNOWN') + ' (' + error.code + ')' : 'sin MediaError',
+        'networkState=' + video.networkState,
+        'readyState=' + video.readyState,
+        'currentTime=' + formatTime(video.currentTime),
+        'videoWidth=' + video.videoWidth,
+        'videoHeight=' + video.videoHeight
+    ].join(' · ');
+}
+
+function formatSupport(value) {
+    return value === true ? 'Sí'
+        : value === false ? 'No'
+            : value === '' ? 'No compatible'
+                : value === 'unknown' || value == null ? 'Desconocido'
+                    : String(value);
 }
 
 function getEnvironmentStatus(environment) {
@@ -72,6 +100,7 @@ export default function MediaPlaybackProbe() {
 
     const [environment, setEnvironment] = useState(null);
     const [inspection, setInspection] = useState(null);
+    const [mediaDiagnostics, setMediaDiagnostics] = useState(null);
     const [status, setStatus] = useState('Comprobando conexión con WebView2…');
     const [lastEvent, setLastEvent] = useState('Sin eventos');
     const [videoTime, setVideoTime] = useState(0);
@@ -276,11 +305,28 @@ export default function MediaPlaybackProbe() {
                 throw new Error('La pista activa no contiene video.');
             }
 
+            setMediaDiagnostics(null);
+            setStatus('Comprobando compatibilidad del navegador y respuesta multimedia…');
+            try {
+                const diagnostics = await inspectVideoStream(result.sourcePath, result.videoTrack);
+                setMediaDiagnostics(diagnostics);
+            } catch (diagnosticError) {
+                setMediaDiagnostics({
+                    streamError: diagnosticError.message || String(diagnosticError)
+                });
+            }
+
             const follower = new sdk.MediaElementFollower(videoRef.current);
             followerRef.current = follower;
 
             followerErrorUnsubscribeRef.current = follower.onError((error) => {
-                setStatus('Error del seguidor multimedia: ' + (error.message || String(error)));
+                const elementState = describeVideoElement(videoRef.current);
+                setStatus('Error del seguidor multimedia: ' + (error.message || String(error))
+                    + ' · Estado del elemento: ' + elementState);
+                setMediaDiagnostics((previous) => ({
+                    ...(previous || {}),
+                    elementError: elementState
+                }));
                 setLastEvent('MediaElementFollower informó un error');
             });
 
@@ -353,6 +399,7 @@ export default function MediaPlaybackProbe() {
                         ref={videoRef}
                         className="media-probe-video"
                         muted
+                        crossOrigin="anonymous"
                         playsInline
                         preload="metadata"
                         onTimeUpdate={(event) => setVideoTime(event.currentTarget.currentTime)}
@@ -400,16 +447,47 @@ export default function MediaPlaybackProbe() {
                     <div><b>Pista de video:</b> {inspection?.videoTrack
                         ? [
                             inspection.videoTrack.codec || 'Códec desconocido',
+                            inspection.videoTrack.codecs || '',
                             inspection.videoTrack.width && inspection.videoTrack.height
                                 ? inspection.videoTrack.width + '×' + inspection.videoTrack.height
                                 : '',
                             inspection.videoTrack.frameRate
                                 ? inspection.videoTrack.frameRate + ' fps'
-                                : ''
+                                : '',
+                            inspection.videoTrack.mimeType || ''
                         ].filter(Boolean).join(' · ')
                         : inspection?.inspectionFailed
                             ? 'No evaluada: falló la apertura del contenedor'
                             : 'No detectada'}</div>
+                    {mediaDiagnostics && (
+                        <>
+                            <div><b>Compatibilidad del navegador:</b> canPlayType={formatSupport(mediaDiagnostics.canPlayType)}
+                                {' · '}MediaCapabilities={formatSupport(mediaDiagnostics.supported)}
+                                {' · '}Suavidad={formatSupport(mediaDiagnostics.smooth)}
+                            </div>
+                            <div><b>Stream:</b> MIME={mediaDiagnostics.streamMimeType || '—'}
+                                {' · '}Tamaño={mediaDiagnostics.size == null
+                                    ? '—'
+                                    : (mediaDiagnostics.size / (1024 * 1024)).toFixed(2) + ' MiB'}
+                            </div>
+                            <div><b>Respuesta HTTP:</b> HEAD={mediaDiagnostics.headStatus ?? '—'}
+                                {' · '}Range={mediaDiagnostics.rangeStatus ?? '—'}
+                                {mediaDiagnostics.responseMimeType ? ' · ' + mediaDiagnostics.responseMimeType : ''}
+                            </div>
+                            {mediaDiagnostics.contentRange && (
+                                <div><b>Content-Range:</b> {mediaDiagnostics.contentRange}</div>
+                            )}
+                            {mediaDiagnostics.signature && (
+                                <div><b>Firma inicial:</b> {mediaDiagnostics.signature}</div>
+                            )}
+                            {mediaDiagnostics.streamError && (
+                                <div><b>Diagnóstico de stream:</b> {mediaDiagnostics.streamError}</div>
+                            )}
+                            {mediaDiagnostics.elementError && (
+                                <div><b>Estado HTMLVideoElement:</b> {mediaDiagnostics.elementError}</div>
+                            )}
+                        </>
+                    )}
                     {inspection?.inspectionStage && (
                         <div><b>Etapa de error:</b> {inspection.inspectionStage}</div>
                     )}
