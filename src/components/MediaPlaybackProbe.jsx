@@ -354,8 +354,11 @@ export default function MediaPlaybackProbe() {
                 <div className="media-probe-details">
                     <div className="media-probe-status">{status}</div>
                     <div><b>Origen:</b> {environment?.origin || 'Consultando…'}</div>
-                    <div><b>Host foobar2000:</b> {environment
+                    <div><b>Puente nativo:</b> {environment
                         ? (environment.hasHostBridge ? 'Conectado' : 'No conectado')
+                        : 'Consultando…'}</div>
+                    <div><b>SDK tipado:</b> {environment
+                        ? (environment.hasSdkFacade ? 'Enlazado al puente' : 'No disponible')
                         : 'Consultando…'}</div>
                     <div><b>Origen de la página:</b> {environment?.source || '—'}
                         {environment?.templateName || environment?.activeTemplateName
