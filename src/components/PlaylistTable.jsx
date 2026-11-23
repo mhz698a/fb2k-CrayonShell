@@ -8,16 +8,19 @@ export default function PlaylistTable({
     playingItemIndex,
     playbackState,
     playlistGuid,
+    scrollRequest = { version: 0, target: 'playing' },
     onSelect,
     onPlay,
     onContextMenu
 }) {
     const clickTimerRef = useRef(null);
     const tableWrapRef = useRef(null);
+    const keyboardFocusRef = useRef(focusedItem);
     const previousNavigationRef = useRef({
         focusedItem,
         playingItemIndex,
-        playlistGuid
+        playlistGuid,
+        scrollRequestVersion: scrollRequest.version
     });
 
     useEffect(() => {
@@ -26,26 +29,37 @@ export default function PlaylistTable({
         };
     }, []);
 
-    // Keep the active playback item or the keyboard-focused item visible in the list.
+    useEffect(() => {
+        keyboardFocusRef.current = focusedItem;
+    }, [focusedItem, playlistGuid]);
+
+    // Keep the playing/focused row visible after playback, focus and playlist events.
     useEffect(() => {
         const previous = previousNavigationRef.current;
-        const playingChanged = previous.playingItemIndex !== playingItemIndex
-            || previous.playlistGuid !== playlistGuid;
+        const playingChanged = previous.playingItemIndex !== playingItemIndex;
         const focusedChanged = previous.focusedItem !== focusedItem;
+        const playlistChanged = previous.playlistGuid !== playlistGuid;
+        const requestChanged = previous.scrollRequestVersion !== scrollRequest.version;
 
         previousNavigationRef.current = {
             focusedItem,
             playingItemIndex,
-            playlistGuid
+            playlistGuid,
+            scrollRequestVersion: scrollRequest.version
         };
 
-        const targetIndex = playingChanged && playingItemIndex >= 0
-            ? playingItemIndex
-            : focusedChanged && focusedItem >= 0
+        let targetIndex = -1;
+        if (requestChanged) {
+            targetIndex = scrollRequest.target === 'focused'
                 ? focusedItem
-                : playingItemIndex >= 0
-                    ? playingItemIndex
-                    : focusedItem;
+                : playingItemIndex;
+        } else if (playingChanged) {
+            targetIndex = playingItemIndex;
+        } else if (focusedChanged) {
+            targetIndex = focusedItem;
+        } else if (playlistChanged) {
+            targetIndex = playingItemIndex >= 0 ? playingItemIndex : focusedItem;
+        }
 
         if (!Number.isInteger(targetIndex) || targetIndex < 0) return;
 
@@ -64,7 +78,7 @@ export default function PlaylistTable({
         } else if (rowBounds.bottom > viewportBounds.bottom) {
             viewport.scrollTop += rowBounds.bottom - viewportBounds.bottom;
         }
-    }, [focusedItem, playingItemIndex, playlistGuid]);
+    }, [focusedItem, playingItemIndex, playlistGuid, scrollRequest.version, scrollRequest.target]);
 
     function focusPlaylist() {
         tableWrapRef.current?.focus({ preventScroll: true });
@@ -72,6 +86,7 @@ export default function PlaylistTable({
 
     function handleClick(index) {
         focusPlaylist();
+        keyboardFocusRef.current = index;
         window.clearTimeout(clickTimerRef.current);
 
         // The short delay lets a double-click cancel the single-click action.
@@ -83,6 +98,7 @@ export default function PlaylistTable({
 
     function handleDoubleClick(index) {
         focusPlaylist();
+        keyboardFocusRef.current = index;
         window.clearTimeout(clickTimerRef.current);
         clickTimerRef.current = null;
         onPlay(index);
@@ -92,7 +108,7 @@ export default function PlaylistTable({
         if (event.altKey || event.ctrlKey || event.metaKey) return;
 
         if (event.key === 'Enter') {
-            const selected = items.find((item) => item.index === focusedItem);
+            const selected = items.find((item) => item.index === keyboardFocusRef.current);
             if (!selected) return;
 
             event.preventDefault();
@@ -112,13 +128,14 @@ export default function PlaylistTable({
         clickTimerRef.current = null;
 
         const direction = event.key === 'ArrowDown' ? 1 : -1;
-        const currentPosition = items.findIndex((item) => item.index === focusedItem);
+        const currentPosition = items.findIndex((item) => item.index === keyboardFocusRef.current);
         const nextPosition = currentPosition < 0
             ? (direction > 0 ? 0 : items.length - 1)
             : Math.max(0, Math.min(items.length - 1, currentPosition + direction));
 
         const nextItem = items[nextPosition];
-        if (nextItem && nextItem.index !== focusedItem) {
+        if (nextItem && nextItem.index !== keyboardFocusRef.current) {
+            keyboardFocusRef.current = nextItem.index;
             onSelect(nextItem.index);
         }
     }
@@ -127,6 +144,7 @@ export default function PlaylistTable({
         event.preventDefault();
         event.stopPropagation();
         focusPlaylist();
+        keyboardFocusRef.current = index;
         window.clearTimeout(clickTimerRef.current);
         clickTimerRef.current = null;
         onContextMenu(index);
