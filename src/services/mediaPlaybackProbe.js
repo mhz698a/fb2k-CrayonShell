@@ -293,12 +293,13 @@ export async function inspectVideoStream(path, track) {
         });
         diagnostics.rangeStatus = range.status;
         diagnostics.contentRange = range.headers.get('Content-Range') || '';
-        if (range.ok || range.status === 206) {
+        if (range.status === 206) {
             const bytes = new Uint8Array(await range.arrayBuffer());
             diagnostics.signature = Array.from(bytes.slice(0, 16))
                 .map((value) => value.toString(16).padStart(2, '0'))
                 .join(' ');
         } else {
+            // A server that ignores Range may return the whole video; never buffer it.
             await range.body?.cancel();
         }
     } catch (error) {
