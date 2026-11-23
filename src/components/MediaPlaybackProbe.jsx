@@ -26,7 +26,6 @@ export default function MediaPlaybackProbe() {
     const followerRef = useRef(null);
     const unsubscribeRef = useRef([]);
     const requestIdRef = useRef(0);
-    const followingRef = useRef(false);
 
     const [environment, setEnvironment] = useState(null);
     const [inspection, setInspection] = useState(null);
@@ -49,7 +48,6 @@ export default function MediaPlaybackProbe() {
 
     const stopFollowing = useCallback((updateStatus = true) => {
         requestIdRef.current += 1;
-        followingRef.current = false;
         clearSubscriptions();
 
         if (followerRef.current) {
@@ -57,8 +55,10 @@ export default function MediaPlaybackProbe() {
             followerRef.current = null;
         }
 
-        setIsFollowing(false);
-        setVideoTime(0);
+        if (updateStatus) {
+            setIsFollowing(false);
+            setVideoTime(0);
+        }
 
         if (updateStatus) {
             setStatus('Seguimiento detenido.');
@@ -194,7 +194,6 @@ export default function MediaPlaybackProbe() {
 
             const follower = new sdk.MediaElementFollower(videoRef.current);
             followerRef.current = follower;
-            followingRef.current = true;
 
             unsubscribeRef.current.push(
                 follower.onError((error) => {
