@@ -4,27 +4,27 @@ const demoTracks = [
     {
         index: 0,
         path: 'D:\\Music\\Demo Artist\\First Track.flac',
-        formats: { duration: '00:03:42', details: 'Demo Artist - First Track' }
+        formats: { duration: '00:03:42', title: 'First Track', artist: 'Demo Artist', details: 'Demo Artist - First Track' }
     },
     {
         index: 1,
         path: 'D:\\Music\\Demo Artist\\Second Track.mp3',
-        formats: { duration: '00:04:18', details: 'Demo Artist - Second Track' }
+        formats: { duration: '00:04:18', title: 'Second Track', artist: '', details: 'Demo Artist - Second Track' }
     },
     {
         index: 2,
         path: 'D:\\Music\\Another Artist\\A Different Song.flac',
-        formats: { duration: '00:05:06', details: 'Another Artist - A Different Song' }
+        formats: { duration: '00:05:06', title: '', artist: 'Another Artist', details: 'Another Artist - A Different Song' }
     },
     {
         index: 3,
         path: 'D:\\Music\\Soundtracks\\Theme Video.mp4',
-        formats: { duration: '00:02:51', details: 'Soundtrack - Theme Video [Video]' }
+        formats: { duration: '00:02:51', title: '', artist: '', details: 'Soundtrack - Theme Video [Video]' }
     },
     {
         index: 4,
         path: 'D:\\Music\\Demo Artist\\Last Track.ogg',
-        formats: { duration: '00:03:29', details: 'Demo Artist - Last Track' }
+        formats: { duration: '00:03:29', title: 'Last Track', artist: 'Demo Artist', details: 'Demo Artist - Last Track' }
     }
 ];
 
