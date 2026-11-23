@@ -168,15 +168,28 @@ export default function MediaPlaybackProbe() {
 
             const message = error.message || String(error);
             const code = error.code ? ' [' + error.code + ']' : '';
-            setInspection(null);
+            const diagnostic = error.mediaContext
+                ? {
+                    ...error.mediaContext,
+                    inspectionFailed: true,
+                    inspectionError: message,
+                    inspectionErrorCode: error.code || '',
+                    inspectionStage: error.operation || error.mediaContext.inspectionStage
+                }
+                : null;
+            setInspection(diagnostic);
 
             if (error.code === 'ORIGIN_DENIED') {
                 setStatus('El host rechazó el origen de esta página. Carga Vite desde Developer > Use development server o usa una plantilla de WebView2. ' + message + code);
+            } else if (error.code === 'PERMISSION_DENIED' && /open\\s*\\(5\\)/i.test(message)) {
+                setStatus('Windows rechazó la apertura del archivo (ERROR_ACCESS_DENIED, 5). La ruta pasó la validación MediaRead del host, pero media.getContainerInfo no pudo abrir el archivo para leer su contenedor. ' + message + code);
             } else {
                 setStatus('No se pudo inspeccionar la pista: ' + message + code);
             }
 
-            setLastEvent('Error durante la inspección');
+            setLastEvent(error.operation
+                ? 'Error en ' + error.operation
+                : 'Error durante la inspección');
         } finally {
             if (mountedRef.current && requestId === requestIdRef.current) {
                 setIsInspecting(false);
@@ -374,7 +387,13 @@ export default function MediaPlaybackProbe() {
                             + ' · '
                             + (environment.hasMediaElementFollower ? 'MediaElementFollower disponible' : 'MediaElementFollower no disponible')
                         : '—'}</div>
-                    <div><b>Archivo activo:</b> {inspection?.path || 'Sin archivo detectado'}</div>
+                    <div><b>Archivo activo:</b> {inspection?.path || inspection?.rawPath || 'Sin archivo detectado'}</div>
+                    {inspection?.rawPath && inspection.rawPath !== inspection.path && (
+                        <div><b>Ruta original:</b> {inspection.rawPath}</div>
+                    )}
+                    {inspection?.pathType && (
+                        <div><b>Tipo de ruta:</b> {inspection.pathType}</div>
+                    )}
                     <div><b>Contenedor:</b> {inspection?.containerFormat || '—'}
                         {inspection?.recognized === false ? ' · No reconocido' : ''}
                     </div>
@@ -388,7 +407,15 @@ export default function MediaPlaybackProbe() {
                                 ? inspection.videoTrack.frameRate + ' fps'
                                 : ''
                         ].filter(Boolean).join(' · ')
-                        : 'No detectada'}</div>
+                        : inspection?.inspectionFailed
+                            ? 'No evaluada: falló la apertura del contenedor'
+                            : 'No detectada'}</div>
+                    {inspection?.inspectionStage && (
+                        <div><b>Etapa de error:</b> {inspection.inspectionStage}</div>
+                    )}
+                    {inspection?.inspectionErrorCode && (
+                        <div><b>Código de error:</b> {inspection.inspectionErrorCode}</div>
+                    )}
                     <div><b>Evento reciente:</b> {lastEvent}</div>
                     {environment?.sourceError && (
                         <div><b>Información del host:</b> {environment.sourceError}</div>
