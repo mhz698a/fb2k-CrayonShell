@@ -162,13 +162,11 @@ export async function inspectCurrentMediaTrack() {
         ? container.tracks.find((track) => track.type === 'video') || null
         : null;
 
-    const chapter = normalized.subsong === 0
-        ? null
-        : (Array.isArray(container.chapters)
-            ? container.chapters.find(
-                (item) => Number(item.subsong) === normalized.subsong
-            ) || null
-            : null);
+    const chapter = Array.isArray(container.chapters)
+        ? container.chapters.find(
+            (item) => Number(item.subsong) === normalized.subsong
+        ) || null
+        : null;
 
     return {
         hasTrack: true,
@@ -181,7 +179,7 @@ export async function inspectCurrentMediaTrack() {
         videoTrack,
         trackCount: Array.isArray(container.tracks) ? container.tracks.length : 0,
         chapter,
-        sourcePath: normalized.subsong > 0
+        sourcePath: chapter
             ? normalized.path + '|subsong:' + normalized.subsong
             : normalized.path,
         timelineOffset: Number.isFinite(Number(chapter?.start))
