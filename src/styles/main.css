@@ -223,9 +223,8 @@ select {
 #PlaylistTable td {
     padding: 5px 8px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: pre;
     border-bottom: 1px solid rgba(128, 128, 128, .14);
+    white-space: normal;
 }
 
 #PlaylistTable tbody tr {
@@ -240,13 +239,31 @@ select {
     background: rgba(80, 130, 190, .22);
 }
 
-#PlaylistTable tbody tr.playing > td {
+#PlaylistTable tbody tr.playing .playlist-primary-line {
     font-weight: 700;
 }
 
 #PlaylistTable .playlist-line {
     width: 100%;
     font-variant-numeric: tabular-nums;
+}
+
+#PlaylistTable .playlist-primary-line {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: pre;
+}
+
+#PlaylistTable .playlist-secondary-line {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .88em;
+    font-weight: 400;
+    opacity: .72;
 }
 
 #PlaylistEmpty {
