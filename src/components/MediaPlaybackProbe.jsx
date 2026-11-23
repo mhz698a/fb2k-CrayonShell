@@ -75,6 +75,11 @@ function getEnvironmentStatus(environment) {
         return 'El puente nativo está conectado, pero la fachada tipada foo-webview-sdk no se enlazó. Comprueba que CrayonShell se haya compilado con el paquete npm importado.';
     }
 
+    if (environment.mediaRouteSupported === false) {
+        return 'foo_ui_webview2 ' + environment.pluginVersion
+            + ' no puede resolver las URL multimedia de esta prueba. Actualiza el componente a 2.2.0 o posterior; la versión 2.1.0 produce ERR_FILE_NOT_FOUND en fb2k-media.';
+    }
+
     if (environment.isFileOrigin) {
         return 'La página está abierta como file://. El puente del host puede existir, pero Media API no admite este origen. Instala la compilación como plantilla de WebView2.';
     }
@@ -302,6 +307,11 @@ export default function MediaPlaybackProbe() {
                 throw new Error('La página debe ejecutarse dentro del host desde un origen HTTP(S) confiable.');
             }
 
+            if (environment.mediaRouteSupported === false) {
+                throw new Error('foo_ui_webview2 ' + environment.pluginVersion
+                    + ' usa una ruta multimedia incompatible con el mapeo de plantillas. Actualiza a 2.2.0 o posterior.');
+            }
+
             if (typeof sdk.MediaElementFollower !== 'function') {
                 throw new Error('MediaElementFollower no está disponible en el SDK.');
             }
@@ -386,6 +396,7 @@ export default function MediaPlaybackProbe() {
         && environment?.hasHostBridge
         && environment?.isHttpOrigin
         && environment?.hasMediaElementFollower
+        && environment?.mediaRouteSupported !== false
         && inspection?.videoTrack
     );
 
@@ -432,6 +443,13 @@ export default function MediaPlaybackProbe() {
                     <div><b>SDK tipado:</b> {environment
                         ? (environment.hasSdkFacade ? 'Enlazado al puente' : 'No disponible')
                         : 'Consultando…'}</div>
+                    <div><b>Componente nativo:</b> {environment?.pluginVersion || 'Versión no identificada'}
+                        {environment?.mediaRouteSupported === false
+                            ? ' · Requiere 2.2.0 o posterior para resolver streams multimedia'
+                            : environment?.mediaRouteSupported === true
+                                ? ' · Enrutamiento multimedia compatible'
+                                : ''}
+                    </div>
                     <div><b>Origen de la página:</b> {environment?.source || '—'}
                         {environment?.templateName || environment?.activeTemplateName
                             ? ' · Plantilla: ' + (environment.templateName || environment.activeTemplateName)
