@@ -256,7 +256,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
     const [isInspecting, setIsInspecting] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const [isVideoVisible, setIsVideoVisible] = useState(false);
-    const [embeddedArtwork, setEmbeddedArtwork] = useState(null);
+    const [trackArtwork, setTrackArtwork] = useState(null);
     const [diagnosticLogs, setDiagnosticLogs] = useState(readDiagnosticLogs);
     const [copyFeedback, setCopyFeedback] = useState('');
 
@@ -345,7 +345,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
 
     const showAudioArtwork = useCallback(async (path, requestId) => {
         releaseFollowing();
-        setEmbeddedArtwork(null);
+        setTrackArtwork(null);
         setMediaDiagnostics(null);
 
         if (!path) return null;
@@ -354,28 +354,28 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             const cover = await inspectTrackFrontCover(path);
             if (!mountedRef.current || requestId !== requestIdRef.current) return null;
 
-            setEmbeddedArtwork(cover);
+            setTrackArtwork(cover);
             if (cover.available) {
                 setStatus('Pista de audio · Carátula frontal disponible.');
-                setLastEvent('Carátula incrustada del archivo cargada');
-                addDiagnosticLog('info', 'Carátula frontal incrustada detectada · '
+                setLastEvent('Carátula del archivo cargada');
+                addDiagnosticLog('info', 'Carátula frontal disponible · '
                     + (cover.mimeType || 'MIME desconocido') + ' · '
                     + (cover.size == null ? 'tamaño desconocido' : cover.size + ' bytes'));
             } else {
                 setStatus('Pista de audio · No se encontró una carátula frontal para esta pista.');
-                setLastEvent('Pista de audio sin carátula incrustada');
+                setLastEvent('Pista de audio sin carátula disponible');
                 addDiagnosticLog('info', 'No se encontró una carátula frontal para esta pista.');
             }
             return cover;
         } catch (error) {
             if (!mountedRef.current || requestId !== requestIdRef.current) return null;
-            setEmbeddedArtwork({
+            setTrackArtwork({
                 available: false,
                 error: error.message || String(error)
             });
             setStatus('Pista de audio · No se pudo leer la carátula de la pista: '
                 + (error.message || String(error)));
-            setLastEvent('Error al leer la carátula incrustada');
+            setLastEvent('Error al leer la carátula de la pista');
             addDiagnosticLog('warning', 'No se pudo leer la carátula de la pista: '
                 + (error.message || String(error)));
             return null;
@@ -405,7 +405,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
 
             if (!result.hasTrack) {
                 releaseFollowing();
-                setEmbeddedArtwork(null);
+                setTrackArtwork(null);
                 setMediaDiagnostics(null);
                 setStatus('foobar2000 no tiene una pista en reproducción.');
                 setLastEvent('Inspección completada: sin pista activa');
@@ -419,7 +419,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 }
 
                 releaseFollowing();
-                setEmbeddedArtwork(null);
+                setTrackArtwork(null);
                 setMediaDiagnostics(null);
                 setStatus('Archivo activo detectado, pero el contenedor no pertenece a MP4, MOV, Matroska o WebM.');
                 setLastEvent('Contenedor no reconocido');
@@ -432,7 +432,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                     await showAudioArtwork(result.path, requestId);
                 } else {
                     releaseFollowing();
-                    setEmbeddedArtwork(null);
+                    setTrackArtwork(null);
                     setMediaDiagnostics(null);
                     setStatus('Pista activa detectada: ' + result.containerFormat + ', sin pista de video ni pista de audio.');
                     setLastEvent('Archivo multimedia sin video');
@@ -440,7 +440,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 return;
             }
 
-            setEmbeddedArtwork(null);
+            setTrackArtwork(null);
             setMediaDiagnostics(null);
             setStatus('Video detectado: ' + result.containerFormat
                 + (result.videoTrack.codec ? ' · ' + result.videoTrack.codec : '')
@@ -458,7 +458,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 if (requestId === requestIdRef.current) {
                     setIsFollowing(true);
                     setIsVideoVisible(true);
-                    setEmbeddedArtwork(null);
+                    setTrackArtwork(null);
                     setStatus('Fuente de video actualizada y enlazada al reloj de foobar2000.');
                 }
             }
@@ -481,7 +481,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             setInspection(diagnostic);
             inspectionRef.current = diagnostic;
             releaseFollowing();
-            setEmbeddedArtwork(null);
+            setTrackArtwork(null);
 
             const failedPath = error.mediaContext?.path || error.mediaContext?.rawPath || '';
             if (isLikelyAudioFilePath(failedPath)) {
@@ -634,7 +634,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             if (startGeneration !== startGenerationRef.current) return;
             setInspection(result);
             inspectionRef.current = result;
-            setEmbeddedArtwork(null);
+            setTrackArtwork(null);
 
             if (!result.hasTrack || !result.videoTrack) {
                 throw new Error('La pista activa no contiene video.');
@@ -692,7 +692,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             startInProgressRef.current = false;
             setIsFollowing(true);
             setIsVideoVisible(true);
-            setEmbeddedArtwork(null);
+            setTrackArtwork(null);
             setStatus('Video enlazado al reloj de foobar2000. Prueba pausa, reanudación y búsqueda desde el reproductor.');
             setLastEvent('MediaElementFollower iniciado');
             addDiagnosticLog('info', 'MediaElementFollower inició correctamente.');
@@ -783,14 +783,14 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 videoElement: getVideoElementDiagnostics(video)
             },
             track: getTrackDiagnostics(inspection),
-            artwork: embeddedArtwork ? {
-                available: Boolean(embeddedArtwork.available),
-                type: embeddedArtwork.type || 'front',
-                mimeType: embeddedArtwork.mimeType || '',
-                width: embeddedArtwork.width ?? null,
-                height: embeddedArtwork.height ?? null,
-                size: embeddedArtwork.size ?? null,
-                error: sanitizeDiagnosticText(embeddedArtwork.error || '')
+            artwork: trackArtwork ? {
+                available: Boolean(trackArtwork.available),
+                type: trackArtwork.type || 'front',
+                mimeType: trackArtwork.mimeType || '',
+                width: trackArtwork.width ?? null,
+                height: trackArtwork.height ?? null,
+                size: trackArtwork.size ?? null,
+                error: sanitizeDiagnosticText(trackArtwork.error || '')
             } : null,
             stream: mediaDiagnostics || null,
             eventLog: diagnosticLogs
@@ -807,7 +807,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             addDiagnosticLog('error', 'No se pudo copiar el informe: ' + (error.message || String(error)));
         }
     }, [
-        addDiagnosticLog, diagnosticLogs, embeddedArtwork, environment, inspection,
+        addDiagnosticLog, diagnosticLogs, trackArtwork, environment, inspection,
         isFollowing, isInspecting, isVideoVisible, lastEvent, mediaDiagnostics, status, videoTime
     ]);
 
@@ -865,14 +865,14 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                     onPlaying={handleVideoPlaying}
                     onError={handleVideoError}
                 />
-                {!inspection?.videoTrack && embeddedArtwork?.available && (
+                {!inspection?.videoTrack && trackArtwork?.available && (
                     <img
                         className="media-viewer-artwork"
-                        src={embeddedArtwork.dataUrl}
+                        src={trackArtwork.dataUrl}
                         alt="Carátula del archivo de audio"
                     />
                 )}
-                {!isVideoVisible && !embeddedArtwork?.available && (
+                {!isVideoVisible && !trackArtwork?.available && (
                     <div className="media-viewer-placeholder">
                         {inspection?.videoTrack
                             ? status
@@ -993,14 +993,14 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                                         track.mimeType || ''
                                     ].filter(Boolean).join(' · ')).join(' | ')
                                     : 'Ninguna declarada'}</div>
-                                {embeddedArtwork && (
-                                    <div><b>Carátula frontal:</b> {embeddedArtwork.available
-                                        ? 'Encontrada · ' + (embeddedArtwork.mimeType || 'MIME desconocido')
-                                            + ' · ' + (embeddedArtwork.size == null
+                                {trackArtwork && (
+                                    <div><b>Carátula frontal:</b> {trackArtwork.available
+                                        ? 'Encontrada · ' + (trackArtwork.mimeType || 'MIME desconocido')
+                                            + ' · ' + (trackArtwork.size == null
                                                 ? 'tamaño desconocido'
-                                                : embeddedArtwork.size + ' bytes')
-                                        : embeddedArtwork.error
-                                            ? 'No disponible · ' + embeddedArtwork.error
+                                                : trackArtwork.size + ' bytes')
+                                        : trackArtwork.error
+                                            ? 'No disponible · ' + trackArtwork.error
                                             : 'No encontrada para esta pista'}</div>
                                 )}
                                 <div><b>Artwork API:</b> {environment
