@@ -152,6 +152,38 @@ function getTrackDiagnostics(inspection) {
     };
 }
 
+async function copyTextToClipboard(text) {
+    let clipboardError = null;
+
+    if (navigator.clipboard?.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return;
+        } catch (error) {
+            clipboardError = error;
+        }
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } finally {
+        textarea.remove();
+    }
+
+    if (!copied) {
+        throw clipboardError || new Error('El navegador rechazó la operación de copia.');
+    }
+}
+
 function getEnvironmentStatus(environment) {
     if (!environment?.hasHostBridge) {
         return 'Sin puente nativo. Para probar Vite, ábrelo dentro de foobar2000 mediante WebView2 UI > Developer > Use development server. Un navegador externo no recibe window.fb2k.';
@@ -575,10 +607,7 @@ export default function MediaPlaybackProbe() {
             + JSON.stringify(report, null, 2);
 
         try {
-            if (!navigator.clipboard?.writeText) {
-                throw new Error('Clipboard API no disponible en este origen.');
-            }
-            await navigator.clipboard.writeText(reportText);
+            await copyTextToClipboard(reportText);
             setCopyFeedback('Informe copiado al portapapeles.');
             addDiagnosticLog('info', 'Informe técnico copiado al portapapeles.');
         } catch (error) {
@@ -606,11 +635,11 @@ export default function MediaPlaybackProbe() {
     );
 
     return (
-        <section className="media-probe" aria-label="Prueba multimedia de fase 1">
+        <section className="media-probe" aria-label="Monitor multimedia y diagnóstico">
             <div className="media-probe-heading">
                 <div>
-                    <strong>Prueba multimedia · Fase 1</strong>
-                    <span>Detección automática de la pista activa. No sustituye ni desactiva foo_mpv o Artwork View.</span>
+                    <strong>Monitor multimedia</strong>
+                    <span>Detección de pista, reproducción sincronizada y diagnóstico. No sustituye ni desactiva foo_mpv o Artwork View.</span>
                 </div>
                 <span className={isFollowing ? 'media-probe-state is-active' : 'media-probe-state'}>
                     {isFollowing ? 'Siguiendo reproducción' : 'Prueba detenida'}
