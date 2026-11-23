@@ -164,6 +164,7 @@ export async function inspectWebViewEnvironment() {
             && typeof fb.media.getStreamUrl === 'function'
         ),
         hasMediaElementFollower: typeof fb.MediaElementFollower === 'function',
+        hasArtworkApi: Boolean(fb.artwork && typeof fb.artwork.getByPath === 'function'),
         hasPlaybackApi: Boolean(
             fb.player
             && typeof fb.player.getPosition === 'function'
@@ -260,6 +261,27 @@ export async function inspectCurrentMediaTrack() {
         timelineOffset: Number.isFinite(Number(chapter?.start))
             ? Number(chapter.start)
             : 0
+    };
+}
+
+export async function inspectEmbeddedFrontCover(path) {
+    const sdk = getSdk();
+
+    if (!sdk.artwork || typeof sdk.artwork.getByPath !== 'function') {
+        throw new Error('El SDK no expone fb.artwork.getByPath().');
+    }
+
+    const response = unwrap(
+        await sdk.artwork.getByPath(path, 'front'),
+        'artwork.getByPath'
+    );
+
+    return {
+        available: Boolean(response.available && response.dataUrl),
+        type: response.type || 'front',
+        mimeType: response.mimeType || '',
+        size: Number.isFinite(Number(response.size)) ? Number(response.size) : null,
+        dataUrl: response.available && response.dataUrl ? response.dataUrl : ''
     };
 }
 
