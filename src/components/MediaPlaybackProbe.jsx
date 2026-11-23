@@ -308,7 +308,7 @@ export default function MediaPlaybackProbe() {
             setMediaDiagnostics(null);
             setStatus('Comprobando compatibilidad del navegador y respuesta multimedia…');
             try {
-                const diagnostics = await inspectVideoStream(result.sourcePath, result.videoTrack);
+                const diagnostics = await inspectVideoStream(result.sourcePath, result.tracks);
                 setMediaDiagnostics(diagnostics);
             } catch (diagnosticError) {
                 setMediaDiagnostics({
@@ -459,12 +459,28 @@ export default function MediaPlaybackProbe() {
                         : inspection?.inspectionFailed
                             ? 'No evaluada: falló la apertura del contenedor'
                             : 'No detectada'}</div>
+                    <div><b>Pistas de audio:</b> {inspection?.audioTracks?.length
+                        ? inspection.audioTracks.map((track) => [
+                            track.codec || 'Códec desconocido',
+                            track.codecs || '',
+                            track.channels ? track.channels + ' canales' : '',
+                            track.sampleRate ? (track.sampleRate / 1000) + ' kHz' : '',
+                            track.mimeType || ''
+                        ].filter(Boolean).join(' · ')).join(' | ')
+                        : 'Ninguna declarada'}</div>
                     {mediaDiagnostics && (
                         <>
-                            <div><b>Compatibilidad del navegador:</b> canPlayType={formatSupport(mediaDiagnostics.canPlayType)}
-                                {' · '}MediaCapabilities={formatSupport(mediaDiagnostics.supported)}
-                                {' · '}Suavidad={formatSupport(mediaDiagnostics.smooth)}
-                            </div>
+                            {mediaDiagnostics.trackCapabilities?.map((track, index) => (
+                                <div key={track.type + '-' + index}>
+                                    <b>Compatibilidad {track.type} ({track.codecs || track.codec}):</b>
+                                    canPlayType={formatSupport(track.canPlayType)}
+                                    {' · '}MediaCapabilities={formatSupport(track.supported)}
+                                    {' · '}Suavidad={formatSupport(track.smooth)}
+                                </div>
+                            ))}
+                            {mediaDiagnostics.capabilityError && (
+                                <div><b>Compatibilidad:</b> {mediaDiagnostics.capabilityError}</div>
+                            )}
                             <div><b>Stream:</b> MIME={mediaDiagnostics.streamMimeType || '—'}
                                 {' · '}Tamaño={mediaDiagnostics.size == null
                                     ? '—'
