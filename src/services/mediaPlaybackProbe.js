@@ -235,9 +235,12 @@ export async function inspectVideoStream(path, tracks) {
     const mediaTracks = Array.isArray(tracks) ? tracks : [tracks];
     const diagnostics = {
         trackCapabilities: [],
-        streamMimeType: 'Desconocido',
+        pageOrigin: window.location.origin,
         streamMimeType: 'Desconocido',
         size: null,
+        streamUrlOrigin: '',
+        streamUrlProtocol: '',
+        streamUrlPath: '',
         headStatus: null,
         rangeStatus: null,
         contentRange: '',
@@ -286,8 +289,20 @@ export async function inspectVideoStream(path, tracks) {
     diagnostics.size = Number.isFinite(Number(stream.size)) ? Number(stream.size) : null;
 
     try {
+        const streamUrl = new URL(stream.url, window.location.href);
+        diagnostics.streamUrlOrigin = streamUrl.origin;
+        diagnostics.streamUrlProtocol = streamUrl.protocol;
+        // Keep the opaque document-bound token out of the visible diagnostics.
+        diagnostics.streamUrlPath = streamUrl.pathname.replace(/\\/[^/]+$/, '/[token]');
+    } catch (error) {
+        diagnostics.streamUrlError = error.message || String(error);
+    }
+
+    try {
         const head = await fetch(stream.url, {
             method: 'HEAD',
+            mode: 'cors',
+            credentials: 'omit',
             cache: 'no-store'
         });
         diagnostics.headStatus = head.status;
@@ -295,12 +310,16 @@ export async function inspectVideoStream(path, tracks) {
         diagnostics.contentLength = head.headers.get('Content-Length') || '';
         diagnostics.acceptRanges = head.headers.get('Accept-Ranges') || '';
     } catch (error) {
-        diagnostics.streamError = 'HEAD: ' + (error.message || String(error));
+        diagnostics.headErrorName = error.name || 'Error';
+        diagnostics.streamError = 'HEAD: ' + (error.name ? error.name + ': ' : '')
+            + (error.message || String(error));
     }
 
     try {
         const range = await fetch(stream.url, {
             headers: { Range: 'bytes=0-15' },
+            mode: 'cors',
+            credentials: 'omit',
             cache: 'no-store'
         });
         diagnostics.rangeStatus = range.status;
@@ -315,9 +334,10 @@ export async function inspectVideoStream(path, tracks) {
             await range.body?.cancel();
         }
     } catch (error) {
+        diagnostics.rangeErrorName = error.name || 'Error';
         diagnostics.streamError = [
             diagnostics.streamError,
-            'Range: ' + (error.message || String(error))
+            'Range: ' + (error.name ? error.name + ': ' : '') + (error.message || String(error))
         ].filter(Boolean).join(' · ');
     }
 
