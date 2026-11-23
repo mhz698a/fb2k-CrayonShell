@@ -33,7 +33,7 @@ function compareVersions(left, right) {
     return 0;
 }
 
-function unwrap(response, operation) {
+export function unwrap(response, operation) {
     if (!response) {
         const error = new Error(operation + ' no devolvió una respuesta.');
         error.operation = operation;
