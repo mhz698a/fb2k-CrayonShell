@@ -92,6 +92,7 @@ fb2k-CrayonShell/
 │   └── verify-build.mjs       # Comprueba los archivos de salida
 ├── src/
 │   ├── components/
+│   │   ├── MediaPlaybackProbe.jsx # Prueba temporal de video sincronizado
 │   │   ├── PlaylistStatus.jsx
 │   │   ├── PlaylistTable.jsx
 │   │   ├── PlaylistToolbar.jsx
@@ -99,7 +100,8 @@ fb2k-CrayonShell/
 │   ├── hooks/
 │   │   └── usePlaylist.js     # Estado y operaciones de la playlist
 │   ├── services/
-│   │   ├── foobarApi.js       # Puente real con foo_ui_webview2
+│   │   ├── foobarApi.js       # Puente existente de playlist
+│   │   ├── mediaPlaybackProbe.js # Diagnóstico del SDK multimedia
 │   │   ├── mockFb2k.js        # Datos ficticios para desarrollo
 │   │   └── playlistFormats.js # Formatos de título de foobar2000
 │   ├── styles/
