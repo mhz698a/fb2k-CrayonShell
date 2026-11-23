@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
 import PlaylistStatus from './components/PlaylistStatus.jsx';
+import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
 import { formatItemLine } from './utils/playlistDisplay.js';
 
@@ -160,6 +161,8 @@ export default function App() {
                             Modo de demostración: los datos no proceden de foobar2000.
                         </div>
                     )}
+
+                    <MediaPlaybackProbe />
 
                     <PlaylistTable
                         items={visibleItems}
