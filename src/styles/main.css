@@ -277,7 +277,7 @@ button.play-btn {
 }
 
 
-/* Temporary media playback diagnostics for phase one. */
+/* Persistent multimedia monitor and diagnostics. */
 .media-probe {
     flex: 0 0 auto;
     margin: 8px;
