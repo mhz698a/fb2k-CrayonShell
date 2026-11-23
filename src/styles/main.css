@@ -258,6 +258,7 @@ select {
 #PlaylistTable .playlist-secondary-line {
     display: block;
     margin-top: 2px;
+    padding-left: 2em; /* Ajusta este valor para desplazar la segunda línea. */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
