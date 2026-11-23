@@ -74,6 +74,8 @@ export function usePlaylist() {
                     index: Number(track.index),
                     path: track.path ? String(track.path) : '',
                     duration: formats.duration ? String(formats.duration) : '',
+                    title: formats.title ? String(formats.title) : '',
+                    artist: formats.artist ? String(formats.artist) : '',
                     details: formats.details ? String(formats.details) : ''
                 });
             });
