@@ -15,10 +15,47 @@ function formatTime(value) {
         + String(remainder).padStart(2, '0');
 }
 
-function describeCapability(value) {
-    if (value === true) return 'Sí';
-    if (value === false) return 'No';
-    return value || 'Desconocido';
+function describeMediaError(video) {
+    const error = video?.error;
+    if (!error) return 'Error multimedia sin detalle.';
+
+    const names = {
+        1: 'MEDIA_ERR_ABORTED',
+        2: 'MEDIA_ERR_NETWORK',
+        3: 'MEDIA_ERR_DECODE',
+        4: 'MEDIA_ERR_SRC_NOT_SUPPORTED'
+    };
+
+    return (names[error.code] || 'MEDIA_ERR_UNKNOWN')
+        + (error.message ? ': ' + error.message : '');
+}
+
+function getEnvironmentStatus(environment) {
+    if (!environment?.hasHostBridge) {
+        return 'Sin puente de foobar2000. Para probar Vite, ábrelo dentro de WebView2 UI mediante Developer > Use development server. Un navegador externo no recibe window.fb.';
+    }
+
+    if (environment.isFileOrigin) {
+        return 'La página está abierta como file://. El puente del host puede existir, pero Media API no admite este origen. Instala la compilación como plantilla de WebView2.';
+    }
+
+    if (!environment.isHttpOrigin) {
+        return 'Origen no compatible para Media API. Usa el servidor de desarrollo de WebView2 o una plantilla instalada.';
+    }
+
+    if (!environment.hasPlaybackApi || !environment.hasMediaApi) {
+        return 'El host respondió, pero faltan APIs de reproducción o multimedia en el SDK cargado.';
+    }
+
+    if (!environment.hasMediaElementFollower) {
+        return 'La inspección está disponible, pero MediaElementFollower no está presente en el SDK.';
+    }
+
+    if (environment.source === 'devServer') {
+        return 'WebView2 está cargando Vite. Esperando una pista activa para inspeccionarla.';
+    }
+
+    return 'WebView2 está conectado. Esperando una pista activa para inspeccionarla.';
 }
 
 export default function MediaPlaybackProbe() {
@@ -26,10 +63,11 @@ export default function MediaPlaybackProbe() {
     const followerRef = useRef(null);
     const unsubscribeRef = useRef([]);
     const requestIdRef = useRef(0);
+    const mountedRef = useRef(false);
 
     const [environment, setEnvironment] = useState(null);
     const [inspection, setInspection] = useState(null);
-    const [status, setStatus] = useState('Preparando diagnóstico…');
+    const [status, setStatus] = useState('Comprobando conexión con WebView2…');
     const [lastEvent, setLastEvent] = useState('Sin eventos');
     const [videoTime, setVideoTime] = useState(0);
     const [isInspecting, setIsInspecting] = useState(false);
@@ -58,153 +96,103 @@ export default function MediaPlaybackProbe() {
         if (updateStatus) {
             setIsFollowing(false);
             setVideoTime(0);
-        }
-
-        if (updateStatus) {
             setStatus('Seguimiento detenido.');
         }
     }, [clearSubscriptions]);
 
-    const loadTrackIntoFollower = useCallback(async () => {
+    const inspectCurrentTrack = useCallback(async (options = {}) => {
         const requestId = ++requestIdRef.current;
+        const automatic = Boolean(options.automatic);
+        setIsInspecting(true);
+
+        if (!automatic) {
+            setStatus('Consultando pista activa de foobar2000…');
+        }
 
         try {
-            const nextInspection = await inspectCurrentMediaTrack();
-            if (requestId !== requestIdRef.current) return;
+            const result = await inspectCurrentMediaTrack();
+            if (!mountedRef.current || requestId !== requestIdRef.current) return;
 
-            setInspection(nextInspection);
+            setInspection(result);
 
-            const follower = followerRef.current;
-            if (!follower) return;
+            if (!result.hasTrack) {
+                setStatus('foobar2000 no tiene una pista en reproducción.');
+                setLastEvent('Inspección completada: sin pista activa');
+                return;
+            }
 
-            if (!nextInspection.hasTrack || !nextInspection.videoTrack) {
-                await follower.setSource(null);
-                if (requestId === requestIdRef.current) {
-                    setStatus(nextInspection.hasTrack
-                        ? 'La pista actual no contiene video. El seguidor permanece activo.'
-                        : 'No hay una pista cargada. El seguidor permanece activo.');
-                    setLastEvent('Fuente de video liberada');
+            if (!result.recognized) {
+                setStatus('Archivo activo detectado, pero el contenedor no pertenece a MP4, MOV, Matroska o WebM.');
+                setLastEvent('Contenedor no reconocido');
+                return;
+            }
+
+            if (!result.videoTrack) {
+                setStatus('Pista activa detectada: ' + result.containerFormat + ', sin pista de video. No se inicia el seguidor.');
+                setLastEvent('Archivo multimedia sin video');
+                if (followerRef.current) {
+                    await followerRef.current.setSource(null);
+                    setIsFollowing(false);
+                    setVideoTime(0);
                 }
                 return;
             }
 
-            await follower.setSource(nextInspection.sourcePath, {
-                timelineOffset: nextInspection.timelineOffset
-            });
+            setStatus('Video detectado: ' + result.containerFormat
+                + (result.videoTrack.codec ? ' · ' + result.videoTrack.codec : '')
+                + '. Listo para iniciar el seguimiento.');
 
-            if (requestId === requestIdRef.current) {
-                setStatus('Video enlazado al reloj de foobar2000.');
-                setLastEvent('Fuente actualizada: ' + nextInspection.containerFormat);
+            setLastEvent(automatic
+                ? 'Detección automática: pista de video'
+                : 'Inspección completada: pista de video');
+
+            const follower = followerRef.current;
+            if (follower) {
+                await follower.setSource(result.sourcePath, {
+                    timelineOffset: result.timelineOffset
+                });
+                if (requestId === requestIdRef.current) {
+                    setIsFollowing(true);
+                    setStatus('Fuente de video actualizada y enlazada al reloj de foobar2000.');
+                }
             }
         } catch (error) {
-            if (requestId !== requestIdRef.current) return;
+            if (!mountedRef.current || requestId !== requestIdRef.current) return;
 
             const message = error.message || String(error);
-            setStatus('No se pudo actualizar el video: ' + message);
+            const code = error.code ? ' [' + error.code + ']' : '';
+            setInspection(null);
 
-            if (followerRef.current) {
-                try {
-                    await followerRef.current.setSource(null);
-                } catch {
-                    // The follower may already have been disposed.
-                }
+            if (error.code === 'ORIGIN_DENIED') {
+                setStatus('El host rechazó el origen de esta página. Carga Vite desde Developer > Use development server o usa una plantilla de WebView2. ' + message + code);
+            } else {
+                setStatus('No se pudo inspeccionar la pista: ' + message + code);
+            }
+
+            setLastEvent('Error durante la inspección');
+        } finally {
+            if (mountedRef.current && requestId === requestIdRef.current) {
+                setIsInspecting(false);
             }
         }
     }, []);
 
     useEffect(() => {
+        mountedRef.current = true;
         let active = true;
-
-        inspectWebViewEnvironment()
-            .then((result) => {
-                if (!active) return;
-                setEnvironment(result);
-
-                if (!result.isHttpOrigin) {
-                    setStatus('El origen actual no es HTTP(S). getStreamUrl no podrá emitir una URL multimedia.');
-                } else if (!result.hasMediaElementFollower || !result.hasMediaApi) {
-                    setStatus('El SDK cargó, pero faltan las APIs multimedia requeridas.');
-                } else {
-                    setStatus('Entorno detectado. Inspecciona la pista de video actual.');
-                }
-            })
-            .catch((error) => {
-                if (!active) return;
-                setStatus(error.message || String(error));
-            });
-
-        return () => {
-            active = false;
-            stopFollowing(false);
-        };
-    }, [stopFollowing]);
-
-    const inspectCurrentTrack = useCallback(async () => {
-        setIsInspecting(true);
-        setStatus('Inspeccionando la pista actual…');
+        let sdk = null;
 
         try {
-            const result = await inspectCurrentMediaTrack();
-            setInspection(result);
-
-            if (!result.hasTrack) {
-                setStatus('foobar2000 no tiene una pista cargada.');
-            } else if (!result.recognized) {
-                setStatus('El contenedor no está entre los formatos que inspecciona el SDK.');
-            } else if (!result.videoTrack) {
-                setStatus('El contenedor se reconoció, pero no contiene una pista de video.');
-            } else {
-                setStatus('Pista de video detectada. Puedes iniciar la prueba de sincronización.');
-            }
-        } catch (error) {
-            setStatus('Falló la inspección: ' + (error.message || String(error)));
-            setInspection(null);
-        } finally {
-            setIsInspecting(false);
+            sdk = getMediaSdk();
+        } catch {
+            sdk = null;
         }
-    }, []);
 
-    const startFollowing = useCallback(async () => {
-        if (followerRef.current) return;
-
-        setStatus('Iniciando seguidor multimedia…');
-
-        try {
-            const sdk = getMediaSdk();
-
-            if (window.location.protocol !== 'http:'
-                && window.location.protocol !== 'https:') {
-                throw new Error('El origen debe ser HTTP(S). La API de streaming local rechaza file:// y orígenes opacos.');
-            }
-
-            if (typeof sdk.MediaElementFollower !== 'function') {
-                throw new Error('MediaElementFollower no está disponible en el SDK autoinyectado.');
-            }
-
-            if (!videoRef.current) {
-                throw new Error('No se encontró el elemento video de diagnóstico.');
-            }
-
-            const nextInspection = await inspectCurrentMediaTrack();
-            setInspection(nextInspection);
-
-            if (!nextInspection.hasTrack || !nextInspection.videoTrack) {
-                throw new Error('La pista actual no contiene una pista de video compatible con el inspector.');
-            }
-
-            const follower = new sdk.MediaElementFollower(videoRef.current);
-            followerRef.current = follower;
-
-            unsubscribeRef.current.push(
-                follower.onError((error) => {
-                    setStatus('Error del seguidor: ' + (error.message || String(error)));
-                })
-            );
-
+        if (sdk?.on) {
             unsubscribeRef.current.push(
                 sdk.on('playback:trackChanged', () => {
-                    setLastEvent('Cambio de pista recibido de foobar2000');
-                    void loadTrackIntoFollower();
+                    setLastEvent('Cambio de pista recibido. Detectando el nuevo archivo…');
+                    void inspectCurrentTrack({ automatic: true });
                 })
             );
 
@@ -219,28 +207,107 @@ export default function MediaPlaybackProbe() {
                     setLastEvent('Estado de foobar2000: ' + (payload?.state || 'actualizado'));
                 })
             );
+        }
 
-            await follower.setSource(nextInspection.sourcePath, {
-                timelineOffset: nextInspection.timelineOffset
+        inspectWebViewEnvironment()
+            .then((result) => {
+                if (!active || !mountedRef.current) return;
+                setEnvironment(result);
+                setStatus(getEnvironmentStatus(result));
+
+                if (result.hasHostBridge && result.isHttpOrigin
+                    && result.hasPlaybackApi && result.hasMediaApi) {
+                    void inspectCurrentTrack({ automatic: true });
+                }
+            })
+            .catch((error) => {
+                if (!active || !mountedRef.current) return;
+                setStatus('No se pudo consultar el entorno: ' + (error.message || String(error)));
             });
 
+        return () => {
+            active = false;
+            mountedRef.current = false;
+            stopFollowing(false);
+        };
+    }, [inspectCurrentTrack, stopFollowing]);
+
+    const startFollowing = useCallback(async () => {
+        if (followerRef.current || !videoRef.current) return;
+
+        setStatus('Iniciando MediaElementFollower…');
+
+        try {
+            const sdk = getMediaSdk();
+
+            if (!environment?.hasHostBridge || !environment?.isHttpOrigin) {
+                throw new Error('La página debe ejecutarse dentro del host desde un origen HTTP(S) confiable.');
+            }
+
+            if (typeof sdk.MediaElementFollower !== 'function') {
+                throw new Error('MediaElementFollower no está disponible en el SDK.');
+            }
+
+            const result = await inspectCurrentMediaTrack();
+            setInspection(result);
+
+            if (!result.hasTrack || !result.videoTrack) {
+                throw new Error('La pista activa no contiene video.');
+            }
+
+            const follower = new sdk.MediaElementFollower(videoRef.current);
+            followerRef.current = follower;
+
+            unsubscribeRef.current.push(
+                follower.onError((error) => {
+                    setStatus('Error del seguidor multimedia: ' + (error.message || String(error)));
+                    setLastEvent('MediaElementFollower informó un error');
+                })
+            );
+
+            await follower.setSource(result.sourcePath, {
+                timelineOffset: result.timelineOffset
+            });
+
+            if (!mountedRef.current) {
+                follower.dispose();
+                followerRef.current = null;
+                return;
+            }
+
             setIsFollowing(true);
-            setStatus('Video enlazado al reloj de foobar2000. Prueba pausa, búsqueda y cambio de pista.');
-            setLastEvent('Seguidor iniciado');
+            setStatus('Video enlazado al reloj de foobar2000. Prueba pausa, reanudación y búsqueda desde el reproductor.');
+            setLastEvent('MediaElementFollower iniciado');
         } catch (error) {
             const message = error.message || String(error);
-            setStatus('No se pudo iniciar el seguimiento: ' + message);
+            const code = error.code ? ' [' + error.code + ']' : '';
+            setStatus('No se pudo iniciar el seguimiento: ' + message + code);
 
             if (followerRef.current) {
-                stopFollowing(false);
-                setStatus('No se pudo iniciar el seguimiento: ' + message);
+                followerRef.current.dispose();
+                followerRef.current = null;
             }
-        }
-    }, [loadTrackIntoFollower, stopFollowing]);
 
-    const canInspect = Boolean(environment?.hasPlaybackApi && environment?.hasMediaApi);
+            clearSubscriptions();
+            setIsFollowing(false);
+        }
+    }, [clearSubscriptions, environment]);
+
+    const handleVideoError = useCallback((event) => {
+        const message = describeMediaError(event.currentTarget);
+        setStatus('El elemento de video no pudo reproducir la fuente: ' + message);
+        setLastEvent('HTMLVideoElement error');
+    }, []);
+
+    const canInspect = Boolean(
+        environment?.hasHostBridge
+        && environment?.isHttpOrigin
+        && environment?.hasPlaybackApi
+        && environment?.hasMediaApi
+    );
     const canStart = Boolean(
         !isFollowing
+        && environment?.hasHostBridge
         && environment?.isHttpOrigin
         && environment?.hasMediaElementFollower
         && inspection?.videoTrack
@@ -251,7 +318,7 @@ export default function MediaPlaybackProbe() {
             <div className="media-probe-heading">
                 <div>
                     <strong>Prueba multimedia · Fase 1</strong>
-                    <span>Diagnóstico temporal; no sustituye ni desactiva foo_mpv o Artwork View.</span>
+                    <span>Detección automática de la pista activa. No sustituye ni desactiva foo_mpv o Artwork View.</span>
                 </div>
                 <span className={isFollowing ? 'media-probe-state is-active' : 'media-probe-state'}>
                     {isFollowing ? 'Siguiendo reproducción' : 'Prueba detenida'}
@@ -267,6 +334,9 @@ export default function MediaPlaybackProbe() {
                         playsInline
                         preload="metadata"
                         onTimeUpdate={(event) => setVideoTime(event.currentTarget.currentTime)}
+                        onLoadedMetadata={() => setLastEvent('Metadata de video cargada')}
+                        onPlaying={() => setLastEvent('El elemento de video está reproduciendo')}
+                        onError={handleVideoError}
                     />
                     <div className="media-probe-video-time">
                         Video: {formatTime(videoTime)}
@@ -279,43 +349,48 @@ export default function MediaPlaybackProbe() {
                 <div className="media-probe-details">
                     <div className="media-probe-status">{status}</div>
                     <div><b>Origen:</b> {environment?.origin || 'Consultando…'}</div>
-                    <div><b>Origen HTTP(S):</b> {environment ? (environment.isHttpOrigin ? 'Sí' : 'No') : '—'}</div>
-                    <div><b>Origen de la página:</b> {environment?.source || '—'}{environment?.templateName ? ' · Plantilla: ' + environment.templateName : ''}</div>
-                    <div><b>Media API / Follower:</b> {environment
-                        ? (environment.hasMediaApi ? 'Media API disponible' : 'Media API ausente')
+                    <div><b>Host foobar2000:</b> {environment
+                        ? (environment.hasHostBridge ? 'Conectado' : 'No conectado')
+                        : 'Consultando…'}</div>
+                    <div><b>Origen de la página:</b> {environment?.source || '—'}
+                        {environment?.templateName || environment?.activeTemplateName
+                            ? ' · Plantilla: ' + (environment.templateName || environment.activeTemplateName)
+                            : ''}
+                    </div>
+                    <div><b>Media API:</b> {environment
+                        ? (environment.hasMediaApi ? 'Disponible' : 'No disponible')
                             + ' · '
-                            + (environment.hasMediaElementFollower ? 'Follower disponible' : 'Follower ausente')
+                            + (environment.hasMediaElementFollower ? 'MediaElementFollower disponible' : 'MediaElementFollower no disponible')
                         : '—'}</div>
-                    <div><b>Archivo:</b> {inspection?.path || 'Sin inspeccionar'}</div>
+                    <div><b>Archivo activo:</b> {inspection?.path || 'Sin archivo detectado'}</div>
                     <div><b>Contenedor:</b> {inspection?.containerFormat || '—'}
                         {inspection?.recognized === false ? ' · No reconocido' : ''}
                     </div>
                     <div><b>Pista de video:</b> {inspection?.videoTrack
-                        ? (inspection.videoTrack.codec || inspection.videoTrack.codecName || 'Detectada')
+                        ? [
+                            inspection.videoTrack.codec || 'Códec desconocido',
+                            inspection.videoTrack.width && inspection.videoTrack.height
+                                ? inspection.videoTrack.width + '×' + inspection.videoTrack.height
+                                : '',
+                            inspection.videoTrack.frameRate
+                                ? inspection.videoTrack.frameRate + ' fps'
+                                : ''
+                        ].filter(Boolean).join(' · ')
                         : 'No detectada'}</div>
-                    {inspection?.capabilities && (
-                        <div><b>Decodificación:</b> {describeCapability(inspection.capabilities.supported)}
-                            {' · Smooth: '}{describeCapability(inspection.capabilities.smooth)}
-                            {' · canPlayType: '}{describeCapability(inspection.capabilities.canPlayType)}
-                        </div>
-                    )}
-                    {inspection?.capabilityError && (
-                        <div><b>Consulta de códec:</b> {inspection.capabilityError}</div>
-                    )}
-                    {environment?.sourceError && (
-                        <div><b>Origen del host:</b> {environment.sourceError}</div>
-                    )}
                     <div><b>Evento reciente:</b> {lastEvent}</div>
+                    {environment?.sourceError && (
+                        <div><b>Información del host:</b> {environment.sourceError}</div>
+                    )}
                 </div>
             </div>
 
             <div className="media-probe-actions">
                 <button
                     type="button"
-                    onClick={inspectCurrentTrack}
+                    onClick={() => inspectCurrentTrack()}
                     disabled={!canInspect || isInspecting || isFollowing}
                 >
-                    {isInspecting ? 'Inspeccionando…' : 'Inspeccionar pista actual'}
+                    {isInspecting ? 'Inspeccionando…' : 'Volver a inspeccionar'}
                 </button>
                 <button
                     type="button"
