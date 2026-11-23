@@ -181,6 +181,15 @@ select {
     scrollbar-width: thin;
 }
 
+.playlist-table-wrap:focus {
+    outline: none;
+}
+
+.playlist-table-wrap:focus-visible {
+    outline: 1px solid var(--accent-color);
+    outline-offset: -1px;
+}
+
 .playlist-table-wrap::-webkit-scrollbar {
     width: 10px;
     height: 10px;
