@@ -39,6 +39,7 @@ export default function App() {
         playingItemIndex,
         playbackState,
         status,
+        scrollRequest,
         isDemoMode,
         refreshPlaylist,
         changePlaylist,
@@ -181,6 +182,7 @@ export default function App() {
                                 playingItemIndex={playingItemIndex}
                                 playbackState={playbackState}
                                 playlistGuid={activePlaylistGuid}
+                                scrollRequest={scrollRequest}
                                 onSelect={selectItem}
                                 onPlay={playItem}
                                 onContextMenu={openNativeContextMenu}
