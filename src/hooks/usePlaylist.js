@@ -45,6 +45,9 @@ export function usePlaylist() {
     const refreshTimerRef = useRef(null);
     const scrollRequestVersionRef = useRef(0);
     const pendingScrollTargetRef = useRef(null);
+    const selectionQueueRef = useRef(Promise.resolve());
+    const activePlaylistGuidRef = useRef(activePlaylistGuid);
+    activePlaylistGuidRef.current = activePlaylistGuid;
 
     const setStatusMessage = useCallback((message, error) => {
         const detail = error ? (error.message || String(error)) : '';
@@ -213,22 +216,36 @@ export function usePlaylist() {
         };
     }, [refreshPlaylist, schedulePlaylistRefresh, setStatusMessage]);
 
-    const setSelectedItem = useCallback(async (index) => {
-        if (!activePlaylistGuid) {
-            throw new Error('No hay una playlist activa.');
-        }
+    const setSelectedItem = useCallback((index) => {
+        const requestedPlaylistGuid = activePlaylistGuid;
 
-        await invoke('playlist.setSelection', {
-            playlistGuid: activePlaylistGuid,
-            indices: [index],
-            clearOthers: true
-        });
-        await invoke('playlist.setFocusedTrack', {
-            playlistGuid: activePlaylistGuid,
-            index
-        });
+        const operation = async () => {
+            if (!requestedPlaylistGuid) {
+                throw new Error('No hay una playlist activa.');
+            }
 
-        setFocusedItem(index);
+            if (activePlaylistGuidRef.current !== requestedPlaylistGuid) {
+                throw new Error('La playlist activa cambió antes de completar la selección.');
+            }
+
+            await invoke('playlist.setSelection', {
+                playlistGuid: requestedPlaylistGuid,
+                indices: [index],
+                clearOthers: true
+            });
+            await invoke('playlist.setFocusedTrack', {
+                playlistGuid: requestedPlaylistGuid,
+                index
+            });
+
+            if (mountedRef.current && activePlaylistGuidRef.current === requestedPlaylistGuid) {
+                setFocusedItem(index);
+            }
+        };
+
+        const queued = selectionQueueRef.current.then(operation, operation);
+        selectionQueueRef.current = queued.catch(() => {});
+        return queued;
     }, [activePlaylistGuid]);
 
     const selectItem = useCallback(async (index) => {
