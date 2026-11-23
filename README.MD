@@ -32,7 +32,7 @@ npm install
 npm run dev
 ~~~
 
-6. Vite muestra `http://localhost:5173`. Abrir esa dirección en Chrome o Edge sirve para revisar únicamente la interfaz: el navegador externo no recibe el puente `window.fb` de foobar2000 y no puede ejecutar operaciones del reproductor ni las detecciones multimedia.
+6. Vite muestra `http://localhost:5173`. Abrir esa dirección en Chrome o Edge sirve para revisar únicamente la interfaz: el navegador externo no recibe el puente nativo `window.fb2k` de foobar2000 y no puede ejecutar operaciones del reproductor ni las detecciones multimedia.
 
 Para desarrollar con la integración real, mantén Vite ejecutándose y configura foobar2000:
 
