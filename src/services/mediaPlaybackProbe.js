@@ -20,9 +20,11 @@ function unwrap(response, operation) {
 }
 
 function normalizeTrackPath(path, position) {
-    const suffix = String(path).match(/^(.*)\\|subsong:(\\d+)$/i);
+    const suffix = String(path).match(/^(.*)\|subsong:(\d+)$/i);
     const basePath = suffix ? suffix[1] : String(path);
-    const reportedSubsong = Number(position.subsong);
+    const reportedSubsong = position.subsong === undefined || position.subsong === null
+        ? NaN
+        : Number(position.subsong);
     const suffixSubsong = suffix ? Number(suffix[2]) : NaN;
 
     return {
