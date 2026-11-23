@@ -93,6 +93,8 @@ Esta rama añade un panel temporal llamado **Prueba multimedia · Fase 1**. Impo
 5. Pulsa **Iniciar seguimiento**. El video se presenta silenciado y sigue el reloj de foobar2000.
 6. Sin usar controles propios del video, prueba pausar, reanudar, adelantar/retroceder desde foobar2000 y cambiar a otro archivo. Al cambiar de pista, el panel vuelve a inspeccionar la fuente y actualiza o libera el video.
 7. Pulsa **Detener** para liberar el elemento, el reloj y las suscripciones.
+8. El panel conserva hasta 100 eventos recientes en el almacenamiento local del origen o de la plantilla. El registro permanece disponible después de recargar CrayonShell.
+9. Pulsa **Copiar informe técnico** para copiar al portapapeles el estado del host, versiones, origen, datos de pista y códecs, diagnóstico HTTP del stream, estado del elemento HTMLVideoElement y el historial de eventos. El informe excluye la ruta local completa del archivo y el token temporal del stream; conserva el nombre del archivo.
 
 `media.getContainerInfo` y `media.getStreamUrl` requieren un origen HTTP(S) confiable. `getStreamUrl` también requiere `foo_ui_webview2 2.2.0` o posterior y el runtime WebView2 con `ICoreWebView2_22`. El panel consulta la versión del componente nativo y deshabilita el inicio del seguidor cuando detecta una versión anterior a 2.2.0. Separa los errores de origen, puente, contenedor y decodificación real del elemento de video. La API multimedia es experimental.
 
