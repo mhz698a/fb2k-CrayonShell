@@ -20,7 +20,9 @@ function getSdk() {
 
 function unwrap(response, operation) {
     if (!response) {
-        throw new Error(operation + ' no devolvió una respuesta.');
+        const error = new Error(operation + ' no devolvió una respuesta.');
+        error.operation = operation;
+        throw error;
     }
 
     if (response.success === false) {
@@ -28,10 +30,21 @@ function unwrap(response, operation) {
         const error = new Error((response.error || operation + ' falló') + ' [' + code + ']');
         error.code = code;
         error.details = response.details;
+        error.operation = operation;
         throw error;
     }
 
     return response;
+}
+
+function classifyMediaPath(path) {
+    if (/^file-relative:\/\//i.test(path)) return 'file-relative://';
+    if (/^file:\/\//i.test(path)) return 'file://';
+    if (/^unpack:\/\//i.test(path)) return 'unpack://';
+    if (/^archive:\/\//i.test(path)) return 'archive://';
+    if (/^(https?|ftp|mms|rtsp):\/\//i.test(path)) return 'Ruta de red';
+    if (/^[a-z]:[\\/]/i.test(path) || /^\\\\/.test(path)) return 'Ruta local o UNC';
+    return 'Ruta virtual o no identificada';
 }
 
 function normalizeTrackPath(path, position) {
@@ -138,10 +151,17 @@ export async function inspectCurrentMediaTrack() {
         throw new Error('El SDK importado no expone fb.media.getContainerInfo().');
     }
 
-    const position = unwrap(
-        await sdk.player.getPosition(),
-        'player.getPosition'
-    );
+    let position;
+    try {
+        position = unwrap(
+            await sdk.player.getPosition(),
+            'player.getPosition'
+        );
+    } catch (error) {
+        error.operation = error.operation || 'player.getPosition';
+        throw error;
+    }
+
     const rawPath = typeof position.path === 'string' ? position.path : '';
 
     if (!rawPath) {
@@ -153,10 +173,28 @@ export async function inspectCurrentMediaTrack() {
     }
 
     const normalized = normalizeTrackPath(rawPath, position);
-    const container = unwrap(
-        await sdk.media.getContainerInfo(normalized.path),
-        'media.getContainerInfo'
-    );
+    const mediaContext = {
+        hasTrack: true,
+        rawPath,
+        path: normalized.path,
+        pathType: classifyMediaPath(normalized.path),
+        subsong: normalized.subsong,
+        position: Number(position.position) || 0,
+        duration: Number(position.duration) || 0,
+        inspectionStage: 'media.getContainerInfo'
+    };
+
+    let container;
+    try {
+        container = unwrap(
+            await sdk.media.getContainerInfo(normalized.path),
+            'media.getContainerInfo'
+        );
+    } catch (error) {
+        error.operation = error.operation || 'media.getContainerInfo';
+        error.mediaContext = mediaContext;
+        throw error;
+    }
 
     const videoTrack = Array.isArray(container.tracks)
         ? container.tracks.find((track) => track.type === 'video') || null
@@ -170,7 +208,9 @@ export async function inspectCurrentMediaTrack() {
 
     return {
         hasTrack: true,
+        rawPath,
         path: normalized.path,
+        pathType: classifyMediaPath(normalized.path),
         subsong: normalized.subsong,
         position: Number(position.position) || 0,
         duration: Number(position.duration) || 0,
