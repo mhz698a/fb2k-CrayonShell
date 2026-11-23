@@ -41,7 +41,7 @@ export function usePlaylist() {
     const [scrollRequest, setScrollRequest] = useState({ version: 0, target: 'playing' });
 
     const mountedRef = useRef(true);
-    const refreshControlRef = useRef({ running: false, queued: false });
+    const refreshControlRef = useRef({ running: false, queued: false, waiters: [] });
     const refreshTimerRef = useRef(null);
     const scrollRequestVersionRef = useRef(0);
     const pendingScrollTargetRef = useRef(null);
@@ -136,7 +136,9 @@ export function usePlaylist() {
 
         if (control.running) {
             control.queued = true;
-            return;
+            return new Promise((resolve) => {
+                control.waiters.push(resolve);
+            });
         }
 
         control.running = true;
@@ -150,6 +152,8 @@ export function usePlaylist() {
             setStatusMessage('No se pudo leer la playlist', error);
         } finally {
             control.running = false;
+            const waiters = control.waiters.splice(0);
+            waiters.forEach((resolve) => resolve());
         }
     }, [refreshPlaylistOnce, setStatusMessage]);
 
