@@ -50,7 +50,7 @@ function describeVideoElement(video) {
         'source=' + (() => {
             try {
                 const source = new URL(video.currentSrc || video.src, window.location.href);
-                return source.origin + source.pathname.replace(/\\/[^/]+$/, '/[token]');
+                return source.origin + source.pathname.replace(/\/[^/]+$/, '/[token]');
             } catch {
                 return video.currentSrc || video.src || '—';
             }
@@ -497,7 +497,7 @@ export default function MediaPlaybackProbe() {
                                     ? '—'
                                     : (mediaDiagnostics.size / (1024 * 1024)).toFixed(2) + ' MiB'}
                             </div>
-                            <div><b>Ruta virtual:</b> {mediaDiagnostics.streamUrlProtocol || '—'}//{mediaDiagnostics.streamUrlOrigin?.replace(/^https?:\\/\\//, '') || '—'}
+                            <div><b>Ruta virtual:</b> {mediaDiagnostics.streamUrlProtocol || '—'}//{mediaDiagnostics.streamUrlOrigin?.replace(/^https?:\/\//, '') || '—'}
                                 {mediaDiagnostics.streamUrlPath || ''}
                                 {' · '}Origen de documento={mediaDiagnostics.pageOrigin || '—'}
                             </div>
