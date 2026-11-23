@@ -102,7 +102,7 @@ export default function MediaPlaybackProbe() {
             setVideoTime(0);
             setStatus('Seguimiento detenido.');
         }
-    }, [clearSubscriptions]);
+    }, []);
 
     const inspectCurrentTrack = useCallback(async (options = {}) => {
         const requestId = ++requestIdRef.current;
@@ -296,7 +296,7 @@ export default function MediaPlaybackProbe() {
             }
             setIsFollowing(false);
         }
-    }, [clearSubscriptions, environment]);
+    }, [environment]);
 
     const handleVideoError = useCallback((event) => {
         const message = describeMediaError(event.currentTarget);
