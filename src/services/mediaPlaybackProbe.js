@@ -264,22 +264,24 @@ export async function inspectCurrentMediaTrack() {
     };
 }
 
-export async function inspectEmbeddedFrontCover(path) {
+export async function inspectTrackFrontCover(path) {
     const sdk = getSdk();
 
-    if (!sdk.artwork || typeof sdk.artwork.getByPath !== 'function') {
-        throw new Error('El SDK no expone fb.artwork.getByPath().');
+    if (!sdk.artwork || typeof sdk.artwork.getForTrack !== 'function') {
+        throw new Error('El SDK no expone fb.artwork.getForTrack().');
     }
 
     const response = unwrap(
-        await sdk.artwork.getByPath(path, 'front'),
-        'artwork.getByPath'
+        await sdk.artwork.getForTrack(path, 'front'),
+        'artwork.getForTrack'
     );
 
     return {
         available: Boolean(response.available && response.dataUrl),
         type: response.type || 'front',
         mimeType: response.mimeType || '',
+        width: Number.isFinite(Number(response.width)) ? Number(response.width) : null,
+        height: Number.isFinite(Number(response.height)) ? Number(response.height) : null,
         size: Number.isFinite(Number(response.size)) ? Number(response.size) : null,
         dataUrl: response.available && response.dataUrl ? response.dataUrl : ''
     };
