@@ -307,9 +307,11 @@ export default function MediaPlaybackProbe() {
                 throw new Error('La página debe ejecutarse dentro del host desde un origen HTTP(S) confiable.');
             }
 
-            if (environment.mediaRouteSupported === false) {
-                throw new Error('foo_ui_webview2 ' + environment.pluginVersion
-                    + ' usa una ruta multimedia incompatible con el mapeo de plantillas. Actualiza a 2.2.0 o posterior.');
+            if (environment.mediaRouteSupported !== true) {
+                throw new Error(environment.mediaRouteSupported === false
+                    ? 'foo_ui_webview2 ' + environment.pluginVersion
+                        + ' usa una ruta multimedia incompatible con el mapeo de plantillas. Actualiza a 2.2.0 o posterior.'
+                    : 'No se pudo confirmar la versión del componente nativo. Se requiere foo_ui_webview2 2.2.0 o posterior para iniciar streams.');
             }
 
             if (typeof sdk.MediaElementFollower !== 'function') {
@@ -396,7 +398,7 @@ export default function MediaPlaybackProbe() {
         && environment?.hasHostBridge
         && environment?.isHttpOrigin
         && environment?.hasMediaElementFollower
-        && environment?.mediaRouteSupported !== false
+        && environment?.mediaRouteSupported === true
         && inspection?.videoTrack
     );
 
@@ -448,7 +450,9 @@ export default function MediaPlaybackProbe() {
                             ? ' · Requiere 2.2.0 o posterior para resolver streams multimedia'
                             : environment?.mediaRouteSupported === true
                                 ? ' · Enrutamiento multimedia compatible'
-                                : ''}
+                                : environment
+                                    ? ' · No se pudo verificar la compatibilidad multimedia del host'
+                                    : ''}
                     </div>
                     <div><b>Origen de la página:</b> {environment?.source || '—'}
                         {environment?.templateName || environment?.activeTemplateName
