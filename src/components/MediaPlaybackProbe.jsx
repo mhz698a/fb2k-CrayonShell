@@ -225,8 +225,11 @@ function getEnvironmentStatus(environment) {
     return 'WebView2 está conectado. Esperando una pista activa para inspeccionarla.';
 }
 
-export default function MediaPlaybackProbe() {
+export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsOpen = false, onCloseDiagnostics }) {
     const videoRef = useRef(null);
+    const diagnosticsDialogRef = useRef(null);
+    const previousViewRef = useRef(viewMode);
+    const previousTrackSourceRef = useRef('');
     const followerRef = useRef(null);
     const hostSubscriptionsRef = useRef([]);
     const followerErrorUnsubscribeRef = useRef(null);
@@ -243,6 +246,17 @@ export default function MediaPlaybackProbe() {
     const [isFollowing, setIsFollowing] = useState(false);
     const [diagnosticLogs, setDiagnosticLogs] = useState(readDiagnosticLogs);
     const [copyFeedback, setCopyFeedback] = useState('');
+
+    useEffect(() => {
+        const dialog = diagnosticsDialogRef.current;
+        if (!dialog) return;
+
+        if (diagnosticsOpen && !dialog.open) {
+            dialog.showModal();
+        } else if (!diagnosticsOpen && dialog.open) {
+            dialog.close();
+        }
+    }, [diagnosticsOpen]);
 
     const addDiagnosticLog = useCallback((level, message) => {
         const entry = {
@@ -313,6 +327,11 @@ export default function MediaPlaybackProbe() {
                 : 'Inspección completada: no hay una pista activa.');
 
             if (!result.hasTrack) {
+                if (followerRef.current) {
+                    await followerRef.current.setSource(null);
+                }
+                setIsFollowing(false);
+                setVideoTime(0);
                 setStatus('foobar2000 no tiene una pista en reproducción.');
                 setLastEvent('Inspección completada: sin pista activa');
                 return;
@@ -330,8 +349,9 @@ export default function MediaPlaybackProbe() {
                 addDiagnosticLog('warning', 'El contenedor ' + result.containerFormat + ' no contiene una pista de video.');
                 if (followerRef.current) {
                     await followerRef.current.setSource(null);
-                    setVideoTime(0);
                 }
+                setIsFollowing(false);
+                setVideoTime(0);
                 return;
             }
 
@@ -643,202 +663,266 @@ export default function MediaPlaybackProbe() {
         && inspection?.videoTrack
     );
 
-    return (
-        <section className="media-probe" aria-label="Monitor multimedia y diagnóstico">
-            <div className="media-probe-heading">
-                <div>
-                    <strong>Monitor multimedia</strong>
-                    <span>Detección de pista, reproducción sincronizada y diagnóstico. No sustituye ni desactiva foo_mpv o Artwork View.</span>
-                </div>
-                <span className={isFollowing ? 'media-probe-state is-active' : 'media-probe-state'}>
-                    {isFollowing ? 'Siguiendo reproducción' : 'Prueba detenida'}
-                </span>
-            </div>
+    useEffect(() => {
+        const viewChanged = previousViewRef.current !== viewMode;
+        const sourcePath = inspection?.sourcePath || '';
+        const trackChanged = previousTrackSourceRef.current !== sourcePath;
 
-            <div className="media-probe-content">
-                <div className="media-probe-preview">
-                    <video
-                        ref={videoRef}
-                        className="media-probe-video"
-                        muted
-                        crossOrigin="anonymous"
-                        playsInline
-                        preload="metadata"
-                        onTimeUpdate={(event) => setVideoTime(event.currentTarget.currentTime)}
-                        onLoadedMetadata={handleVideoMetadata}
-                        onPlaying={handleVideoPlaying}
-                        onError={handleVideoError}
-                    />
-                    <div className="media-probe-video-time">
-                        Video: {formatTime(videoTime)}
+        previousViewRef.current = viewMode;
+        previousTrackSourceRef.current = sourcePath;
+
+        if (viewMode === 'video'
+            && (viewChanged || trackChanged)
+            && inspection?.videoTrack
+            && !isFollowing
+            && !isInspecting) {
+            void startFollowing();
+        }
+    }, [
+        viewMode, inspection?.sourcePath, inspection?.videoTrack,
+        isFollowing, isInspecting, startFollowing
+    ]);
+
+    return (
+        <>
+            <section
+                className={'media-viewer' + (viewMode === 'video' ? '' : ' is-hidden')}
+                aria-label="Visor de video"
+                aria-hidden={viewMode !== 'video'}
+            >
+                <video
+                    ref={videoRef}
+                    className="media-viewer-video"
+                    muted
+                    crossOrigin="anonymous"
+                    playsInline
+                    preload="metadata"
+                    onTimeUpdate={(event) => setVideoTime(event.currentTarget.currentTime)}
+                    onLoadedMetadata={handleVideoMetadata}
+                    onPlaying={handleVideoPlaying}
+                    onError={handleVideoError}
+                />
+                {(!inspection?.videoTrack || !isFollowing) && (
+                    <div className="media-viewer-placeholder">
+                        {inspection?.videoTrack
+                            ? status
+                            : inspection?.hasTrack
+                                ? status
+                                : 'No hay video activo. Reproduce un video en foobar2000.'}
+                    </div>
+                )}
+                {inspection?.videoTrack && isFollowing && (
+                    <div className="media-viewer-time">
+                        {formatTime(videoTime)}
                         {videoRef.current?.duration && Number.isFinite(videoRef.current.duration)
                             ? ' / ' + formatTime(videoRef.current.duration)
                             : ''}
                     </div>
-                </div>
+                )}
+            </section>
 
-                <div className="media-probe-details">
-                    <div className="media-probe-status">{status}</div>
-                    <div><b>Origen:</b> {environment?.origin || 'Consultando…'}</div>
-                    <div><b>Puente nativo:</b> {environment
-                        ? (environment.hasHostBridge ? 'Conectado' : 'No conectado')
-                        : 'Consultando…'}</div>
-                    <div><b>SDK tipado:</b> {environment
-                        ? (environment.hasSdkFacade ? 'Enlazado al puente' : 'No disponible')
-                        : 'Consultando…'}</div>
-                    <div><b>Componente nativo:</b> {environment?.pluginVersion || 'Versión no identificada'}
-                        {environment?.mediaRouteSupported === false
-                            ? ' · Requiere 2.2.0 o posterior para resolver streams multimedia'
-                            : environment?.mediaRouteSupported === true
-                                ? ' · Enrutamiento multimedia compatible'
-                                : environment
-                                    ? ' · No se pudo verificar la compatibilidad multimedia del host'
-                                    : ''}
-                    </div>
-                    <div><b>Origen de la página:</b> {environment?.source || '—'}
-                        {environment?.templateName || environment?.activeTemplateName
-                            ? ' · Plantilla: ' + (environment.templateName || environment.activeTemplateName)
-                            : ''}
-                    </div>
-                    {environment?.sourceUrl && (
-                        <div><b>URL reportada por WebView2:</b> {environment.sourceUrl}</div>
-                    )}
-                    <div><b>Media API:</b> {environment
-                        ? (environment.hasMediaApi ? 'Disponible' : 'No disponible')
-                            + ' · '
-                            + (environment.hasMediaElementFollower ? 'MediaElementFollower disponible' : 'MediaElementFollower no disponible')
-                        : '—'}</div>
-                    <div><b>Archivo activo:</b> {inspection?.path || inspection?.rawPath || 'Sin archivo detectado'}</div>
-                    {inspection?.rawPath && inspection.rawPath !== inspection.path && (
-                        <div><b>Ruta original:</b> {inspection.rawPath}</div>
-                    )}
-                    {inspection?.pathType && (
-                        <div><b>Tipo de ruta:</b> {inspection.pathType}</div>
-                    )}
-                    <div><b>Contenedor:</b> {inspection?.containerFormat || '—'}
-                        {inspection?.recognized === false ? ' · No reconocido' : ''}
-                    </div>
-                    <div><b>Pista de video:</b> {inspection?.videoTrack
-                        ? [
-                            inspection.videoTrack.codec || 'Códec desconocido',
-                            inspection.videoTrack.codecs || '',
-                            inspection.videoTrack.width && inspection.videoTrack.height
-                                ? inspection.videoTrack.width + '×' + inspection.videoTrack.height
-                                : '',
-                            inspection.videoTrack.frameRate
-                                ? inspection.videoTrack.frameRate + ' fps'
-                                : '',
-                            inspection.videoTrack.mimeType || ''
-                        ].filter(Boolean).join(' · ')
-                        : inspection?.inspectionFailed
-                            ? 'No evaluada: falló la apertura del contenedor'
-                            : 'No detectada'}</div>
-                    <div><b>Pistas de audio:</b> {inspection?.audioTracks?.length
-                        ? inspection.audioTracks.map((track) => [
-                            track.codec || 'Códec desconocido',
-                            track.codecs || '',
-                            track.channels ? track.channels + ' canales' : '',
-                            track.sampleRate ? (track.sampleRate / 1000) + ' kHz' : '',
-                            track.mimeType || ''
-                        ].filter(Boolean).join(' · ')).join(' | ')
-                        : 'Ninguna declarada'}</div>
-                    {mediaDiagnostics && (
-                        <>
-                            {mediaDiagnostics.trackCapabilities?.map((track, index) => (
-                                <div key={track.type + '-' + index}>
-                                    <b>Compatibilidad {track.type} ({track.codecs || track.codec}):</b>
-                                    canPlayType={formatSupport(track.canPlayType)}
-                                    {' · '}MediaCapabilities={formatSupport(track.supported)}
-                                    {' · '}Suavidad={formatSupport(track.smooth)}
+            <dialog
+                ref={diagnosticsDialogRef}
+                className="media-probe-dialog"
+                aria-labelledby="MediaProbeDialogTitle"
+                onCancel={(event) => {
+                    event.preventDefault();
+                    onCloseDiagnostics?.();
+                }}
+                onClose={() => onCloseDiagnostics?.()}
+                onClick={(event) => {
+                    if (event.target === event.currentTarget) {
+                        onCloseDiagnostics?.();
+                    }
+                }}
+            >
+                <div className="media-probe-dialog-inner">
+                    <section className="media-probe" aria-label="Diagnóstico multimedia">
+                        <div className="media-probe-heading">
+                            <div>
+                                <strong id="MediaProbeDialogTitle">Diagnóstico multimedia</strong>
+                                <span>Información técnica, historial de eventos y herramientas para reportar fallos.</span>
+                            </div>
+                            <span className={isFollowing ? 'media-probe-state is-active' : 'media-probe-state'}>
+                                {isFollowing ? 'Siguiendo reproducción' : 'Seguimiento detenido'}
+                            </span>
+                            <button
+                                className="media-probe-close"
+                                type="button"
+                                aria-label="Cerrar diagnóstico"
+                                title="Cerrar"
+                                onClick={() => onCloseDiagnostics?.()}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="media-probe-content">
+                            <div className="media-probe-details">
+                                <div className="media-probe-status">{status}</div>
+                                <div><b>Origen:</b> {environment?.origin || 'Consultando…'}</div>
+                                <div><b>Puente nativo:</b> {environment
+                                    ? (environment.hasHostBridge ? 'Conectado' : 'No conectado')
+                                    : 'Consultando…'}</div>
+                                <div><b>SDK tipado:</b> {environment
+                                    ? (environment.hasSdkFacade ? 'Enlazado al puente' : 'No disponible')
+                                    : 'Consultando…'}</div>
+                                <div><b>Componente nativo:</b> {environment?.pluginVersion || 'Versión no identificada'}
+                                    {environment?.mediaRouteSupported === false
+                                        ? ' · Requiere 2.2.0 o posterior para resolver streams multimedia'
+                                        : environment?.mediaRouteSupported === true
+                                            ? ' · Enrutamiento multimedia compatible'
+                                            : environment
+                                                ? ' · No se pudo verificar la compatibilidad multimedia del host'
+                                                : ''}
                                 </div>
-                            ))}
-                            {mediaDiagnostics.capabilityError && (
-                                <div><b>Compatibilidad:</b> {mediaDiagnostics.capabilityError}</div>
-                            )}
-                            <div><b>Stream:</b> MIME={mediaDiagnostics.streamMimeType || '—'}
-                                {' · '}Tamaño={mediaDiagnostics.size == null
-                                    ? '—'
-                                    : (mediaDiagnostics.size / (1024 * 1024)).toFixed(2) + ' MiB'}
+                                <div><b>Origen de la página:</b> {environment?.source || '—'}
+                                    {environment?.templateName || environment?.activeTemplateName
+                                        ? ' · Plantilla: ' + (environment.templateName || environment.activeTemplateName)
+                                        : ''}
+                                </div>
+                                {environment?.sourceUrl && (
+                                    <div><b>URL reportada por WebView2:</b> {environment.sourceUrl}</div>
+                                )}
+                                <div><b>Media API:</b> {environment
+                                    ? (environment.hasMediaApi ? 'Disponible' : 'No disponible')
+                                        + ' · '
+                                        + (environment.hasMediaElementFollower ? 'MediaElementFollower disponible' : 'MediaElementFollower no disponible')
+                                    : '—'}</div>
+                                <div><b>Archivo activo:</b> {inspection?.path || inspection?.rawPath || 'Sin archivo detectado'}</div>
+                                {inspection?.rawPath && inspection.rawPath !== inspection.path && (
+                                    <div><b>Ruta original:</b> {inspection.rawPath}</div>
+                                )}
+                                {inspection?.pathType && (
+                                    <div><b>Tipo de ruta:</b> {inspection.pathType}</div>
+                                )}
+                                <div><b>Contenedor:</b> {inspection?.containerFormat || '—'}
+                                    {inspection?.recognized === false ? ' · No reconocido' : ''}
+                                </div>
+                                <div><b>Pista de video:</b> {inspection?.videoTrack
+                                    ? [
+                                        inspection.videoTrack.codec || 'Códec desconocido',
+                                        inspection.videoTrack.codecs || '',
+                                        inspection.videoTrack.width && inspection.videoTrack.height
+                                            ? inspection.videoTrack.width + '×' + inspection.videoTrack.height
+                                            : '',
+                                        inspection.videoTrack.frameRate
+                                            ? inspection.videoTrack.frameRate + ' fps'
+                                            : '',
+                                        inspection.videoTrack.mimeType || ''
+                                    ].filter(Boolean).join(' · ')
+                                    : inspection?.inspectionFailed
+                                        ? 'No evaluada: falló la apertura del contenedor'
+                                        : 'No detectada'}</div>
+                                <div><b>Pistas de audio:</b> {inspection?.audioTracks?.length
+                                    ? inspection.audioTracks.map((track) => [
+                                        track.codec || 'Códec desconocido',
+                                        track.codecs || '',
+                                        track.channels ? track.channels + ' canales' : '',
+                                        track.sampleRate ? (track.sampleRate / 1000) + ' kHz' : '',
+                                        track.mimeType || ''
+                                    ].filter(Boolean).join(' · ')).join(' | ')
+                                    : 'Ninguna declarada'}</div>
+                                {mediaDiagnostics && (
+                                    <>
+                                        {mediaDiagnostics.trackCapabilities?.map((track, index) => (
+                                            <div key={track.type + '-' + index}>
+                                                <b>Compatibilidad {track.type} ({track.codecs || track.codec}):</b>
+                                                canPlayType={formatSupport(track.canPlayType)}
+                                                {' · '}MediaCapabilities={formatSupport(track.supported)}
+                                                {' · '}Suavidad={formatSupport(track.smooth)}
+                                            </div>
+                                        ))}
+                                        {mediaDiagnostics.capabilityError && (
+                                            <div><b>Compatibilidad:</b> {mediaDiagnostics.capabilityError}</div>
+                                        )}
+                                        <div><b>Stream:</b> MIME={mediaDiagnostics.streamMimeType || '—'}
+                                            {' · '}Tamaño={mediaDiagnostics.size == null
+                                                ? '—'
+                                                : (mediaDiagnostics.size / (1024 * 1024)).toFixed(2) + ' MiB'}
+                                        </div>
+                                        <div><b>Ruta virtual:</b> {mediaDiagnostics.streamUrlProtocol || '—'}//{mediaDiagnostics.streamUrlOrigin?.replace(/^https?:\/\//, '') || '—'}
+                                            {mediaDiagnostics.streamUrlPath || ''}
+                                            {' · '}Origen de documento={mediaDiagnostics.pageOrigin || '—'}
+                                        </div>
+                                        <div><b>Respuesta HTTP:</b> HEAD={mediaDiagnostics.headStatus ?? '—'}
+                                            {' · '}Range={mediaDiagnostics.rangeStatus ?? '—'}
+                                            {mediaDiagnostics.responseMimeType ? ' · ' + mediaDiagnostics.responseMimeType : ''}
+                                        </div>
+                                        {mediaDiagnostics.contentRange && (
+                                            <div><b>Content-Range:</b> {mediaDiagnostics.contentRange}</div>
+                                        )}
+                                        {mediaDiagnostics.signature && (
+                                            <div><b>Firma inicial:</b> {mediaDiagnostics.signature}</div>
+                                        )}
+                                        {mediaDiagnostics.streamError && (
+                                            <div><b>Diagnóstico de stream:</b> {mediaDiagnostics.streamError}</div>
+                                        )}
+                                        {mediaDiagnostics.elementError && (
+                                            <div><b>Estado HTMLVideoElement:</b> {mediaDiagnostics.elementError}</div>
+                                        )}
+                                    </>
+                                )}
+                                {inspection?.inspectionStage && (
+                                    <div><b>Etapa de error:</b> {inspection.inspectionStage}</div>
+                                )}
+                                {inspection?.inspectionErrorCode && (
+                                    <div><b>Código de error:</b> {inspection.inspectionErrorCode}</div>
+                                )}
+                                <div><b>Evento reciente:</b> {lastEvent}</div>
+                                {environment?.sourceError && (
+                                    <div><b>Información del host:</b> {environment.sourceError}</div>
+                                )}
                             </div>
-                            <div><b>Ruta virtual:</b> {mediaDiagnostics.streamUrlProtocol || '—'}//{mediaDiagnostics.streamUrlOrigin?.replace(/^https?:\/\//, '') || '—'}
-                                {mediaDiagnostics.streamUrlPath || ''}
-                                {' · '}Origen de documento={mediaDiagnostics.pageOrigin || '—'}
-                            </div>
-                            <div><b>Respuesta HTTP:</b> HEAD={mediaDiagnostics.headStatus ?? '—'}
-                                {' · '}Range={mediaDiagnostics.rangeStatus ?? '—'}
-                                {mediaDiagnostics.responseMimeType ? ' · ' + mediaDiagnostics.responseMimeType : ''}
-                            </div>
-                            {mediaDiagnostics.contentRange && (
-                                <div><b>Content-Range:</b> {mediaDiagnostics.contentRange}</div>
-                            )}
-                            {mediaDiagnostics.signature && (
-                                <div><b>Firma inicial:</b> {mediaDiagnostics.signature}</div>
-                            )}
-                            {mediaDiagnostics.streamError && (
-                                <div><b>Diagnóstico de stream:</b> {mediaDiagnostics.streamError}</div>
-                            )}
-                            {mediaDiagnostics.elementError && (
-                                <div><b>Estado HTMLVideoElement:</b> {mediaDiagnostics.elementError}</div>
-                            )}
-                        </>
-                    )}
-                    {inspection?.inspectionStage && (
-                        <div><b>Etapa de error:</b> {inspection.inspectionStage}</div>
-                    )}
-                    {inspection?.inspectionErrorCode && (
-                        <div><b>Código de error:</b> {inspection.inspectionErrorCode}</div>
-                    )}
-                    <div><b>Evento reciente:</b> {lastEvent}</div>
-                    {environment?.sourceError && (
-                        <div><b>Información del host:</b> {environment.sourceError}</div>
-                    )}
-                </div>
-            </div>
+                        </div>
 
-            <div className="media-probe-actions">
-                <button
-                    type="button"
-                    onClick={() => inspectCurrentTrack()}
-                    disabled={!canInspect || isInspecting || isFollowing}
-                >
-                    {isInspecting ? 'Inspeccionando…' : 'Volver a inspeccionar'}
-                </button>
-                <button
-                    type="button"
-                    onClick={startFollowing}
-                    disabled={!canStart || isInspecting}
-                >
-                    Iniciar seguimiento
-                </button>
-                <button
-                    type="button"
-                    onClick={() => stopFollowing()}
-                    disabled={!isFollowing}
-                >
-                    Detener
-                </button>
-                <button
-                    type="button"
-                    onClick={copyDiagnosticReport}
-                >
-                    Copiar informe técnico
-                </button>
-                {copyFeedback && <span className="media-probe-copy-feedback">{copyFeedback}</span>}
-            </div>
+                        <div className="media-probe-actions">
+                            <button
+                                type="button"
+                                onClick={() => inspectCurrentTrack()}
+                                disabled={!canInspect || isInspecting || isFollowing}
+                            >
+                                {isInspecting ? 'Inspeccionando…' : 'Volver a inspeccionar'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={startFollowing}
+                                disabled={!canStart || isInspecting}
+                            >
+                                Iniciar seguimiento
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => stopFollowing()}
+                                disabled={!isFollowing}
+                            >
+                                Detener
+                            </button>
+                            <button
+                                type="button"
+                                onClick={copyDiagnosticReport}
+                            >
+                                Copiar informe técnico
+                            </button>
+                            {copyFeedback && <span className="media-probe-copy-feedback">{copyFeedback}</span>}
+                        </div>
 
-            <details className="media-probe-log" open>
-                <summary>Registro de eventos guardado ({diagnosticLogs.length})</summary>
-                <div className="media-probe-log-list">
-                    {diagnosticLogs.length === 0
-                        ? <div className="media-probe-log-empty">Los eventos aparecerán aquí y se conservarán entre recargas.</div>
-                        : [...diagnosticLogs].reverse().map((entry, index) => (
-                            <div className={'media-probe-log-entry is-' + entry.level} key={entry.timestamp + '-' + index}>
-                                <time dateTime={entry.timestamp}>{new Date(entry.timestamp).toLocaleString()}</time>
-                                <span>{entry.message}</span>
+                        <details className="media-probe-log" open>
+                            <summary>Registro de eventos guardado ({diagnosticLogs.length})</summary>
+                            <div className="media-probe-log-list">
+                                {diagnosticLogs.length === 0
+                                    ? <div className="media-probe-log-empty">Los eventos aparecerán aquí y se conservarán entre recargas.</div>
+                                    : [...diagnosticLogs].reverse().map((entry, index) => (
+                                        <div className={'media-probe-log-entry is-' + entry.level} key={entry.timestamp + '-' + index}>
+                                            <time dateTime={entry.timestamp}>{new Date(entry.timestamp).toLocaleString()}</time>
+                                            <span>{entry.message}</span>
+                                        </div>
+                                    ))}
                             </div>
-                        ))}
+                        </details>
+                    </section>
                 </div>
-            </details>
-        </section>
+            </dialog>
+        </>
     );
 }
