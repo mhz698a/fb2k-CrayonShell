@@ -298,6 +298,12 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             followerRef.current = null;
         }
 
+        if (videoRef.current) {
+            videoRef.current.pause();
+            videoRef.current.removeAttribute('src');
+            videoRef.current.load();
+        }
+
         if (updateStatus) {
             setIsFollowing(false);
             setVideoTime(0);
