@@ -237,8 +237,10 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
     const previousViewRef = useRef(viewMode);
     const previousTrackSourceRef = useRef('');
     const viewModeRef = useRef(viewMode);
-    const inspectionRef = useRef(inspection);
+    const inspectionRef = useRef(null);
     const startFollowingRef = useRef(null);
+    const startInProgressRef = useRef(false);
+    const startGenerationRef = useRef(0);
     const followerRef = useRef(null);
     const hostSubscriptionsRef = useRef([]);
     const followerErrorUnsubscribeRef = useRef(null);
@@ -301,6 +303,9 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
     }, []);
 
     const releaseFollowing = useCallback(() => {
+        startGenerationRef.current += 1;
+        startInProgressRef.current = false;
+
         if (followerErrorUnsubscribeRef.current) {
             followerErrorUnsubscribeRef.current();
             followerErrorUnsubscribeRef.current = null;
@@ -340,6 +345,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
     const showAudioArtwork = useCallback(async (path, requestId) => {
         releaseFollowing();
         setEmbeddedArtwork(null);
+        setMediaDiagnostics(null);
 
         if (!path) return null;
 
@@ -531,7 +537,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                     addDiagnosticLog('info', stateMessage);
 
                     if ((playbackState === 'stopped' || playbackState === 'stop')
-                        && followerRef.current) {
+                        && (followerRef.current || startInProgressRef.current)) {
                         stopFollowing(true, 'Reproducción detenida en foobar2000. El video se ocultó.');
                     } else if (playbackState === 'playing'
                         && viewModeRef.current === 'video'
@@ -544,7 +550,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
 
             hostSubscriptionsRef.current.push(
                 sdk.on('playback:stopped', () => {
-                    if (!followerRef.current) return;
+                    if (!followerRef.current && !startInProgressRef.current) return;
                     setLastEvent('foobar2000 detuvo la reproducción.');
                     stopFollowing(true, 'Reproducción detenida en foobar2000. El video se ocultó.');
                 })
@@ -584,7 +590,9 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
     }, [addDiagnosticLog, clearHostSubscriptions, inspectCurrentTrack, stopFollowing]);
 
     const startFollowing = useCallback(async () => {
-        if (followerRef.current || !videoRef.current) return;
+        if (followerRef.current || startInProgressRef.current || !videoRef.current) return;
+        const startGeneration = ++startGenerationRef.current;
+        startInProgressRef.current = true;
 
         setStatus('Iniciando MediaElementFollower…');
         addDiagnosticLog('info', 'Solicitud para iniciar MediaElementFollower.');
@@ -608,6 +616,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             }
 
             const playback = unwrap(await sdk.player.getState(), 'player.getState');
+            if (startGeneration !== startGenerationRef.current) return;
             if (String(playback.state || '').toLowerCase() === 'stopped') {
                 releaseFollowing();
                 setStatus('foobar2000 está detenido. El video permanece oculto hasta que comience la reproducción.');
@@ -615,6 +624,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             }
 
             const result = await inspectCurrentMediaTrack();
+            if (startGeneration !== startGenerationRef.current) return;
             setInspection(result);
             inspectionRef.current = result;
             setEmbeddedArtwork(null);
@@ -635,12 +645,15 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                         + ' · MIME=' + diagnostics.streamMimeType
                 );
             } catch (diagnosticError) {
+                if (startGeneration !== startGenerationRef.current) return;
                 setMediaDiagnostics({
                     streamError: diagnosticError.message || String(diagnosticError)
                 });
                 addDiagnosticLog('error', 'No se pudo inspeccionar el stream: '
                     + (diagnosticError.message || String(diagnosticError)));
             }
+
+            if (startGeneration !== startGenerationRef.current) return;
 
             const follower = new sdk.MediaElementFollower(videoRef.current);
             followerRef.current = follower;
@@ -663,11 +676,13 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
                 timelineOffset: result.timelineOffset
             });
 
-            if (!mountedRef.current || followerRef.current !== follower) {
+            if (!mountedRef.current || startGeneration !== startGenerationRef.current
+                || followerRef.current !== follower) {
                 follower.dispose();
                 return;
             }
 
+            startInProgressRef.current = false;
             setIsFollowing(true);
             setIsVideoVisible(true);
             setEmbeddedArtwork(null);
@@ -675,6 +690,7 @@ export default function MediaPlaybackProbe({ viewMode = 'playlist', diagnosticsO
             setLastEvent('MediaElementFollower iniciado');
             addDiagnosticLog('info', 'MediaElementFollower inició correctamente.');
         } catch (error) {
+            if (startGeneration !== startGenerationRef.current) return;
             const message = error.message || String(error);
             const code = error.code ? ' [' + error.code + ']' : '';
             setStatus('No se pudo iniciar el seguimiento: ' + message + code);
