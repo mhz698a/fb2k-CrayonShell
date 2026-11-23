@@ -61,7 +61,8 @@ function getEnvironmentStatus(environment) {
 export default function MediaPlaybackProbe() {
     const videoRef = useRef(null);
     const followerRef = useRef(null);
-    const unsubscribeRef = useRef([]);
+    const hostSubscriptionsRef = useRef([]);
+    const followerErrorUnsubscribeRef = useRef(null);
     const requestIdRef = useRef(0);
     const mountedRef = useRef(false);
 
@@ -73,20 +74,23 @@ export default function MediaPlaybackProbe() {
     const [isInspecting, setIsInspecting] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
 
-    const clearSubscriptions = useCallback(() => {
-        unsubscribeRef.current.forEach((unsubscribe) => {
+    const clearHostSubscriptions = useCallback(() => {
+        hostSubscriptionsRef.current.forEach((unsubscribe) => {
             try {
                 unsubscribe();
             } catch {
                 // Ignore stale SDK subscriptions during cleanup.
             }
         });
-        unsubscribeRef.current = [];
+        hostSubscriptionsRef.current = [];
     }, []);
 
     const stopFollowing = useCallback((updateStatus = true) => {
         requestIdRef.current += 1;
-        clearSubscriptions();
+        if (followerErrorUnsubscribeRef.current) {
+            followerErrorUnsubscribeRef.current();
+            followerErrorUnsubscribeRef.current = null;
+        }
 
         if (followerRef.current) {
             followerRef.current.dispose();
@@ -132,7 +136,6 @@ export default function MediaPlaybackProbe() {
                 setLastEvent('Archivo multimedia sin video');
                 if (followerRef.current) {
                     await followerRef.current.setSource(null);
-                    setIsFollowing(false);
                     setVideoTime(0);
                 }
                 return;
@@ -189,20 +192,20 @@ export default function MediaPlaybackProbe() {
         }
 
         if (sdk?.on) {
-            unsubscribeRef.current.push(
+            hostSubscriptionsRef.current.push(
                 sdk.on('playback:trackChanged', () => {
                     setLastEvent('Cambio de pista recibido. Detectando el nuevo archivo…');
                     void inspectCurrentTrack({ automatic: true });
                 })
             );
 
-            unsubscribeRef.current.push(
+            hostSubscriptionsRef.current.push(
                 sdk.on('playback:seeked', (payload) => {
                     setLastEvent('Búsqueda de foobar2000: ' + formatTime(payload?.position));
                 })
             );
 
-            unsubscribeRef.current.push(
+            hostSubscriptionsRef.current.push(
                 sdk.on('playback:stateChanged', (payload) => {
                     setLastEvent('Estado de foobar2000: ' + (payload?.state || 'actualizado'));
                 })
@@ -228,9 +231,10 @@ export default function MediaPlaybackProbe() {
         return () => {
             active = false;
             mountedRef.current = false;
+            clearHostSubscriptions();
             stopFollowing(false);
         };
-    }, [inspectCurrentTrack, stopFollowing]);
+    }, [clearHostSubscriptions, inspectCurrentTrack, stopFollowing]);
 
     const startFollowing = useCallback(async () => {
         if (followerRef.current || !videoRef.current) return;
@@ -258,12 +262,10 @@ export default function MediaPlaybackProbe() {
             const follower = new sdk.MediaElementFollower(videoRef.current);
             followerRef.current = follower;
 
-            unsubscribeRef.current.push(
-                follower.onError((error) => {
-                    setStatus('Error del seguidor multimedia: ' + (error.message || String(error)));
-                    setLastEvent('MediaElementFollower informó un error');
-                })
-            );
+            followerErrorUnsubscribeRef.current = follower.onError((error) => {
+                setStatus('Error del seguidor multimedia: ' + (error.message || String(error)));
+                setLastEvent('MediaElementFollower informó un error');
+            });
 
             await follower.setSource(result.sourcePath, {
                 timelineOffset: result.timelineOffset
@@ -288,7 +290,10 @@ export default function MediaPlaybackProbe() {
                 followerRef.current = null;
             }
 
-            clearSubscriptions();
+            if (followerErrorUnsubscribeRef.current) {
+                followerErrorUnsubscribeRef.current();
+                followerErrorUnsubscribeRef.current = null;
+            }
             setIsFollowing(false);
         }
     }, [clearSubscriptions, environment]);
