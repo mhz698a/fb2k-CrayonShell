@@ -38,10 +38,13 @@ export function usePlaylist() {
     const [playingItemIndex, setPlayingItemIndex] = useState(-1);
     const [playbackState, setPlaybackState] = useState('stopped');
     const [status, setStatus] = useState('Esperando WebView2…');
+    const [scrollRequest, setScrollRequest] = useState({ version: 0, target: 'playing' });
 
     const mountedRef = useRef(true);
     const refreshControlRef = useRef({ running: false, queued: false });
     const refreshTimerRef = useRef(null);
+    const scrollRequestVersionRef = useRef(0);
+    const pendingScrollTargetRef = useRef(null);
 
     const setStatusMessage = useCallback((message, error) => {
         const detail = error ? (error.message || String(error)) : '';
@@ -150,11 +153,25 @@ export function usePlaylist() {
         }
     }, [refreshPlaylistOnce, setStatusMessage]);
 
-    const schedulePlaylistRefresh = useCallback(() => {
+    const schedulePlaylistRefresh = useCallback((scrollTarget = null) => {
+        if (scrollTarget === 'playing' || scrollTarget === 'focused') {
+            pendingScrollTargetRef.current = scrollTarget;
+        }
+
         window.clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = window.setTimeout(() => {
+        refreshTimerRef.current = window.setTimeout(async () => {
             refreshTimerRef.current = null;
-            refreshPlaylist();
+            await refreshPlaylist();
+
+            const target = pendingScrollTargetRef.current;
+            pendingScrollTargetRef.current = null;
+            if (target && mountedRef.current) {
+                scrollRequestVersionRef.current += 1;
+                setScrollRequest({
+                    version: scrollRequestVersionRef.current,
+                    target
+                });
+            }
         }, 120);
     }, [refreshPlaylist]);
 
@@ -174,7 +191,15 @@ export function usePlaylist() {
         }
 
         const unsubscribe = REFRESH_EVENTS.map((eventName) =>
-            subscribe(eventName, schedulePlaylistRefresh)
+            subscribe(eventName, () => {
+                const scrollTarget = eventName === 'playback:trackChanged'
+                    || eventName === 'playlist:activated'
+                    ? 'playing'
+                    : eventName === 'playlist:focusChanged'
+                        ? 'focused'
+                        : null;
+                schedulePlaylistRefresh(scrollTarget);
+            })
         );
 
         refreshPlaylist();
@@ -265,6 +290,7 @@ export function usePlaylist() {
         playingItemIndex,
         playbackState,
         status,
+        scrollRequest,
         isDemoMode,
         refreshPlaylist,
         changePlaylist,
