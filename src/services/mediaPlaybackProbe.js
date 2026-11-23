@@ -227,3 +227,86 @@ export async function inspectCurrentMediaTrack() {
             : 0
     };
 }
+
+export async function inspectVideoStream(path, track) {
+    const sdk = getSdk();
+    const diagnostics = {
+        canPlayType: 'unknown',
+        supported: 'unknown',
+        smooth: 'unknown',
+        powerEfficient: 'unknown',
+        declaredMimeType: track?.mimeType || 'Desconocido',
+        codecs: track?.codecs || track?.codec || 'Desconocido',
+        streamMimeType: 'Desconocido',
+        size: null,
+        headStatus: null,
+        rangeStatus: null,
+        contentRange: '',
+        signature: '',
+        streamError: ''
+    };
+
+    const canPlay = typeof sdk.media?.canPlay === 'function'
+        ? sdk.media.canPlay.bind(sdk.media)
+        : typeof sdk.canPlay === 'function'
+            ? sdk.canPlay.bind(sdk)
+            : null;
+
+    if (canPlay) {
+        try {
+            const capability = await canPlay(track);
+            diagnostics.canPlayType = capability.canPlayType ?? 'unknown';
+            diagnostics.supported = capability.supported ?? 'unknown';
+            diagnostics.smooth = capability.smooth ?? 'unknown';
+            diagnostics.powerEfficient = capability.powerEfficient ?? 'unknown';
+        } catch (error) {
+            diagnostics.capabilityError = error.message || String(error);
+        }
+    } else {
+        diagnostics.capabilityError = 'La función canPlay no está disponible en esta versión del SDK.';
+    }
+
+    const stream = unwrap(
+        await sdk.media.getStreamUrl(path),
+        'media.getStreamUrl'
+    );
+    diagnostics.streamMimeType = stream.mimeType || 'Desconocido';
+    diagnostics.size = Number.isFinite(Number(stream.size)) ? Number(stream.size) : null;
+
+    try {
+        const head = await fetch(stream.url, {
+            method: 'HEAD',
+            cache: 'no-store'
+        });
+        diagnostics.headStatus = head.status;
+        diagnostics.responseMimeType = head.headers.get('Content-Type') || '';
+        diagnostics.contentLength = head.headers.get('Content-Length') || '';
+        diagnostics.acceptRanges = head.headers.get('Accept-Ranges') || '';
+    } catch (error) {
+        diagnostics.streamError = 'HEAD: ' + (error.message || String(error));
+    }
+
+    try {
+        const range = await fetch(stream.url, {
+            headers: { Range: 'bytes=0-15' },
+            cache: 'no-store'
+        });
+        diagnostics.rangeStatus = range.status;
+        diagnostics.contentRange = range.headers.get('Content-Range') || '';
+        if (range.ok || range.status === 206) {
+            const bytes = new Uint8Array(await range.arrayBuffer());
+            diagnostics.signature = Array.from(bytes.slice(0, 16))
+                .map((value) => value.toString(16).padStart(2, '0'))
+                .join(' ');
+        } else {
+            await range.body?.cancel();
+        }
+    } catch (error) {
+        diagnostics.streamError = [
+            diagnostics.streamError,
+            'Range: ' + (error.message || String(error))
+        ].filter(Boolean).join(' · ');
+    }
+
+    return diagnostics;
+}
