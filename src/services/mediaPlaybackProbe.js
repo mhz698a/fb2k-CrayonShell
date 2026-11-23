@@ -1,5 +1,21 @@
+import fb from 'foo-webview-sdk';
+
+function hasNativeBridge() {
+    return typeof window !== 'undefined'
+        && window.fb2k
+        && typeof window.fb2k.invoke === 'function';
+}
+
 function getSdk() {
-    return typeof window !== 'undefined' ? window.fb || null : null;
+    if (!hasNativeBridge()) {
+        throw new Error('No se encontró window.fb2k.invoke. La página no está conectada a foo_ui_webview2.');
+    }
+
+    if (!fb.isAvailable()) {
+        throw new Error('El SDK foo-webview-sdk no detecta un puente nativo disponible.');
+    }
+
+    return fb;
 }
 
 function unwrap(response, operation) {
@@ -11,6 +27,7 @@ function unwrap(response, operation) {
         const code = response.code || 'UNKNOWN_ERROR';
         const error = new Error((response.error || operation + ' falló') + ' [' + code + ']');
         error.code = code;
+        error.details = response.details;
         throw error;
     }
 
@@ -31,7 +48,7 @@ function normalizeTrackPath(path, position) {
             ? reportedSubsong
             : Number.isInteger(suffixSubsong) && suffixSubsong >= 0
                 ? suffixSubsong
-                : null
+                : 0
     };
 }
 
@@ -40,39 +57,52 @@ export function getMediaSdk() {
 }
 
 export async function inspectWebViewEnvironment() {
-    const sdk = getSdk();
     const origin = window.location.origin;
     const protocol = window.location.protocol;
+    const nativeBridgeAvailable = Boolean(hasNativeBridge());
 
-    if (!sdk) {
+    if (!nativeBridgeAvailable) {
         return {
             hasHostBridge: false,
+            hasSdkFacade: false,
             origin,
             protocol,
             isHttpOrigin: protocol === 'http:' || protocol === 'https:',
+            isFileOrigin: protocol === 'file:',
             source: 'Navegador externo',
-            sourceError: 'No existe window.fb. Abre la URL de Vite desde WebView2 UI > Developer, no desde Chrome o Edge.'
+            sourceError: 'No existe window.fb2k. Abre Vite desde WebView2 UI > Developer, no desde Chrome o Edge.'
+        };
+    }
+
+    const sdkAvailable = Boolean(fb.isAvailable());
+    if (!sdkAvailable) {
+        return {
+            hasHostBridge: true,
+            hasSdkFacade: false,
+            origin,
+            protocol,
+            isHttpOrigin: protocol === 'http:' || protocol === 'https:',
+            isFileOrigin: protocol === 'file:',
+            source: 'Puente nativo detectado',
+            sourceError: 'window.fb2k está disponible, pero el SDK importado no pudo enlazarse con el puente.'
         };
     }
 
     let sourceInfo = null;
     let sourceError = '';
 
-    if (sdk.webview && typeof sdk.webview.getSource === 'function') {
-        try {
-            sourceInfo = unwrap(
-                await sdk.webview.getSource(),
-                'webview.getSource'
-            );
-        } catch (error) {
-            sourceError = error.message || String(error);
-        }
-    } else {
-        sourceError = 'El SDK no expone webview.getSource().';
+    try {
+        sourceInfo = unwrap(
+            await fb.webview.getSource(),
+            'webview.getSource'
+        );
+    } catch (error) {
+        sourceError = error.message || String(error);
     }
 
     return {
         hasHostBridge: true,
+        hasSdkFacade: true,
         origin,
         protocol,
         isHttpOrigin: protocol === 'http:' || protocol === 'https:',
@@ -83,15 +113,15 @@ export async function inspectWebViewEnvironment() {
         activeTemplateName: sourceInfo?.activeTemplateName || '',
         sourceUrl: sourceInfo?.url || '',
         hasMediaApi: Boolean(
-            sdk.media
-            && typeof sdk.media.getContainerInfo === 'function'
-            && typeof sdk.media.getStreamUrl === 'function'
+            fb.media
+            && typeof fb.media.getContainerInfo === 'function'
+            && typeof fb.media.getStreamUrl === 'function'
         ),
-        hasMediaElementFollower: typeof sdk.MediaElementFollower === 'function',
+        hasMediaElementFollower: typeof fb.MediaElementFollower === 'function',
         hasPlaybackApi: Boolean(
-            sdk.player
-            && typeof sdk.player.getPosition === 'function'
-            && typeof sdk.player.getState === 'function'
+            fb.player
+            && typeof fb.player.getPosition === 'function'
+            && typeof fb.player.getState === 'function'
         ),
         sourceError
     };
@@ -100,16 +130,12 @@ export async function inspectWebViewEnvironment() {
 export async function inspectCurrentMediaTrack() {
     const sdk = getSdk();
 
-    if (!sdk) {
-        throw new Error('No existe el puente de foo_ui_webview2 en esta página.');
-    }
-
     if (!sdk.player || typeof sdk.player.getPosition !== 'function') {
-        throw new Error('El SDK no expone fb.player.getPosition().');
+        throw new Error('El SDK importado no expone fb.player.getPosition().');
     }
 
     if (!sdk.media || typeof sdk.media.getContainerInfo !== 'function') {
-        throw new Error('El SDK no expone fb.media.getContainerInfo().');
+        throw new Error('El SDK importado no expone fb.media.getContainerInfo().');
     }
 
     const position = unwrap(
@@ -136,7 +162,7 @@ export async function inspectCurrentMediaTrack() {
         ? container.tracks.find((track) => track.type === 'video') || null
         : null;
 
-    const chapter = normalized.subsong === null
+    const chapter = normalized.subsong === 0
         ? null
         : (Array.isArray(container.chapters)
             ? container.chapters.find(
@@ -155,7 +181,9 @@ export async function inspectCurrentMediaTrack() {
         videoTrack,
         trackCount: Array.isArray(container.tracks) ? container.tracks.length : 0,
         chapter,
-        sourcePath: normalized.path,
+        sourcePath: normalized.subsong > 0
+            ? normalized.path + '|subsong:' + normalized.subsong
+            : normalized.path,
         timelineOffset: Number.isFinite(Number(chapter?.start))
             ? Number(chapter.start)
             : 0
