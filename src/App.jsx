@@ -119,9 +119,16 @@ export default function App() {
     function handlePointerMove(event) {
         if (!draggingRef.current || !containerRef.current) return;
 
-        const bounds = containerRef.current.getBoundingClientRect();
+        const containerBounds = containerRef.current.getBoundingClientRect();
+        const sidebar = containerRef.current.querySelector('.sidebar');
+        if (!sidebar) return;
+
+        const sidebarBounds = sidebar.getBoundingClientRect();
         setSidebarWidth(
-            clampSidebarWidth(event.clientX - bounds.left, bounds.width)
+            clampSidebarWidth(
+                event.clientX - sidebarBounds.left,
+                containerBounds.width
+            )
         );
     }
 
