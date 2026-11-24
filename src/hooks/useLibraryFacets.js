@@ -35,12 +35,13 @@ function sortYears(left, right) {
     return collatorCompare(left.label, right.label);
 }
 
-function buildFacetData(directories, selectedYears) {
+function buildFacetData(directories, selectedYears, selectedSubfolders) {
     const yearCounts = new Map();
     const yearLabels = new Map();
     const subfolderCounts = new Map();
     const subfolderLabels = new Map();
     const yearFilter = new Set(selectedYears);
+    const subfolderFilter = new Set(selectedSubfolders);
     let filteredCount = 0;
 
     directories.forEach((directory) => {
@@ -54,12 +55,16 @@ function buildFacetData(directories, selectedYears) {
         yearLabels.set(directory.yearValue, directory.yearLabel);
 
         const matchesYear = yearFilter.size === 0 || yearFilter.has(directory.yearValue);
+        const matchesSubfolder = subfolderFilter.size === 0
+            || subfolderFilter.has(directory.subfolderValue);
         if (matchesYear) {
             subfolderCounts.set(
                 directory.subfolderValue,
                 (subfolderCounts.get(directory.subfolderValue) || 0) + count
             );
             subfolderLabels.set(directory.subfolderValue, directory.subfolderLabel);
+        }
+        if (matchesYear && matchesSubfolder) {
             filteredCount += count;
         }
     });
@@ -93,7 +98,6 @@ export function useLibraryFacets(enabled) {
     const [playlistSyncStatus, setPlaylistSyncStatus] = useState('idle');
     const [playlistSyncMessage, setPlaylistSyncMessage] = useState('');
 
-    const directoriesRef = useRef([]);
     const sdkRef = useRef(null);
     const refreshRef = useRef(() => {});
     const playlistSyncRef = useRef({
@@ -119,7 +123,6 @@ export function useLibraryFacets(enabled) {
         }
 
         function publishDirectories(nextDirectories) {
-            directoriesRef.current = nextDirectories;
             if (!active) return;
 
             const yearValues = new Set();
@@ -266,8 +269,8 @@ export function useLibraryFacets(enabled) {
     }, [enabled]);
 
     const facetData = useMemo(
-        () => buildFacetData(directories, selectedYears),
-        [directories, selectedYears]
+        () => buildFacetData(directories, selectedYears, selectedSubfolders),
+        [directories, selectedYears, selectedSubfolders]
     );
 
     const matchingDirectories = useMemo(() => {
