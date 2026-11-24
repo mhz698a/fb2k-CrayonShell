@@ -146,10 +146,8 @@ export function useLibraryFacets(enabled) {
                 return;
             }
 
-            if (!libraryStatus.initialized || libraryStatus.scanning) {
-                setStatus('waiting', libraryStatus.scanning
-                    ? 'foobar2000 está actualizando la Media Library…'
-                    : 'Esperando a que foobar2000 termine de cargar la biblioteca…');
+            if (!libraryStatus.initialized) {
+                setStatus('waiting', 'Esperando a que foobar2000 termine de cargar la biblioteca…');
                 return;
             }
 
