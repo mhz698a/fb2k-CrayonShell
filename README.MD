@@ -173,7 +173,7 @@ fb2k-CrayonShell/
 - **Panel lateral y splitter interior:** src/components/Sidebar.jsx.
 - **Spectrum y su diálogo de configuración:** src/components/audio/SpectrumVisualizer.jsx.
 - **ReFacets y sus columnas:** src/components/refacets/.
-- **Indexación y evaluación de facetas:** src/services/libraryFacets.js.
+- **Consulta del árbol nativo y actualización de Library Viewer Selection:** src/services/libraryFacets.js.
 - **Estado y sincronización de la Media Library:** src/hooks/useLibraryFacets.js.
 - **Acceso compartido al SDK:** src/services/fooSdk.js.
 - **Barra superior, selector y filtro:** src/components/PlaylistToolbar.jsx.
