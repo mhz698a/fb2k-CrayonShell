@@ -106,7 +106,7 @@ Para probar la integración real, utiliza **Vite** cargado desde `WebView2 UI �
 
 ### Panel lateral, ReFacets y Spectrum Visualizer
 
-El panel izquierdo es ocultable desde el botón de la barra de playlist y conserva el ancho configurado. Su divisor exterior cambia el ancho; el divisor horizontal interior distribuye el espacio entre ReFacets y Spectrum. Ambos divisores admiten arrastre, teclado y doble clic para restaurar el valor inicial.
+El panel izquierdo es ocultable desde el botón de la barra de playlist y conserva tanto su estado visible/oculto como el ancho configurado. Su divisor exterior cambia el ancho; el divisor horizontal interior distribuye el espacio entre ReFacets y Spectrum. Dentro de ReFacets, un divisor vertical arrastrable cambia la proporción entre Years y Subfolders. Los dos divisores internos admiten arrastre, teclado y doble clic para restaurar el valor inicial. El ancho del panel, el estado visible/oculto y las proporciones de ambos divisores se guardan automáticamente en el almacenamiento local.
 
 **ReFacets** consulta la estructura de la Media Library mediante `fb.library.getRoots()` y `fb.library.enumerateTree()`. El puente nativo mantiene en caché el árbol de directorios; React ya no crea una segunda lista con todos los tracks ni ejecuta dos evaluaciones Title Formatting por pista. Para obtener los contadores, utiliza los totales acumulados de cada carpeta y resta los totales de sus carpetas hijas para calcular los archivos directos.
 
@@ -115,7 +115,7 @@ Las facetas conservan exactamente las expresiones Title Formatting originales:
 - Years: `$directory(%path%,3)`
 - Subfolders: `$directory(%path%,1)`
 
-**Years** permanece completa al seleccionar cualquier faceta y se ordena cronológicamente de menor a mayor. La columna Subfolders puede reducir sus opciones según los años seleccionados. Cada columna admite selección múltiple con **Ctrl + clic**: OR dentro de cada columna y AND entre ambas.
+**Years** permanece completa al seleccionar cualquier faceta y se ordena cronológicamente de menor a mayor. Las selecciones de Years y Subfolders se conservan al cerrar y volver a abrir CrayonShell; los valores que ya no existan en la Media Library se descartan después de reconstruir el árbol. La columna Subfolders puede reducir sus opciones según los años seleccionados. Cada columna admite selección múltiple con **Ctrl + clic**: OR dentro de cada columna y AND entre ambas.
 
 Al seleccionar una o varias subcarpetas, CrayonShell consulta sus archivos directos en el árbol nativo y reemplaza el contenido de la playlist **Library Viewer Selection**. Si también hay años seleccionados, se aplica esa intersección. Si la playlist no existe, se crea; al limpiar la selección de subcarpetas se vacía, sin eliminar la playlist. Los elementos enviados se ordenan por `%path%` (ruta completa), con comparación natural y sin distinguir mayúsculas.
 
