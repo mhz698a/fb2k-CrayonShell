@@ -13,7 +13,11 @@ const DEFAULTS = Object.freeze({
     channels: 'mix',
     backgroundThrottle: true,
     sensitivity: 1.5,
-    decay: 0.88
+    decay: 0.88,
+    backgroundColor: '#101418',
+    barColorStart: '#1477b8',
+    barColorMid: '#29a9d8',
+    barColorEnd: '#79d7e8'
 });
 const BAND_OPTIONS = [16, 24, 32, 48, 64, 96, 128, 192, 256];
 const FFT_OPTIONS = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536];
@@ -49,7 +53,11 @@ function normalizeSettings(value = {}) {
         channels: value.channels === 'stereo' ? 'stereo' : 'mix',
         backgroundThrottle: value.backgroundThrottle !== false,
         sensitivity: clampNumber(value.sensitivity, 0.5, 3, DEFAULTS.sensitivity),
-        decay: clampNumber(value.decay, 0.75, 0.98, DEFAULTS.decay)
+        decay: clampNumber(value.decay, 0.75, 0.98, DEFAULTS.decay),
+        backgroundColor: /^#[0-9a-f]{6}$/i.test(value.backgroundColor) ? value.backgroundColor : DEFAULTS.backgroundColor,
+        barColorStart: /^#[0-9a-f]{6}$/i.test(value.barColorStart) ? value.barColorStart : DEFAULTS.barColorStart,
+        barColorMid: /^#[0-9a-f]{6}$/i.test(value.barColorMid) ? value.barColorMid : DEFAULTS.barColorMid,
+        barColorEnd: /^#[0-9a-f]{6}$/i.test(value.barColorEnd) ? value.barColorEnd : DEFAULTS.barColorEnd
     };
 }
 
@@ -107,7 +115,7 @@ function drawSeries(context, values, x, y, width, height) {
     });
 }
 
-function drawBars(canvas, frame) {
+function drawBars(canvas, frame, settings = DEFAULTS) {
     if (!canvas) return;
     const bounds = canvas.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) return;
@@ -122,7 +130,24 @@ function drawBars(canvas, frame) {
     if (!context) return;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, bounds.width, bounds.height);
-    context.fillStyle = '#101418';
+    context.fillStyle = settings.backgroundColor;
+    context.fillRect(0, 0, bounds.width, bounds.height);
+    const gradient = context.createLinearGradient(0, bounds.height, 0, 0);
+    gradient.addColorStop(0, settings.barColorStart);
+    gradient.addColorStop(0.65, settings.barColorMid);
+    gradient.addColorStop(1, settings.barColorEnd);
+    context.fillStyle = gradient;
+
+    if (frame && !Array.isArray(frame) && Array.isArray(frame.left) && Array.isArray(frame.right)) {
+        const rowHeight = Math.max(1, (bounds.height - 3) / 2);
+        drawSeries(context, frame.left, 0, 0, bounds.width, rowHeight);
+        drawSeries(context, frame.right, 0, rowHeight + 3, bounds.width, rowHeight);
+    } else {
+        drawSeries(context, Array.isArray(frame) ? frame : [], 0, 0, bounds.width, bounds.height);
+    }
+}
+
+function SelectField
     context.fillRect(0, 0, bounds.width, bounds.height);
     const gradient = context.createLinearGradient(0, bounds.height, 0, 0);
     gradient.addColorStop(0, '#1477b8');
@@ -189,7 +214,7 @@ export default function SpectrumVisualizer({ visible = true }) {
     settingsRef.current = settings;
 
     const redraw = useCallback(() => {
-        drawBars(canvasRef.current, currentRef.current);
+        drawBars(canvasRef.current, currentRef.current, settingsRef.current || DEFAULTS);
     }, []);
 
     const receiveFrame = useCallback((frame) => {
@@ -384,11 +409,7 @@ export default function SpectrumVisualizer({ visible = true }) {
 
     return (
         <section className="spectrum-section" aria-label="Spectrum Visualizer" onContextMenu={openContextMenu}>
-            <header className="sidebar-section-heading spectrum-heading">
-                <strong>Spectrum</strong>
-                <span className="spectrum-status" title={status}>{status}</span>
-            </header>
-            <div className="spectrum-canvas-wrap">
+                        <div className="spectrum-canvas-wrap">
                 <canvas ref={canvasRef} className="spectrum-canvas" role="img" aria-label="Visualizador de espectro de audio" />
                 <div className="spectrum-hint">Clic derecho para configurar</div>
             </div>
@@ -438,6 +459,11 @@ export default function SpectrumVisualizer({ visible = true }) {
                             ×
                         </button>
                     </header>
+
+                    <div className="spectrum-dialog-status" role="status" title={status}>
+                        <span>Estado del visualizador</span>
+                        <strong>{status}</strong>
+                    </div>
 
                     <section className="spectrum-settings-section">
                         <strong>Análisis FFT</strong>
@@ -543,6 +569,22 @@ export default function SpectrumVisualizer({ visible = true }) {
                     <section className="spectrum-settings-section">
                         <strong>Presentación</strong>
                         <div className="spectrum-settings-grid">
+                            <label className="spectrum-field spectrum-color-field">
+                                <span>Fondo del visualizador</span>
+                                <input type="color" value={draft.backgroundColor} onChange={(event) => updateDraft('backgroundColor', event.target.value)} />
+                            </label>
+                            <label className="spectrum-field spectrum-color-field">
+                                <span>Color inferior de barras</span>
+                                <input type="color" value={draft.barColorStart} onChange={(event) => updateDraft('barColorStart', event.target.value)} />
+                            </label>
+                            <label className="spectrum-field spectrum-color-field">
+                                <span>Color medio de barras</span>
+                                <input type="color" value={draft.barColorMid} onChange={(event) => updateDraft('barColorMid', event.target.value)} />
+                            </label>
+                            <label className="spectrum-field spectrum-color-field">
+                                <span>Color superior de barras</span>
+                                <input type="color" value={draft.barColorEnd} onChange={(event) => updateDraft('barColorEnd', event.target.value)} />
+                            </label>
                             <label className="spectrum-field spectrum-range-field">
                                 <span>
                                     Sensibilidad
