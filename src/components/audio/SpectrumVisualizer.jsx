@@ -125,11 +125,14 @@ export default function SpectrumVisualizer({ visible = true }) {
     const currentBarsRef = useRef([]);
     const receivedFrameRef = useRef(false);
 
+    const settingsRef = useRef(null);
     const [settings, setSettings] = useState(readSettings);
     const [draftSettings, setDraftSettings] = useState(settings);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [contextMenu, setContextMenu] = useState(null);
     const [status, setStatus] = useState('Panel oculto');
+
+    settingsRef.current = settings;
 
     const redraw = useCallback(() => {
         drawBars(canvasRef.current, currentBarsRef.current);
