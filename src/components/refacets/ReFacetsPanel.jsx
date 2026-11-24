@@ -30,6 +30,7 @@ export default function ReFacetsPanel({ visible = true }) {
         message,
         progress,
         totalTracks,
+        directoryCount,
         years,
         subfolders,
         selectedYears,
@@ -263,7 +264,7 @@ export default function ReFacetsPanel({ visible = true }) {
                         </header>
                         <div className="refacets-diagnostics-summary">
                             <div><span>Estado</span><strong>{status}</strong></div>
-                            <div><span>Carpetas</span><strong>{years.length + subfolders.length}</strong></div>
+                            <div><span>Carpetas</span><strong>{directoryCount.toLocaleString('es-MX')}</strong></div>
                             <div><span>Pistas coincidentes</span><strong>{filteredCount.toLocaleString('es-MX')}</strong></div>
                             <div><span>Playlist</span><strong>{playlistSyncStatus}</strong></div>
                         </div>
