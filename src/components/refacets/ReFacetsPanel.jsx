@@ -280,9 +280,6 @@ export default function ReFacetsPanel({ visible = true }) {
                             ))}
                         </div>
                         <footer>
-                            <button type="button" className="spectrum-secondary-button" onClick={() => {
-                                addDiagnostic('info', 'Diagnóstico consultado por el usuario');
-                            }}>Registrar evento</button>
                             <button type="button" className="spectrum-primary-button" onClick={() => setDiagnosticsOpen(false)}>Cerrar</button>
                         </footer>
                     </section>
