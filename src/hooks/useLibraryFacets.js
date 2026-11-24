@@ -1,25 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getFooSdk } from '../services/fooSdk.js';
 import {
-    assertLibraryResponse,
-    buildLibraryFacetIndex,
-    fetchChangedFacetTracks
+    buildLibraryFacetTree,
+    syncLibraryViewerSelection
 } from '../services/libraryFacets.js';
 
-const SYNC_DEBOUNCE_MS = 400;
-
-function isUnsupportedChangesEndpoint(error) {
-    const code = String(error?.code || '').toUpperCase();
-    const message = String(error?.message || '').toLowerCase();
-    return code === 'METHOD_NOT_FOUND'
-        || code === 'UNKNOWN_METHOD'
-        || code === 'NOT_SUPPORTED'
-        || code === 'NOT_FOUND'
-        || message.includes('method not found')
-        || message.includes('unknown method')
-        || message.includes('not implemented')
-        || message.includes('does not exist');
-}
+const SYNC_DEBOUNCE_MS = 350;
 
 function updateSelection(current, value, multi) {
     if (!multi) {
@@ -30,62 +16,51 @@ function updateSelection(current, value, multi) {
         : [...current, value];
 }
 
+function collatorCompare(left, right) {
+    return new Intl.Collator('es', {
+        numeric: true,
+        sensitivity: 'base'
+    }).compare(left, right);
+}
+
 function sortYears(left, right) {
     const leftNumber = Number(left.label);
     const rightNumber = Number(right.label);
     const leftIsYear = /^\d{4}$/.test(left.label) && Number.isFinite(leftNumber);
     const rightIsYear = /^\d{4}$/.test(right.label) && Number.isFinite(rightNumber);
 
-    if (leftIsYear && rightIsYear) return rightNumber - leftNumber;
-    return new Intl.Collator('es', { numeric: true, sensitivity: 'base' })
-        .compare(right.label, left.label);
+    if (leftIsYear && rightIsYear) return leftNumber - rightNumber;
+    if (leftIsYear) return -1;
+    if (rightIsYear) return 1;
+    return collatorCompare(left.label, right.label);
 }
 
-function buildFacetData(records, selectedYears, selectedSubfolders) {
-    const yearFilter = new Set(selectedYears);
-    const subfolderFilter = new Set(selectedSubfolders);
+function buildFacetData(directories, selectedYears) {
     const yearCounts = new Map();
+    const yearLabels = new Map();
     const subfolderCounts = new Map();
+    const subfolderLabels = new Map();
+    const yearFilter = new Set(selectedYears);
     let filteredCount = 0;
 
-    records.forEach((record) => {
-        const matchesYear = yearFilter.size === 0 || yearFilter.has(record.yearValue);
-        const matchesSubfolder = subfolderFilter.size === 0
-            || subfolderFilter.has(record.subfolderValue);
+    directories.forEach((directory) => {
+        const count = Math.max(0, Number(directory.trackCount) || 0);
+        if (count === 0) return;
 
-        if (matchesSubfolder) {
-            yearCounts.set(record.yearValue, (yearCounts.get(record.yearValue) || 0) + 1);
-        }
+        yearCounts.set(
+            directory.yearValue,
+            (yearCounts.get(directory.yearValue) || 0) + count
+        );
+        yearLabels.set(directory.yearValue, directory.yearLabel);
+
+        const matchesYear = yearFilter.size === 0 || yearFilter.has(directory.yearValue);
         if (matchesYear) {
             subfolderCounts.set(
-                record.subfolderValue,
-                (subfolderCounts.get(record.subfolderValue) || 0) + 1
+                directory.subfolderValue,
+                (subfolderCounts.get(directory.subfolderValue) || 0) + count
             );
-        }
-        if (matchesYear && matchesSubfolder) filteredCount += 1;
-    });
-
-    selectedYears.forEach((value) => {
-        if (!yearCounts.has(value)) yearCounts.set(value, 0);
-    });
-    selectedSubfolders.forEach((value) => {
-        if (!subfolderCounts.has(value)) subfolderCounts.set(value, 0);
-    });
-
-    const yearLabels = new Map();
-    const subfolderLabels = new Map();
-    records.forEach((record) => {
-        yearLabels.set(record.yearValue, record.yearLabel);
-        subfolderLabels.set(record.subfolderValue, record.subfolderLabel);
-    });
-    selectedYears.forEach((value) => {
-        if (!yearLabels.has(value)) yearLabels.set(value, value === '__CRAYONSHELL_EMPTY_YEAR__' ? '(Sin año)' : value);
-    });
-    selectedSubfolders.forEach((value) => {
-        if (!subfolderLabels.has(value)) {
-            subfolderLabels.set(value, value === '__CRAYONSHELL_EMPTY_SUBFOLDER__'
-                ? '(Sin subcarpeta)'
-                : value);
+            subfolderLabels.set(directory.subfolderValue, directory.subfolderLabel);
+            filteredCount += count;
         }
     });
 
@@ -99,29 +74,34 @@ function buildFacetData(records, selectedYears, selectedSubfolders) {
         value,
         label: subfolderLabels.get(value) || value,
         count
-    })).sort((left, right) => new Intl.Collator('es', {
-        numeric: true,
-        sensitivity: 'base'
-    }).compare(left.label, right.label));
+    })).sort((left, right) => collatorCompare(left.label, right.label));
 
     return { years, subfolders, filteredCount };
 }
 
 const INITIAL_STATE = {
     status: 'idle',
-    message: 'Abre el panel para conectar con la Media Library.',
+    message: 'Abre el panel para consultar la Media Library.',
     progress: null
 };
 
 export function useLibraryFacets(enabled) {
-    const [records, setRecords] = useState([]);
+    const [directories, setDirectories] = useState([]);
     const [state, setState] = useState(INITIAL_STATE);
     const [selectedYears, setSelectedYears] = useState([]);
     const [selectedSubfolders, setSelectedSubfolders] = useState([]);
+    const [playlistSyncStatus, setPlaylistSyncStatus] = useState('idle');
+    const [playlistSyncMessage, setPlaylistSyncMessage] = useState('');
 
-    const recordsRef = useRef(new Map());
-    const revisionRef = useRef(null);
+    const directoriesRef = useRef([]);
+    const sdkRef = useRef(null);
     const refreshRef = useRef(() => {});
+    const playlistSyncRef = useRef({
+        generation: 0,
+        queue: Promise.resolve(),
+        hadSelection: false
+    });
+
     useEffect(() => {
         if (!enabled) return undefined;
 
@@ -129,9 +109,8 @@ export function useLibraryFacets(enabled) {
         let syncTimer = null;
         let syncRunning = false;
         let syncPending = false;
-        let scanController = null;
         let sdk = null;
-        let incrementalSyncAvailable = true;
+        let scanController = null;
         const unsubscribers = [];
 
         function setStatus(status, message, progress = null) {
@@ -139,187 +118,76 @@ export function useLibraryFacets(enabled) {
             setState({ status, message, progress });
         }
 
-        function publishIndex(nextIndex) {
-            recordsRef.current = nextIndex;
+        function publishDirectories(nextDirectories) {
+            directoriesRef.current = nextDirectories;
             if (!active) return;
 
             const yearValues = new Set();
             const subfolderValues = new Set();
-            nextIndex.forEach((record) => {
-                yearValues.add(record.yearValue);
-                subfolderValues.add(record.subfolderValue);
+            nextDirectories.forEach((directory) => {
+                yearValues.add(directory.yearValue);
+                subfolderValues.add(directory.subfolderValue);
             });
 
-            setRecords(Array.from(nextIndex.values()));
+            setDirectories(nextDirectories);
             setSelectedYears((current) => current.filter((value) => yearValues.has(value)));
             setSelectedSubfolders((current) => current.filter((value) => subfolderValues.has(value)));
         }
 
-        async function requestChanges(mark) {
-            if (!incrementalSyncAvailable || typeof sdk.library?.getChanges !== 'function') {
-                return null;
-            }
-
-            try {
-                const response = mark
-                    ? await sdk.library.getChanges({ epoch: mark.epoch, since: mark.revision })
-                    : await sdk.library.getChanges();
-
-                return assertLibraryResponse(response, 'library.getChanges');
-            } catch (error) {
-                if (isUnsupportedChangesEndpoint(error)) {
-                    incrementalSyncAvailable = false;
-                    revisionRef.current = null;
-                    return null;
-                }
-                throw error;
-            }
-        }
-
-        async function applyChangesToIndex(index, changes) {
-            const nextIndex = new Map(index);
-            (Array.isArray(changes.removed) ? changes.removed : []).forEach((handle) => {
-                nextIndex.delete(String(handle));
-            });
-
-            const changed = Array.isArray(changes.changed) ? changes.changed : [];
-            if (changed.length > 0) {
-                let result;
-                try {
-                    result = await fetchChangedFacetTracks(sdk, changed);
-                } catch (error) {
-                    if (isUnsupportedChangesEndpoint(error)) {
-                        incrementalSyncAvailable = false;
-                        revisionRef.current = null;
-                        return null;
-                    }
-                    throw error;
-                }
-                result.missing.forEach((handle) => nextIndex.delete(handle));
-                result.records.forEach((record, handle) => nextIndex.set(handle, record));
-            }
-
-            return nextIndex;
-        }
-
-        async function rebuildFromBaseline(baseline) {
-            let currentBaseline = baseline;
-            for (let attempt = 0; attempt < 3; attempt += 1) {
-                if (!active) return;
-
-                scanController?.abort();
-                scanController = new AbortController();
-                const controller = scanController;
-                setStatus('loading', 'Indexando la Media Library…', {
-                    fetched: 0,
-                    total: 0
-                });
-
-                const nextIndex = await buildLibraryFacetIndex(sdk, {
-                    signal: controller.signal,
-                    onProgress(info) {
-                        setStatus('loading', 'Indexando la Media Library…', {
-                            fetched: info.fetched,
-                            total: info.total
-                        });
-                    }
-                });
-
-                if (!active || controller.signal.aborted) return;
-
-                let finalIndex = nextIndex;
-                let nextMark = currentBaseline;
-
-                if (currentBaseline && incrementalSyncAvailable) {
-                    const catchup = await requestChanges({
-                        epoch: currentBaseline.epoch,
-                        revision: currentBaseline.revision
-                    });
-
-                    if (catchup?.resync) {
-                        currentBaseline = catchup;
-                        continue;
-                    }
-                    if (catchup) {
-                        const synchronizedIndex = await applyChangesToIndex(nextIndex, catchup);
-                        if (!synchronizedIndex) {
-                            currentBaseline = null;
-                            continue;
-                        }
-                        finalIndex = synchronizedIndex;
-                        nextMark = catchup;
-                    }
-                }
-
-                if (!active) return;
-                publishIndex(finalIndex);
-                revisionRef.current = nextMark && !nextMark.resync
-                    ? { epoch: nextMark.epoch, revision: nextMark.revision }
-                    : null;
-
-                setStatus('ready',
-                    finalIndex.size === 0
-                        ? 'Media Library vacía.'
-                        : 'Media Library sincronizada · ' + finalIndex.size.toLocaleString('es-MX') + ' pistas.',
-                    { fetched: finalIndex.size, total: finalIndex.size }
-                );
-                return;
-            }
-
-            throw new Error('La biblioteca cambió repetidamente durante la indexación. Vuelve a actualizar.');
-        }
-
         async function runSyncCycle() {
-            const libraryStatus = assertLibraryResponse(
-                await sdk.library.getStatus(),
-                'library.getStatus'
-            );
+            const libraryStatus = await sdk.library.getStatus();
+            if (!libraryStatus || libraryStatus.success === false) {
+                throw new Error(libraryStatus?.error || 'No se pudo consultar el estado de la Media Library.');
+            }
 
             if (libraryStatus.enabled === false) {
-                revisionRef.current = null;
-                publishIndex(new Map());
+                publishDirectories([]);
                 setStatus('disabled', 'La Media Library de foobar2000 está deshabilitada.');
                 return;
             }
 
-            if (!libraryStatus.initialized) {
-                setStatus('waiting', 'Esperando a que foobar2000 termine de cargar la biblioteca…');
+            if (!libraryStatus.initialized || libraryStatus.scanning) {
+                setStatus('waiting', libraryStatus.scanning
+                    ? 'foobar2000 está actualizando la Media Library…'
+                    : 'Esperando a que foobar2000 termine de cargar la biblioteca…');
                 return;
             }
 
-            if (!revisionRef.current) {
-                const baseline = await requestChanges(null);
-                await rebuildFromBaseline(baseline);
-                return;
-            }
+            scanController?.abort();
+            scanController = new AbortController();
+            const controller = scanController;
 
-            const changes = await requestChanges(revisionRef.current);
-            if (!changes) {
-                await rebuildFromBaseline(null);
-                return;
-            }
-            if (changes.resync) {
-                await rebuildFromBaseline(changes);
-                return;
-            }
+            setStatus('loading', 'Consultando el árbol de carpetas de foobar2000…', {
+                fetched: 0,
+                total: 0
+            });
 
-            const nextIndex = await applyChangesToIndex(recordsRef.current, changes);
-            if (!nextIndex) {
-                await rebuildFromBaseline(null);
-                return;
-            }
-            if (!active) return;
+            const result = await buildLibraryFacetTree(sdk, {
+                signal: controller.signal,
+                onProgress(info) {
+                    if (!active || controller.signal.aborted) return;
+                    setStatus('loading', 'Consultando el árbol de carpetas de foobar2000…', {
+                        fetched: Number(info.visited) || 0,
+                        total: 0
+                    });
+                }
+            });
 
-            publishIndex(nextIndex);
-            revisionRef.current = {
-                epoch: changes.epoch,
-                revision: changes.revision
-            };
-            setStatus('ready',
-                nextIndex.size === 0
-                    ? 'Media Library vacía.'
-                    : 'Media Library sincronizada · ' + nextIndex.size.toLocaleString('es-MX') + ' pistas.',
-                { fetched: nextIndex.size, total: nextIndex.size }
+            if (!active || controller.signal.aborted) return;
+
+            publishDirectories(result.directories);
+            const folderCount = result.directories.length.toLocaleString('es-MX');
+            const trackCount = result.totalTracks.toLocaleString('es-MX');
+            const cacheLabel = result.fromCache ? ' · caché nativa' : '';
+            const skippedLabel = result.skippedTracks > 0
+                ? ' · ' + result.skippedTracks.toLocaleString('es-MX') + ' pistas sin ruta local'
+                : '';
+
+            setStatus(
+                'ready',
+                'Media Library consultada · ' + trackCount + ' pistas · ' + folderCount
+                    + ' carpetas' + cacheLabel + skippedLabel,
+                { fetched: result.directories.length, total: 0 }
             );
         }
 
@@ -363,21 +231,16 @@ export function useLibraryFacets(enabled) {
 
         try {
             sdk = getFooSdk();
+            sdkRef.current = sdk;
         } catch (error) {
             setStatus('unavailable', error.message || String(error));
             return () => {
                 active = false;
+                sdkRef.current = null;
             };
         }
 
-        const libraryEvents = [
-            'library:initialized',
-            'library:itemsAdded',
-            'library:itemsRemoved',
-            'library:itemsModified'
-        ];
-
-        libraryEvents.forEach((eventName) => {
+        ['library:initialized', 'library:itemsAdded', 'library:itemsRemoved'].forEach((eventName) => {
             const unsubscribe = sdk.on(eventName, () => {
                 if (eventName === 'library:initialized') {
                     void initialize();
@@ -389,7 +252,6 @@ export function useLibraryFacets(enabled) {
         });
 
         refreshRef.current = () => {
-            revisionRef.current = null;
             void initialize();
         };
 
@@ -400,14 +262,77 @@ export function useLibraryFacets(enabled) {
             window.clearTimeout(syncTimer);
             scanController?.abort();
             unsubscribers.forEach((unsubscribe) => unsubscribe());
+            if (sdkRef.current === sdk) sdkRef.current = null;
             refreshRef.current = () => {};
         };
     }, [enabled]);
 
     const facetData = useMemo(
-        () => buildFacetData(records, selectedYears, selectedSubfolders),
-        [records, selectedYears, selectedSubfolders]
+        () => buildFacetData(directories, selectedYears),
+        [directories, selectedYears]
     );
+
+    const matchingDirectories = useMemo(() => {
+        if (selectedSubfolders.length === 0) return [];
+
+        const years = new Set(selectedYears);
+        const subfolders = new Set(selectedSubfolders);
+        return directories.filter((directory) => (
+            (years.size === 0 || years.has(directory.yearValue))
+            && subfolders.has(directory.subfolderValue)
+            && directory.trackCount > 0
+        ));
+    }, [directories, selectedYears, selectedSubfolders]);
+
+    useEffect(() => {
+        const sync = playlistSyncRef.current;
+
+        if (!enabled) {
+            sync.generation += 1;
+            return undefined;
+        }
+
+        const hasSubfolderSelection = selectedSubfolders.length > 0;
+        if (!hasSubfolderSelection && !sync.hadSelection) return undefined;
+
+        sync.hadSelection = hasSubfolderSelection;
+        const generation = ++sync.generation;
+        const sdk = sdkRef.current;
+        if (!sdk) return undefined;
+
+        const targetDirectories = hasSubfolderSelection ? matchingDirectories : [];
+        setPlaylistSyncStatus('syncing');
+        setPlaylistSyncMessage('Actualizando Library Viewer Selection…');
+
+        sync.queue = sync.queue.catch(() => {}).then(async () => {
+            if (generation !== sync.generation) return;
+
+            try {
+                const result = await syncLibraryViewerSelection(sdk, targetDirectories, {
+                    shouldApply: () => generation === sync.generation
+                });
+
+                if (result.stale || generation !== sync.generation) return;
+
+                setPlaylistSyncStatus('ready');
+                setPlaylistSyncMessage(
+                    'Library Viewer Selection · '
+                    + (result.trackCount || 0).toLocaleString('es-MX')
+                    + ' pistas'
+                );
+            } catch (error) {
+                if (generation !== sync.generation) return;
+                setPlaylistSyncStatus('error');
+                setPlaylistSyncMessage(
+                    'Library Viewer Selection: ' + (error.message || String(error))
+                );
+            }
+        });
+
+        return () => {
+            if (sync.generation === generation) sync.generation += 1;
+        };
+    }, [enabled, matchingDirectories, selectedSubfolders, selectedYears]);
 
     const selectYear = useCallback((value, multi = false) => {
         setSelectedYears((current) => updateSelection(current, value, multi));
@@ -421,26 +346,21 @@ export function useLibraryFacets(enabled) {
     const clearSubfolders = useCallback(() => setSelectedSubfolders([]), []);
     const refresh = useCallback(() => refreshRef.current(), []);
 
-    const matchingTracks = useMemo(() => {
-        const years = new Set(selectedYears);
-        const subfolders = new Set(selectedSubfolders);
-        return records.filter((record) => (
-            (years.size === 0 || years.has(record.yearValue))
-            && (subfolders.size === 0 || subfolders.has(record.subfolderValue))
-        ));
-    }, [records, selectedYears, selectedSubfolders]);
-
     return {
         status: state.status,
         message: state.message,
         progress: state.progress,
-        totalTracks: records.length,
+        totalTracks: directories.reduce(
+            (total, directory) => total + (Number(directory.trackCount) || 0),
+            0
+        ),
         years: facetData.years,
         subfolders: facetData.subfolders,
         selectedYears,
         selectedSubfolders,
         filteredCount: facetData.filteredCount,
-        matchingTracks,
+        playlistSyncStatus,
+        playlistSyncMessage,
         selectYear,
         selectSubfolder,
         clearYears,
