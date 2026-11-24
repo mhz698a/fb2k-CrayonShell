@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
@@ -7,9 +7,21 @@ import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
 import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
 
-const MIN_SIDEBAR_WIDTH = 140;
+const MIN_SIDEBAR_WIDTH = 240;
 const MAX_SIDEBAR_WIDTH = 520;
-const DEFAULT_SIDEBAR_WIDTH = 250;
+const DEFAULT_SIDEBAR_WIDTH = 320;
+const SIDEBAR_WIDTH_STORAGE_KEY = 'crayonshell.sidebar.width.v1';
+
+function readSidebarWidth() {
+    try {
+        const stored = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
+        return Number.isFinite(stored) && stored >= MIN_SIDEBAR_WIDTH && stored <= MAX_SIDEBAR_WIDTH
+            ? stored
+            : DEFAULT_SIDEBAR_WIDTH;
+    } catch {
+        return DEFAULT_SIDEBAR_WIDTH;
+    }
+}
 
 function clampSidebarWidth(width, containerWidth) {
     const availableMaximum = Math.max(
@@ -26,10 +38,18 @@ export default function App() {
     const containerRef = useRef(null);
     const draggingRef = useRef(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-    const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+    const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
     const [filter, setFilter] = useState('');
     const [contentView, setContentView] = useState('playlist');
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth));
+        } catch {
+            // Keep the current width for this session when storage is unavailable.
+        }
+    }, [sidebarWidth]);
 
     const {
         playlists,
@@ -123,7 +143,7 @@ export default function App() {
             className={'cui-container' + (sidebarCollapsed ? ' sidebar-collapsed' : '')}
             style={{ '--sidebar-width': sidebarWidth + 'px' }}
         >
-            <Sidebar />
+            <Sidebar visible={!sidebarCollapsed} />
 
             <div
                 className="sidebar-resizer"

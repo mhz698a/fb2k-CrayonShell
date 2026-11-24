@@ -1,22 +1,4 @@
-import fb from 'foo-webview-sdk';
-
-function hasNativeBridge() {
-    return typeof window !== 'undefined'
-        && window.fb2k
-        && typeof window.fb2k.invoke === 'function';
-}
-
-function getSdk() {
-    if (!hasNativeBridge()) {
-        throw new Error('No se encontró window.fb2k.invoke. La página no está conectada a foo_ui_webview2.');
-    }
-
-    if (!fb.isAvailable()) {
-        throw new Error('El SDK foo-webview-sdk no detecta un puente nativo disponible.');
-    }
-
-    return fb;
-}
+import { getFooSdk as getSdk } from './fooSdk.js';
 
 function compareVersions(left, right) {
     const parse = (value) => {

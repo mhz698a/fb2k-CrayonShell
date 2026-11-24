@@ -103,6 +103,21 @@ Para probar la integración real, utiliza **Vite** cargado desde `WebView2 UI �
 
 `media.getContainerInfo` y `media.getStreamUrl` requieren un origen HTTP(S) confiable. `getStreamUrl` también requiere `foo_ui_webview2 2.2.0` o posterior y el runtime WebView2 con `ICoreWebView2_22`. La API multimedia es experimental.
 
+
+### Panel lateral y Spectrum Visualizer
+
+El panel izquierdo es ocultable desde el botón de la barra de playlist y conserva el ancho configurado. Su divisor exterior cambia el ancho; el divisor horizontal interior distribuye el espacio entre el área reservada para ReFacets y el Spectrum. Ambos divisores admiten arrastre, teclado y doble clic para restaurar el valor inicial.
+
+Durante la etapa 1, el espacio superior queda reservado para ReFacets. La integración del motor de facetas se desarrolla en la etapa 2.
+
+Spectrum utiliza la suscripción nativa fb.audio.subscribeSpectrum() de foo-webview-sdk. No consulta el espectro mediante un temporizador. La suscripción se libera cuando el panel se oculta o el componente se desmonta.
+
+Haz clic derecho dentro del área Spectrum y selecciona **Configurar Spectrum…**. El diálogo permite ajustar bandas, tamaño FFT, FPS, frecuencia mínima/máxima, sensibilidad y persistencia de las barras. Los ajustes se aplican al guardar y se conservan en el almacenamiento local de la plantilla. **Restablecer valores** devuelve el borrador a la configuración predeterminada; es necesario pulsar Guardar para aplicarlo.
+
+El visualizador necesita ejecutarse dentro de foobar2000/WebView2 con el puente nativo y la API de audio disponibles. En un navegador externo se muestra el estado de disponibilidad, pero no se simulan datos de espectro.
+
+Las etapas posteriores contemplan enviar los elementos de la subcarpeta seleccionada a **Library Viewer Selection** y actualizar esa selección cuando cambie la subcarpeta. También se definirá el vaciado y rellenado de la playlist al seleccionar una subcarpeta. Estas operaciones no forman parte de la etapa 1.
+
 ## Estructura del proyecto
 
 ~~~text
@@ -113,6 +128,8 @@ fb2k-CrayonShell/
 │   └── verify-build.mjs       # Comprueba los archivos de salida
 ├── src/
 │   ├── components/
+│   │   ├── audio/
+│   │   │   └── SpectrumVisualizer.jsx # Visualizador nativo y ajustes
 │   │   ├── MediaPlaybackProbe.jsx # Visor sincronizado y diálogo de diagnóstico
 │   │   ├── PlaylistStatus.jsx
 │   │   ├── PlaylistTable.jsx
@@ -121,6 +138,7 @@ fb2k-CrayonShell/
 │   ├── hooks/
 │   │   └── usePlaylist.js     # Estado y operaciones de la playlist
 │   ├── services/
+│   │   ├── fooSdk.js          # Acceso compartido a foo-webview-sdk
 │   │   ├── foobarApi.js       # Puente existente de playlist
 │   │   ├── mediaPlaybackProbe.js # Integración y diagnóstico del SDK multimedia
 │   │   ├── mockFb2k.js        # Datos ficticios para desarrollo
@@ -138,7 +156,9 @@ fb2k-CrayonShell/
 ## Dónde hacer cada tipo de cambio
 
 - **Distribución general de la interfaz:** src/App.jsx.
-- **Panel lateral:** src/components/Sidebar.jsx.
+- **Panel lateral y splitter interior:** src/components/Sidebar.jsx.
+- **Spectrum y su diálogo de configuración:** src/components/audio/SpectrumVisualizer.jsx.
+- **Acceso compartido al SDK:** src/services/fooSdk.js.
 - **Barra superior, selector y filtro:** src/components/PlaylistToolbar.jsx.
 - **Filas, clic simple, doble clic y menú contextual:** src/components/PlaylistTable.jsx.
 - **Estilos, colores, tamaños y espaciados:** src/styles/main.css.
