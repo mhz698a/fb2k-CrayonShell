@@ -1,10 +1,6 @@
-const TITLE_FORMAT_FIELDS = Object.freeze({
-    year: '$directory(%path%,3)',
-    subfolder: '$directory(%path%,1)'
-});
-
-const ENUMERATION_PAGE_SIZE = 250;
-const TRACK_LOOKUP_BATCH_SIZE = 5000;
+const PLAYLIST_NAME = 'Library Viewer Selection';
+const DIRECTORY_SCAN_CONCURRENCY = 5;
+const DIRECTORY_TRACKS_CONCURRENCY = 5;
 const EMPTY_YEAR = '__CRAYONSHELL_EMPTY_YEAR__';
 const EMPTY_SUBFOLDER = '__CRAYONSHELL_EMPTY_SUBFOLDER__';
 
@@ -21,144 +17,303 @@ function assertSuccess(response, operation) {
     return response;
 }
 
-function normalizeFacetValue(value) {
-    return String(value ?? '').trim();
+function directoryKey(rootId, pathId) {
+    return String(rootId) + '::' + String(pathId || '');
 }
 
-function createFacetRecord(track, result) {
-    const year = result?.success === false
-        ? ''
-        : normalizeFacetValue(result?.year);
-    const subfolder = result?.success === false
-        ? ''
-        : normalizeFacetValue(result?.subfolder);
+function splitNativePath(value) {
+    return String(value || '')
+        .replace(/^file:\/\//i, '')
+        .replace(/\//g, '\\')
+        .split(/\\+/)
+        .filter(Boolean);
+}
+
+/**
+ * $directory(path,n) starts at the containing folder (level 0) and walks
+ * n directory levels toward the root. The tree API gives us that folder path
+ * directly, so no per-track Title Formatting pass is needed.
+ */
+function directoryComponent(absoluteDirectoryPath, levelsUp) {
+    const parts = splitNativePath(absoluteDirectoryPath);
+    const index = parts.length - 1 - levelsUp;
+    return index >= 0 ? parts[index] : '';
+}
+
+function createFacetDirectory(node, directTrackCount) {
+    const year = directoryComponent(node.absolutePath, 3);
+    const subfolder = directoryComponent(node.absolutePath, 1);
 
     return {
-        handle: String(track.handle || ''),
-        path: String(track.path || track.absolutePath || ''),
-        absolutePath: String(track.absolutePath || track.path || ''),
-        index: Number.isInteger(track.index) ? track.index : -1,
+        id: directoryKey(node.rootId, node.pathId),
+        rootId: node.rootId,
+        pathId: node.pathId || '',
+        absolutePath: node.absolutePath,
         yearValue: year || EMPTY_YEAR,
         yearLabel: year || '(Sin año)',
         subfolderValue: subfolder || EMPTY_SUBFOLDER,
-        subfolderLabel: subfolder || '(Sin subcarpeta)'
+        subfolderLabel: subfolder || '(Sin subcarpeta)',
+        trackCount: directTrackCount
     };
 }
 
-export async function evaluateFacetTracks(sdk, tracks, signal) {
-    const source = Array.isArray(tracks) ? tracks : [];
-    const records = [];
+async function mapWithConcurrency(items, limit, mapper) {
+    const source = Array.isArray(items) ? items : [];
+    const results = new Array(source.length);
+    let cursor = 0;
 
-    for (let offset = 0; offset < source.length; offset += ENUMERATION_PAGE_SIZE) {
-        if (signal?.aborted) {
-            throw new DOMException('La indexación fue cancelada.', 'AbortError');
+    const workerCount = Math.min(Math.max(1, limit), source.length);
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (cursor < source.length) {
+            const index = cursor;
+            cursor += 1;
+            results[index] = await mapper(source[index], index);
         }
+    }));
 
-        const batch = source.slice(offset, offset + ENUMERATION_PAGE_SIZE);
-        const validTracks = batch.filter((track) => track
-            && typeof track.handle === 'string'
-            && track.handle.length > 0
-            && typeof (track.path || track.absolutePath) === 'string'
-            && (track.path || track.absolutePath).length > 0);
-
-        if (validTracks.length === 0) continue;
-
-        const paths = validTracks.map((track) => track.path || track.absolutePath);
-        const response = assertSuccess(
-            await sdk.titleformat.evalFieldsBatch(paths, TITLE_FORMAT_FIELDS),
-            'titleformat.evalFieldsBatch'
-        );
-        const results = Array.isArray(response.results) ? response.results : [];
-
-        validTracks.forEach((track, index) => {
-            records.push(createFacetRecord(track, results[index]));
-        });
-    }
-
-    return records;
+    return results;
 }
 
-export async function buildLibraryFacetIndex(sdk, options = {}) {
+export async function buildLibraryFacetTree(sdk, options = {}) {
     const { signal, onProgress } = options;
-    const records = new Map();
 
-    if (typeof sdk.library?.enumerateTracks !== 'function') {
-        throw new Error('El SDK no expone fb.library.enumerateTracks().');
+    if (typeof sdk.library?.getRoots !== 'function') {
+        throw new Error('El SDK no expone fb.library.getRoots().');
     }
-    if (typeof sdk.titleformat?.evalFieldsBatch !== 'function') {
-        throw new Error('El SDK no expone fb.titleformat.evalFieldsBatch().');
+    if (typeof sdk.library?.enumerateTree !== 'function') {
+        throw new Error('El SDK no expone fb.library.enumerateTree().');
     }
 
-    let fetched = 0;
-    let total = 0;
-    let pages = 0;
+    const rootsResponse = assertSuccess(
+        await sdk.library.getRoots(),
+        'library.getRoots'
+    );
 
-    const iterator = sdk.library.enumerateTracks({
-        pageSize: ENUMERATION_PAGE_SIZE,
-        useCache: true,
-        signal,
-        onProgress(info) {
-            if (signal?.aborted) return;
-            onProgress?.({
-                fetched: Number(info?.fetched) || fetched,
-                total: Number(info?.total) || total,
-                pages: Number(info?.pages) || pages
+    if (rootsResponse.enabled === false) {
+        return {
+            directories: [],
+            totalTracks: 0,
+            skippedTracks: 0,
+            fromCache: false
+        };
+    }
+
+    const nodes = new Map();
+    let visited = 0;
+    const roots = Array.isArray(rootsResponse.roots) ? rootsResponse.roots : [];
+
+    for (const root of roots) {
+        if (signal?.aborted) {
+            throw new DOMException('La consulta del árbol fue cancelada.', 'AbortError');
+        }
+
+        const rootNode = {
+            id: directoryKey(root.id, ''),
+            rootId: root.id,
+            pathId: '',
+            parentPathId: null,
+            absolutePath: root.absolutePath,
+            trackCount: Math.max(0, Number(root.trackCount) || 0)
+        };
+        nodes.set(rootNode.id, rootNode);
+
+        for await (const batch of sdk.library.enumerateTree({
+            rootId: root.id,
+            strategy: 'bfs',
+            includeFiles: false,
+            signal,
+            onProgress(info) {
+                if (signal?.aborted) return;
+                onProgress?.({
+                    visited: visited + (Number(info?.visited) || 0),
+                    pending: Number(info?.pending) || 0
+                });
+            }
+        })) {
+            if (signal?.aborted) {
+                throw new DOMException('La consulta del árbol fue cancelada.', 'AbortError');
+            }
+            if (batch?.success === false) {
+                throw new Error(batch.error || 'No se pudo consultar una carpeta de la Media Library.');
+            }
+
+            const children = Array.isArray(batch?.directories) ? batch.directories : [];
+            children.forEach((directory) => {
+                const node = {
+                    id: directoryKey(directory.rootId || root.id, directory.pathId),
+                    rootId: directory.rootId || root.id,
+                    pathId: directory.pathId || '',
+                    parentPathId: directory.parentPathId || '',
+                    absolutePath: directory.absolutePath,
+                    trackCount: Math.max(0, Number(directory.trackCount) || 0)
+                };
+                nodes.set(node.id, node);
+            });
+
+            visited += 1;
+            onProgress?.({ visited, pending: Number(batch?.pending) || 0 });
+        }
+    }
+
+    // trackCount is cumulative for a folder and all descendants. Subtract the
+    // immediate children's cumulative counts to get files directly in it.
+    const childTrackCounts = new Map();
+    nodes.forEach((node) => {
+        if (node.parentPathId === null) return;
+        const parentKey = directoryKey(node.rootId, node.parentPathId);
+        childTrackCounts.set(
+            parentKey,
+            (childTrackCounts.get(parentKey) || 0) + node.trackCount
+        );
+    });
+
+    const directories = [];
+    let totalTracks = 0;
+
+    nodes.forEach((node) => {
+        const directTrackCount = Math.max(
+            0,
+            node.trackCount - (childTrackCounts.get(node.id) || 0)
+        );
+        if (directTrackCount === 0 || !node.absolutePath) return;
+
+        directories.push(createFacetDirectory(node, directTrackCount));
+        totalTracks += directTrackCount;
+    });
+
+    directories.sort((left, right) => left.absolutePath.localeCompare(
+        right.absolutePath,
+        'es',
+        { sensitivity: 'base', numeric: true }
+    ));
+
+    return {
+        directories,
+        totalTracks,
+        skippedTracks: Math.max(0, Number(rootsResponse.skippedTracks) || 0),
+        fromCache: !!rootsResponse.fromCache
+    };
+}
+
+async function readDirectoryTracks(sdk, directory) {
+    const response = assertSuccess(
+        await sdk.library.browseTree({
+            rootId: directory.rootId,
+            pathId: directory.pathId,
+            includeFiles: true,
+            recursiveFiles: false
+        }),
+        'library.browseTree'
+    );
+
+    return Array.isArray(response.files) ? response.files : [];
+}
+
+async function findSelectionPlaylist(sdk) {
+    const response = assertSuccess(
+        await sdk.playlist.getAll(),
+        'playlist.getAll'
+    );
+    const expectedName = PLAYLIST_NAME.toLocaleLowerCase('es-MX');
+
+    return (Array.isArray(response.playlists) ? response.playlists : [])
+        .find((playlist) => String(playlist.name || '').trim().toLocaleLowerCase('es-MX') === expectedName)
+        || null;
+}
+
+async function getOrCreateSelectionPlaylist(sdk) {
+    let target = await findSelectionPlaylist(sdk);
+    if (!target) {
+        assertSuccess(
+            await sdk.playlist.create(PLAYLIST_NAME),
+            'playlist.create'
+        );
+        target = await findSelectionPlaylist(sdk);
+    }
+
+    if (!target) {
+        throw new Error('No se pudo crear la playlist "' + PLAYLIST_NAME + '".');
+    }
+    if (target.isLocked) {
+        throw new Error('La playlist "' + PLAYLIST_NAME + '" está bloqueada.');
+    }
+    if (target.isAutoplaylist) {
+        throw new Error('La playlist "' + PLAYLIST_NAME + '" es una autoplaylist y no se puede rellenar manualmente.');
+    }
+
+    const playlistRef = target.guid || target.index;
+    if (playlistRef === undefined || playlistRef === null) {
+        throw new Error('No se pudo identificar la playlist "' + PLAYLIST_NAME + '".');
+    }
+    return playlistRef;
+}
+
+export async function syncLibraryViewerSelection(sdk, directories, options = {}) {
+    const source = Array.isArray(directories) ? directories : [];
+    const shouldApply = typeof options.shouldApply === 'function'
+        ? options.shouldApply
+        : () => true;
+
+    const directoryFiles = await mapWithConcurrency(
+        source,
+        DIRECTORY_TRACKS_CONCURRENCY,
+        (directory) => readDirectoryTracks(sdk, directory)
+    );
+
+    if (!shouldApply()) return { stale: true, trackCount: 0 };
+
+    const uniqueTracks = new Map();
+    directoryFiles.flat().forEach((track) => {
+        const path = String(track?.path || '');
+        if (!path) return;
+
+        const subsong = Math.max(0, Number(track.subsong) || 0);
+        const key = String(track.handle || (path + '|subsong:' + subsong));
+        if (!uniqueTracks.has(key)) {
+            uniqueTracks.set(key, {
+                index: Number.isFinite(Number(track.index)) ? Number(track.index) : Number.MAX_SAFE_INTEGER,
+                path,
+                subsong
             });
         }
     });
 
-    for await (const page of iterator) {
-        if (signal?.aborted) {
-            throw new DOMException('La indexación fue cancelada.', 'AbortError');
-        }
-
-        const tracks = Array.isArray(page.tracks)
-            ? page.tracks
-            : Array.isArray(page.items)
-                ? page.items
-                : [];
-
-        const batchRecords = await evaluateFacetTracks(sdk, tracks, signal);
-        batchRecords.forEach((record) => records.set(record.handle, record));
-
-        fetched = Number(page.fetched) || fetched + tracks.length;
-        total = Number(page.total) || total;
-        pages = Number(page.pages) || pages + 1;
-        onProgress?.({ fetched, total, pages });
-    }
-
-    return records;
-}
-
-export async function fetchChangedFacetTracks(sdk, handles) {
-    const uniqueHandles = Array.from(new Set(
-        (Array.isArray(handles) ? handles : [])
-            .filter((handle) => typeof handle === 'string' && handle.length > 0)
+    const orderedTracks = Array.from(uniqueTracks.values()).sort((left, right) => (
+        left.index - right.index
     ));
-    const records = new Map();
-    const missing = new Set();
+    const handles = orderedTracks.map((track) => (
+        track.subsong > 0
+            ? { path: track.path, subsong: track.subsong }
+            : track.path
+    ));
 
-    for (let offset = 0; offset < uniqueHandles.length; offset += TRACK_LOOKUP_BATCH_SIZE) {
-        const batch = uniqueHandles.slice(offset, offset + TRACK_LOOKUP_BATCH_SIZE);
-        const response = assertSuccess(
-            await sdk.library.getTracks(batch, ['handle', 'path', 'absolutePath', 'index']),
-            'library.getTracks'
-        );
+    if (!shouldApply()) return { stale: true, trackCount: handles.length };
 
-        (Array.isArray(response.missing) ? response.missing : []).forEach((handle) => {
-            missing.add(String(handle));
-        });
-
-        const tracks = Array.isArray(response.tracks) ? response.tracks : [];
-        const enriched = await evaluateFacetTracks(sdk, tracks);
-        enriched.forEach((record) => records.set(record.handle, record));
+    const existingPlaylist = await findSelectionPlaylist(sdk);
+    if (!existingPlaylist && handles.length === 0) {
+        return { stale: false, trackCount: 0, updated: false };
     }
 
-    return { records, missing };
-}
+    const playlistRef = await getOrCreateSelectionPlaylist(sdk);
+    if (!shouldApply()) return { stale: true, trackCount: handles.length };
 
-export function assertLibraryResponse(response, operation) {
-    return assertSuccess(response, operation);
+    assertSuccess(
+        await sdk.playlist.clear(playlistRef),
+        'playlist.clear'
+    );
+
+    if (handles.length > 0) {
+        assertSuccess(
+            await sdk.playlist.addHandles(playlistRef, handles),
+            'playlist.addHandles'
+        );
+    }
+
+    return {
+        stale: false,
+        updated: true,
+        trackCount: handles.length
+    };
 }
 
 export const EMPTY_FACET_VALUES = Object.freeze({
