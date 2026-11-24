@@ -6,27 +6,12 @@ export default function PlaylistToolbar({
     onFilterChange,
     onPlaylistChange,
     onRefresh,
-    sidebarCollapsed,
-    onToggleSidebar,
     contentView,
     onToggleContentView,
     onOpenDiagnostics
 }) {
     return (
         <header className="playlist-toolbar">
-            <button
-                id="SidebarToggle"
-                className="sidebar-toggle"
-                type="button"
-                aria-controls="LeftSidebar"
-                aria-expanded={!sidebarCollapsed}
-                aria-label={sidebarCollapsed ? 'Mostrar panel lateral' : 'Ocultar panel lateral'}
-                title={sidebarCollapsed ? 'Mostrar panel lateral' : 'Ocultar panel lateral'}
-                onClick={onToggleSidebar}
-            >
-                ☰
-            </button>
-
             <div className="playlist-heading">
                 <strong>Playlist</strong>
                 <span id="PlaylistSummary">{summary}</span>
