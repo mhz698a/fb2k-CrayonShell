@@ -11,6 +11,16 @@ const MIN_SIDEBAR_WIDTH = 240;
 const MAX_SIDEBAR_WIDTH = 520;
 const DEFAULT_SIDEBAR_WIDTH = 320;
 const SIDEBAR_WIDTH_STORAGE_KEY = 'crayonshell.sidebar.width.v1';
+const SIDEBAR_COLLAPSED_STORAGE_KEY = 'crayonshell.sidebar.collapsed.v1';
+
+function readSidebarCollapsed() {
+    try {
+        const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+        return stored === null ? true : stored === 'true';
+    } catch {
+        return true;
+    }
+}
 
 function readSidebarWidth() {
     try {
@@ -37,11 +47,19 @@ function clampSidebarWidth(width, containerWidth) {
 export default function App() {
     const containerRef = useRef(null);
     const draggingRef = useRef(false);
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
     const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
     const [filter, setFilter] = useState('');
     const [contentView, setContentView] = useState('playlist');
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(sidebarCollapsed));
+        } catch {
+            // Keep the selected visibility for this session when storage is unavailable.
+        }
+    }, [sidebarCollapsed]);
 
     useEffect(() => {
         try {
