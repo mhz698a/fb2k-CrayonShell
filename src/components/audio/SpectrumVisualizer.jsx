@@ -392,7 +392,10 @@ export default function SpectrumVisualizer({ visible = true }) {
 
     return (
         <section className="spectrum-section" aria-label="Spectrum Visualizer" onContextMenu={openContextMenu}>
-                        <div className="spectrum-canvas-wrap">
+            <header className="sidebar-section-heading spectrum-heading">
+                <strong>Spectrum</strong>
+            </header>
+            <div className="spectrum-canvas-wrap">
                 <canvas ref={canvasRef} className="spectrum-canvas" role="img" aria-label="Visualizador de espectro de audio" />
                 <div className="spectrum-hint">Clic derecho para configurar</div>
             </div>
