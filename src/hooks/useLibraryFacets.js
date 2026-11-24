@@ -180,9 +180,13 @@ export function useLibraryFacets(enabled) {
                 signal: controller.signal,
                 onProgress(info) {
                     if (!active || controller.signal.aborted) return;
-                    setStatus('loading', 'Consultando el árbol de carpetas de foobar2000…', {
-                        fetched: Number(info.visited) || 0,
-                        total: 0
+                    setState({
+                        status: 'loading',
+                        message: 'Consultando el árbol de carpetas de foobar2000…',
+                        progress: {
+                            fetched: Number(info.visited) || 0,
+                            total: 0
+                        }
                     });
                 }
             });
