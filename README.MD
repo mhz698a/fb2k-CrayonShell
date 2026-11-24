@@ -108,7 +108,15 @@ Para probar la integración real, utiliza **Vite** cargado desde `WebView2 UI �
 
 El panel izquierdo es ocultable desde el botón de la barra de playlist y conserva el ancho configurado. Su divisor exterior cambia el ancho; el divisor horizontal interior distribuye el espacio entre el área reservada para ReFacets y el Spectrum. Ambos divisores admiten arrastre, teclado y doble clic para restaurar el valor inicial.
 
-Durante la etapa 1, el espacio superior queda reservado para ReFacets. La integración del motor de facetas se desarrolla en la etapa 2.
+ReFacets se conecta a la Media Library de foobar2000 y evalúa exactamente las expresiones \`$directory(%path%,3)\` para Years y \`$directory(%path%,1)\` para Subfolders. El índice se construye por páginas con \`library.enumerateTracks()\` y \`titleformat.evalFieldsBatch()\`. Cuando el host expone \`library.getChanges()\`, los cambios se aplican por identificador con \`library.getTracks()\`; si el host no ofrece esos endpoints, el panel utiliza una reconstrucción completa después de cada evento de biblioteca.
+
+Cada columna permite selección múltiple mediante Ctrl + clic. La combinación utiliza OR dentro de Years y dentro de Subfolders, y AND entre ambas columnas. Los contadores de cada columna se recalculan considerando la selección de la otra columna. La selección de facetas no altera la playlist en esta etapa.
+
+Spectrum conserva el menú contextual de clic derecho. La configuración ampliada expone opciones admitidas por \`fb.audio.subscribeSpectrum()\`: salida por bandas logarítmicas o bins FFT lineales, tamaño FFT, cantidad de bandas, FPS, rango de frecuencias, escala de amplitud, canales estéreo para salida por bins y reducción de FPS en segundo plano. Los modos de salida, escalas y canales se envían al host; la suscripción se reinicia al guardar los cambios.
+
+**Compatibilidad de transformaciones:** el motor de \`foo-webview-sdk\` utilizado por CrayonShell ofrece FFT. Las funciones CQT, SWIFT, Analog-style, funciones de ventana, Hop Size, Window Skew, Reaction Alignment y Reassignment Sharpening descritas por \`foo_vis_spectrum_analyzer\` no forman parte de la API de espectro actual. No se muestran como controles operativos porque no tendrían efecto. Las bandas que genera el host son logarítmicas; la salida de bins conserva la distribución lineal del FFT.
+
+Las siguientes operaciones permanecen fuera de esta etapa: enviar los elementos de la subcarpeta a **Library Viewer Selection** y actualizarla al cambiar la subcarpeta; vaciar y rellenar la playlist al seleccionar una subcarpeta.
 
 Spectrum utiliza la suscripción nativa fb.audio.subscribeSpectrum() de foo-webview-sdk. No consulta el espectro mediante un temporizador. La suscripción se libera cuando el panel se oculta o el componente se desmonta.
 
@@ -130,15 +138,20 @@ fb2k-CrayonShell/
 │   ├── components/
 │   │   ├── audio/
 │   │   │   └── SpectrumVisualizer.jsx # Visualizador nativo y ajustes
+│   │   ├── refacets/
+│   │   │   ├── FacetColumn.jsx        # Columna de valores y selección
+│   │   │   └── ReFacetsPanel.jsx      # Panel de Years y Subfolders
 │   │   ├── MediaPlaybackProbe.jsx # Visor sincronizado y diálogo de diagnóstico
 │   │   ├── PlaylistStatus.jsx
 │   │   ├── PlaylistTable.jsx
 │   │   ├── PlaylistToolbar.jsx
 │   │   └── Sidebar.jsx
 │   ├── hooks/
-│   │   └── usePlaylist.js     # Estado y operaciones de la playlist
+│   │   ├── usePlaylist.js     # Estado y operaciones de la playlist
+│   │   └── useLibraryFacets.js # Índice, sincronización y filtros de ReFacets
 │   ├── services/
 │   │   ├── fooSdk.js          # Acceso compartido a foo-webview-sdk
+│   │   ├── libraryFacets.js   # Indexación Title Formatting de la Media Library
 │   │   ├── foobarApi.js       # Puente existente de playlist
 │   │   ├── mediaPlaybackProbe.js # Integración y diagnóstico del SDK multimedia
 │   │   ├── mockFb2k.js        # Datos ficticios para desarrollo
@@ -158,6 +171,9 @@ fb2k-CrayonShell/
 - **Distribución general de la interfaz:** src/App.jsx.
 - **Panel lateral y splitter interior:** src/components/Sidebar.jsx.
 - **Spectrum y su diálogo de configuración:** src/components/audio/SpectrumVisualizer.jsx.
+- **ReFacets y sus columnas:** src/components/refacets/.
+- **Indexación y evaluación de facetas:** src/services/libraryFacets.js.
+- **Estado y sincronización de la Media Library:** src/hooks/useLibraryFacets.js.
 - **Acceso compartido al SDK:** src/services/fooSdk.js.
 - **Barra superior, selector y filtro:** src/components/PlaylistToolbar.jsx.
 - **Filas, clic simple, doble clic y menú contextual:** src/components/PlaylistTable.jsx.

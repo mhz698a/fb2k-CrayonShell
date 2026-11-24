@@ -12,10 +12,13 @@ function isUnsupportedChangesEndpoint(error) {
     const code = String(error?.code || '').toUpperCase();
     const message = String(error?.message || '').toLowerCase();
     return code === 'METHOD_NOT_FOUND'
+        || code === 'UNKNOWN_METHOD'
         || code === 'NOT_SUPPORTED'
+        || code === 'NOT_FOUND'
         || message.includes('method not found')
         || message.includes('unknown method')
-        || message.includes('not implemented');
+        || message.includes('not implemented')
+        || message.includes('does not exist');
 }
 
 function updateSelection(current, value, multi) {
@@ -119,10 +122,6 @@ export function useLibraryFacets(enabled) {
     const recordsRef = useRef(new Map());
     const revisionRef = useRef(null);
     const refreshRef = useRef(() => {});
-    const selectionRef = useRef({ years: [], subfolders: [] });
-
-    selectionRef.current = { years: selectedYears, subfolders: selectedSubfolders };
-
     useEffect(() => {
         if (!enabled) return undefined;
 
@@ -144,17 +143,16 @@ export function useLibraryFacets(enabled) {
             recordsRef.current = nextIndex;
             if (!active) return;
 
+            const yearValues = new Set();
+            const subfolderValues = new Set();
+            nextIndex.forEach((record) => {
+                yearValues.add(record.yearValue);
+                subfolderValues.add(record.subfolderValue);
+            });
+
             setRecords(Array.from(nextIndex.values()));
-            setSelectedYears((current) => current.filter((value) =>
-                nextIndex.size === 0
-                    ? false
-                    : Array.from(nextIndex.values()).some((record) => record.yearValue === value)
-            ));
-            setSelectedSubfolders((current) => current.filter((value) =>
-                nextIndex.size === 0
-                    ? false
-                    : Array.from(nextIndex.values()).some((record) => record.subfolderValue === value)
-            ));
+            setSelectedYears((current) => current.filter((value) => yearValues.has(value)));
+            setSelectedSubfolders((current) => current.filter((value) => subfolderValues.has(value)));
         }
 
         async function requestChanges(mark) {
@@ -186,7 +184,17 @@ export function useLibraryFacets(enabled) {
 
             const changed = Array.isArray(changes.changed) ? changes.changed : [];
             if (changed.length > 0) {
-                const result = await fetchChangedFacetTracks(sdk, changed);
+                let result;
+                try {
+                    result = await fetchChangedFacetTracks(sdk, changed);
+                } catch (error) {
+                    if (isUnsupportedChangesEndpoint(error)) {
+                        incrementalSyncAvailable = false;
+                        revisionRef.current = null;
+                        return null;
+                    }
+                    throw error;
+                }
                 result.missing.forEach((handle) => nextIndex.delete(handle));
                 result.records.forEach((record, handle) => nextIndex.set(handle, record));
             }
@@ -207,11 +215,9 @@ export function useLibraryFacets(enabled) {
                     total: 0
                 });
 
-                let fetchedProgress = 0;
                 const nextIndex = await buildLibraryFacetIndex(sdk, {
                     signal: controller.signal,
                     onProgress(info) {
-                        fetchedProgress = info.fetched;
                         setStatus('loading', 'Indexando la Media Library…', {
                             fetched: info.fetched,
                             total: info.total
@@ -235,7 +241,12 @@ export function useLibraryFacets(enabled) {
                         continue;
                     }
                     if (catchup) {
-                        finalIndex = await applyChangesToIndex(nextIndex, catchup);
+                        const synchronizedIndex = await applyChangesToIndex(nextIndex, catchup);
+                        if (!synchronizedIndex) {
+                            currentBaseline = null;
+                            continue;
+                        }
+                        finalIndex = synchronizedIndex;
                         nextMark = catchup;
                     }
                 }
@@ -293,6 +304,10 @@ export function useLibraryFacets(enabled) {
             }
 
             const nextIndex = await applyChangesToIndex(recordsRef.current, changes);
+            if (!nextIndex) {
+                await rebuildFromBaseline(null);
+                return;
+            }
             if (!active) return;
 
             publishIndex(nextIndex);
