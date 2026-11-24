@@ -121,7 +121,6 @@ export default function SpectrumVisualizer({ visible = true }) {
     const canvasRef = useRef(null);
     const dialogRef = useRef(null);
     const contextMenuRef = useRef(null);
-    const settingsRef = useRef(null);
     const targetBarsRef = useRef([]);
     const currentBarsRef = useRef([]);
     const receivedFrameRef = useRef(false);
@@ -131,8 +130,6 @@ export default function SpectrumVisualizer({ visible = true }) {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [contextMenu, setContextMenu] = useState(null);
     const [status, setStatus] = useState('Panel oculto');
-
-    settingsRef.current = settings;
 
     const redraw = useCallback(() => {
         drawBars(canvasRef.current, currentBarsRef.current);
@@ -257,10 +254,14 @@ export default function SpectrumVisualizer({ visible = true }) {
     }, [redraw]);
 
     useEffect(() => {
-        if (!dialogOpen) return undefined;
         const dialog = dialogRef.current;
-        if (dialog && !dialog.open) dialog.showModal();
-        return undefined;
+        if (!dialog) return;
+
+        if (dialogOpen && !dialog.open) {
+            dialog.showModal();
+        } else if (!dialogOpen && dialog.open) {
+            dialog.close();
+        }
     }, [dialogOpen]);
 
     useEffect(() => {
