@@ -104,27 +104,26 @@ Para probar la integración real, utiliza **Vite** cargado desde `WebView2 UI �
 `media.getContainerInfo` y `media.getStreamUrl` requieren un origen HTTP(S) confiable. `getStreamUrl` también requiere `foo_ui_webview2 2.2.0` o posterior y el runtime WebView2 con `ICoreWebView2_22`. La API multimedia es experimental.
 
 
-### Panel lateral y Spectrum Visualizer
+### Panel lateral, ReFacets y Spectrum Visualizer
 
-El panel izquierdo es ocultable desde el botón de la barra de playlist y conserva el ancho configurado. Su divisor exterior cambia el ancho; el divisor horizontal interior distribuye el espacio entre el área reservada para ReFacets y el Spectrum. Ambos divisores admiten arrastre, teclado y doble clic para restaurar el valor inicial.
+El panel izquierdo es ocultable desde el botón de la barra de playlist y conserva el ancho configurado. Su divisor exterior cambia el ancho; el divisor horizontal interior distribuye el espacio entre ReFacets y Spectrum. Ambos divisores admiten arrastre, teclado y doble clic para restaurar el valor inicial.
 
-ReFacets se conecta a la Media Library de foobar2000 y evalúa exactamente las expresiones \`$directory(%path%,3)\` para Years y \`$directory(%path%,1)\` para Subfolders. El índice se construye por páginas con \`library.enumerateTracks()\` y \`titleformat.evalFieldsBatch()\`. Cuando el host expone \`library.getChanges()\`, los cambios se aplican por identificador con \`library.getTracks()\`; si el host no ofrece esos endpoints, el panel utiliza una reconstrucción completa después de cada evento de biblioteca.
+**ReFacets** consulta la Media Library de foobar2000. Las columnas usan exactamente estas expresiones Title Formatting:
 
-Cada columna permite selección múltiple mediante Ctrl + clic. La combinación utiliza OR dentro de Years y dentro de Subfolders, y AND entre ambas columnas. Los contadores de cada columna se recalculan considerando la selección de la otra columna. La selección de facetas no altera la playlist en esta etapa.
+- Years: `$directory(%path%,3)`
+- Subfolders: `$directory(%path%,1)`
 
-Spectrum conserva el menú contextual de clic derecho. La configuración ampliada expone opciones admitidas por \`fb.audio.subscribeSpectrum()\`: salida por bandas logarítmicas o bins FFT lineales, tamaño FFT, cantidad de bandas, FPS, rango de frecuencias, escala de amplitud, canales estéreo para salida por bins y reducción de FPS en segundo plano. Los modos de salida, escalas y canales se envían al host; la suscripción se reinicia al guardar los cambios.
+El índice se construye por páginas con `fb.library.enumerateTracks()` y evalúa ambas expresiones en lote mediante `fb.titleformat.evalFieldsBatch()`. Espera a que la Media Library esté inicializada. Cuando el host dispone de `fb.library.getChanges()` y `fb.library.getTracks()`, aplica las altas, bajas y modificaciones por handle. Si esos endpoints no están disponibles, reconstruye el índice completo tras los eventos de biblioteca.
 
-**Compatibilidad de transformaciones:** el motor de \`foo-webview-sdk\` utilizado por CrayonShell ofrece FFT. Las funciones CQT, SWIFT, Analog-style, funciones de ventana, Hop Size, Window Skew, Reaction Alignment y Reassignment Sharpening descritas por \`foo_vis_spectrum_analyzer\` no forman parte de la API de espectro actual. No se muestran como controles operativos porque no tendrían efecto. Las bandas que genera el host son logarítmicas; la salida de bins conserva la distribución lineal del FFT.
+Cada columna admite selección múltiple con **Ctrl + clic**. La combinación aplica OR dentro de Years y OR dentro de Subfolders, y AND entre ambas columnas. Los contadores de cada columna se calculan considerando la selección de la columna opuesta. Los botones de cada encabezado limpian solamente esa columna. La selección de facetas no modifica la playlist en esta etapa.
 
-Las siguientes operaciones permanecen fuera de esta etapa: enviar los elementos de la subcarpeta a **Library Viewer Selection** y actualizarla al cambiar la subcarpeta; vaciar y rellenar la playlist al seleccionar una subcarpeta.
+**Spectrum** utiliza `fb.audio.subscribeSpectrum()`. Haz clic derecho dentro del visualizador y selecciona **Configurar Spectrum…**. El diálogo permite elegir salida por bandas logarítmicas o bins FFT lineales, tamaño FFT, cantidad de bandas, FPS, frecuencia mínima/máxima, escala Weighted o dB, canales mezclados o estéreo para salida por bins, reducción de FPS en segundo plano, sensibilidad y persistencia. Los ajustes se aplican al guardar y se conservan en el almacenamiento local de la plantilla. Al cambiar parámetros de análisis se reinicia la suscripción nativa; al ocultar el panel se libera.
 
-Spectrum utiliza la suscripción nativa fb.audio.subscribeSpectrum() de foo-webview-sdk. No consulta el espectro mediante un temporizador. La suscripción se libera cuando el panel se oculta o el componente se desmonta.
+La API utilizada expone FFT, no todos los transformadores de `foo_vis_spectrum_analyzer`. Por tanto, CQT, SWIFT, Analog-style, funciones de ventana seleccionables, Hop Size, Window Skew, Reaction Alignment y Reassignment Sharpening no se muestran como controles operativos. La salida por bandas usa la distribución logarítmica generada por el host; la salida por bins conserva los bins lineales de FFT y siempre utiliza dB. Si el host no admite bins, CrayonShell vuelve a bandas logarítmicas.
 
-Haz clic derecho dentro del área Spectrum y selecciona **Configurar Spectrum…**. El diálogo permite ajustar bandas, tamaño FFT, FPS, frecuencia mínima/máxima, sensibilidad y persistencia de las barras. Los ajustes se aplican al guardar y se conservan en el almacenamiento local de la plantilla. **Restablecer valores** devuelve el borrador a la configuración predeterminada; es necesario pulsar Guardar para aplicarlo.
+El Spectrum necesita ejecutarse dentro de foobar2000/WebView2 con el puente nativo y la API de audio disponibles. En un navegador externo se muestra el estado de disponibilidad, pero no se simulan datos de espectro.
 
-El visualizador necesita ejecutarse dentro de foobar2000/WebView2 con el puente nativo y la API de audio disponibles. En un navegador externo se muestra el estado de disponibilidad, pero no se simulan datos de espectro.
-
-Las etapas posteriores contemplan enviar los elementos de la subcarpeta seleccionada a **Library Viewer Selection** y actualizar esa selección cuando cambie la subcarpeta. También se definirá el vaciado y rellenado de la playlist al seleccionar una subcarpeta. Estas operaciones no forman parte de la etapa 1.
+**Reservado para la etapa siguiente:** enviar los elementos de la subcarpeta seleccionada a **Library Viewer Selection** y actualizar esa selección cuando cambie la subcarpeta; vaciar y rellenar la playlist al seleccionar una subcarpeta. Estas acciones no forman parte de la etapa 2.
 
 ## Estructura del proyecto
 
