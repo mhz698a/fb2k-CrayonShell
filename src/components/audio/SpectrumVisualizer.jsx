@@ -95,6 +95,7 @@ function drawBars(canvas, values) {
     context.fillStyle = gradient;
 
     values.forEach((value, index) => {
+        if (value < 0.01) return;
         const barHeight = Math.max(1, Math.min(bounds.height, value * bounds.height));
         const x = index * (barWidth + gap);
         context.fillRect(x, bounds.height - barHeight, barWidth, barHeight);
@@ -160,11 +161,31 @@ export default function SpectrumVisualizer({ visible = true }) {
 
         let active = true;
         let unsubscribe = null;
+        let animationFrame = 0;
         receivedFrameRef.current = false;
         setStatus('Conectando con foobar2000…');
         targetBarsRef.current = [];
         currentBarsRef.current = [];
         redraw();
+
+        function animate() {
+            const targets = targetBarsRef.current;
+            const previous = currentBarsRef.current;
+            const currentSettings = settingsRef.current || DEFAULT_SETTINGS;
+            const count = Math.max(targets.length, previous.length);
+
+            currentBarsRef.current = Array.from({ length: count }, (_, index) => {
+                const target = targets[index] || 0;
+                const prior = previous[index] || 0;
+                const next = target >= prior
+                    ? prior + (target - prior) * 0.42
+                    : Math.max(target, prior * currentSettings.decay);
+                return next < 0.002 ? 0 : next;
+            });
+
+            redraw();
+            animationFrame = window.requestAnimationFrame(animate);
+        }
 
         try {
             const sdk = getFooSdk();
@@ -190,9 +211,12 @@ export default function SpectrumVisualizer({ visible = true }) {
                 backgroundThrottle: true
             });
 
+            animationFrame = window.requestAnimationFrame(animate);
             unsubscribe.ready.then((outcome) => {
                 if (!active) return;
                 if (!outcome.ok) {
+                    window.cancelAnimationFrame(animationFrame);
+                    animationFrame = 0;
                     setStatus('Spectrum no disponible: ' + (outcome.error || outcome.code || 'error desconocido'));
                     return;
                 }
@@ -208,6 +232,7 @@ export default function SpectrumVisualizer({ visible = true }) {
 
         return () => {
             active = false;
+            if (animationFrame) window.cancelAnimationFrame(animationFrame);
             if (typeof unsubscribe === 'function') unsubscribe();
         };
     }, [
@@ -220,32 +245,6 @@ export default function SpectrumVisualizer({ visible = true }) {
         receiveSpectrum,
         redraw
     ]);
-
-    useEffect(() => {
-        if (!visible) return undefined;
-
-        let animationFrame = 0;
-        function animate() {
-            const targets = targetBarsRef.current;
-            const previous = currentBarsRef.current;
-            const currentSettings = settingsRef.current || DEFAULT_SETTINGS;
-            const count = Math.max(targets.length, previous.length);
-
-            currentBarsRef.current = Array.from({ length: count }, (_, index) => {
-                const target = targets[index] || 0;
-                const prior = previous[index] || 0;
-                return target >= prior
-                    ? prior + (target - prior) * 0.42
-                    : Math.max(target, prior * currentSettings.decay);
-            });
-
-            redraw();
-            animationFrame = window.requestAnimationFrame(animate);
-        }
-
-        animationFrame = window.requestAnimationFrame(animate);
-        return () => window.cancelAnimationFrame(animationFrame);
-    }, [visible, redraw]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
