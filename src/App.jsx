@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ActivityBar from './components/activitybar/ActivityBar.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
@@ -161,6 +162,11 @@ export default function App() {
             className={'cui-container' + (sidebarCollapsed ? ' sidebar-collapsed' : '')}
             style={{ '--sidebar-width': sidebarWidth + 'px' }}
         >
+            <ActivityBar
+                sidebarCollapsed={sidebarCollapsed}
+                onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
+            />
+
             <Sidebar visible={!sidebarCollapsed} />
 
             <div
@@ -195,8 +201,6 @@ export default function App() {
                         onFilterChange={setFilter}
                         onPlaylistChange={changePlaylist}
                         onRefresh={refreshPlaylist}
-                        sidebarCollapsed={sidebarCollapsed}
-                        onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
                         contentView={contentView}
                         onToggleContentView={() => setContentView((value) => (
                             value === 'playlist' ? 'video' : 'playlist'
