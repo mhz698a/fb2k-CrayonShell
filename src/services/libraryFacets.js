@@ -29,13 +29,14 @@ function splitNativePath(value) {
 }
 
 /**
- * $directory(path,n) starts at the containing folder (level 0) and walks
- * n directory levels toward the root. The tree API gives us that folder path
- * directly, so no per-track Title Formatting pass is needed.
+ * The tree API gives us the directory containing the files, without a filename.
+ * In a file path, $directory(path,1) returns that directory; when the filename
+ * is already removed, the same directory is the final path segment. Therefore
+ * n=1 maps to parts.length-1, n=3 to parts.length-3.
  */
 function directoryComponent(absoluteDirectoryPath, levelsUp) {
     const parts = splitNativePath(absoluteDirectoryPath);
-    const index = parts.length - 1 - levelsUp;
+    const index = parts.length - levelsUp;
     return index >= 0 ? parts[index] : '';
 }
 
