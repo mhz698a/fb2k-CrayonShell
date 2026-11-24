@@ -147,23 +147,6 @@ function drawBars(canvas, frame, settings = DEFAULTS) {
     }
 }
 
-function SelectField
-    context.fillRect(0, 0, bounds.width, bounds.height);
-    const gradient = context.createLinearGradient(0, bounds.height, 0, 0);
-    gradient.addColorStop(0, '#1477b8');
-    gradient.addColorStop(0.65, '#29a9d8');
-    gradient.addColorStop(1, '#79d7e8');
-    context.fillStyle = gradient;
-
-    if (frame && !Array.isArray(frame) && Array.isArray(frame.left) && Array.isArray(frame.right)) {
-        const rowHeight = Math.max(1, (bounds.height - 3) / 2);
-        drawSeries(context, frame.left, 0, 0, bounds.width, rowHeight);
-        drawSeries(context, frame.right, 0, rowHeight + 3, bounds.width, rowHeight);
-    } else {
-        drawSeries(context, Array.isArray(frame) ? frame : [], 0, 0, bounds.width, bounds.height);
-    }
-}
-
 function SelectField({ label, value, options, onChange }) {
     return (
         <label className="spectrum-field">
