@@ -16,7 +16,9 @@ const DEFAULT_PREFS = {
 
 function readColumnSplit() {
     try {
-        const value = Number(window.localStorage.getItem(COLUMN_SPLIT_STORAGE_KEY));
+        const saved = window.localStorage.getItem(COLUMN_SPLIT_STORAGE_KEY);
+        if (saved === null) return DEFAULT_YEARS_WIDTH;
+        const value = Number(saved);
         return Number.isFinite(value)
             ? Math.max(MIN_YEARS_WIDTH, Math.min(MAX_YEARS_WIDTH, value))
             : DEFAULT_YEARS_WIDTH;
