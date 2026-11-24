@@ -6,6 +6,21 @@ import {
 } from '../services/libraryFacets.js';
 
 const SYNC_DEBOUNCE_MS = 350;
+const FACET_SELECTION_STORAGE_KEY = 'crayonshell.refacets.selection.v1';
+
+function readSavedSelection() {
+    try {
+        const saved = JSON.parse(window.localStorage.getItem(FACET_SELECTION_STORAGE_KEY) || '{}');
+        return {
+            years: Array.isArray(saved.years) ? saved.years.filter((value) => typeof value === 'string') : [],
+            subfolders: Array.isArray(saved.subfolders)
+                ? saved.subfolders.filter((value) => typeof value === 'string')
+                : []
+        };
+    } catch {
+        return { years: [], subfolders: [] };
+    }
+}
 
 function updateSelection(current, value, multi) {
     if (!multi) {
@@ -93,8 +108,8 @@ const INITIAL_STATE = {
 export function useLibraryFacets(enabled) {
     const [directories, setDirectories] = useState([]);
     const [state, setState] = useState(INITIAL_STATE);
-    const [selectedYears, setSelectedYears] = useState([]);
-    const [selectedSubfolders, setSelectedSubfolders] = useState([]);
+    const [selectedYears, setSelectedYears] = useState(() => readSavedSelection().years);
+    const [selectedSubfolders, setSelectedSubfolders] = useState(() => readSavedSelection().subfolders);
     const [playlistSyncStatus, setPlaylistSyncStatus] = useState('idle');
     const [playlistSyncMessage, setPlaylistSyncMessage] = useState('');
     const [diagnostics, setDiagnostics] = useState([]);
@@ -109,6 +124,17 @@ export function useLibraryFacets(enabled) {
         };
         setDiagnostics((current) => [...current.slice(-99), entry]);
     }, []);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(FACET_SELECTION_STORAGE_KEY, JSON.stringify({
+                years: selectedYears,
+                subfolders: selectedSubfolders
+            }));
+        } catch {
+            // Keep the current filters active for this session if storage is unavailable.
+        }
+    }, [selectedYears, selectedSubfolders]);
 
     const sdkRef = useRef(null);
     const refreshRef = useRef(() => {});
