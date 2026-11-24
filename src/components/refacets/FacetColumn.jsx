@@ -27,7 +27,7 @@ export default function FacetColumn({
             }}
         >
             {showHeader && (
-                <header className="facet-column-heading" onContextMenu={openMenu}>
+                <header className="facet-column-heading">
                     <strong>{title}</strong>
                     {showCount && <span>{items.length.toLocaleString('es-MX')}</span>}
                     {selectedCount > 0 && (
