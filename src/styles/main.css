@@ -1155,3 +1155,10 @@ button.play-btn {
     background: rgba(170,74,58,.1); border-left: 2px solid #b75b50;
     font-size: 10px; line-height: 1.4;
 }
+
+.facet-playlist-status {
+    flex: 1 1 auto; min-width: 0; overflow: hidden;
+    color: #a7c6a7; text-overflow: ellipsis; white-space: nowrap;
+}
+.facet-playlist-status.is-syncing { color: #d0bd8b; }
+.facet-playlist-status.is-error { color: #e6b0a9; }
