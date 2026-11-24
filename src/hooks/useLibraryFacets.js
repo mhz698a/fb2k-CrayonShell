@@ -275,7 +275,7 @@ export function useLibraryFacets(enabled) {
                 'library.getStatus'
             );
 
-            if (!libraryStatus.enabled) {
+            if (libraryStatus.enabled === false) {
                 revisionRef.current = null;
                 publishIndex(new Map());
                 setStatus('disabled', 'La Media Library de foobar2000 está deshabilitada.');
