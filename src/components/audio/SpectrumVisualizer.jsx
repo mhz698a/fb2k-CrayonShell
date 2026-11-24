@@ -1,118 +1,179 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getFooSdk } from '../../services/fooSdk.js';
 
-const SETTINGS_STORAGE_KEY = 'crayonshell.spectrum.settings.v1';
-
-const DEFAULT_SETTINGS = Object.freeze({
+const SETTINGS_KEY = 'crayonshell.spectrum.settings.v1';
+const DEFAULTS = Object.freeze({
     bands: 64,
     fftSize: 2048,
     fps: 30,
     minFrequency: 20,
     maxFrequency: 16000,
+    output: 'bands',
+    scale: 'weighted',
+    channels: 'mix',
+    backgroundThrottle: true,
     sensitivity: 1.5,
-    decay: 0.88
+    decay: 0.88,
+    backgroundColor: '#101418',
+    barColorStart: '#1477b8',
+    barColorMid: '#29a9d8',
+    barColorEnd: '#79d7e8'
 });
-
-const BAND_OPTIONS = [32, 48, 64, 96];
-const FFT_OPTIONS = [512, 1024, 2048, 4096, 8192];
+const BAND_OPTIONS = [16, 24, 32, 48, 64, 96, 128, 192, 256];
+const FFT_OPTIONS = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536];
 const FPS_OPTIONS = [15, 24, 30, 45, 60];
-const MIN_FREQUENCY_OPTIONS = [20, 30, 40, 60, 80, 100];
-const MAX_FREQUENCY_OPTIONS = [8000, 12000, 16000, 18000, 20000];
 
-function normalizeSettings(candidate = {}) {
-    const bands = Number(candidate.bands);
-    const fftSize = Number(candidate.fftSize);
-    const fps = Number(candidate.fps);
-    const minFrequency = Number(candidate.minFrequency);
-    const maxFrequency = Number(candidate.maxFrequency);
-    const sensitivity = Number(candidate.sensitivity);
-    const decay = Number(candidate.decay);
+function clampNumber(value, min, max, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+}
 
-    const normalizedMin = MIN_FREQUENCY_OPTIONS.includes(minFrequency)
-        ? minFrequency
-        : DEFAULT_SETTINGS.minFrequency;
-    const validMax = MAX_FREQUENCY_OPTIONS.includes(maxFrequency)
-        && maxFrequency > normalizedMin
-        ? maxFrequency
-        : DEFAULT_SETTINGS.maxFrequency;
+function normalizeSettings(value = {}) {
+    const fftSize = FFT_OPTIONS.includes(Number(value.fftSize))
+        ? Number(value.fftSize)
+        : DEFAULTS.fftSize;
+    const availableBands = BAND_OPTIONS.filter((count) => count <= fftSize / 2);
+    const requestedBands = Number(value.bands);
+    const bands = availableBands.includes(requestedBands)
+        ? requestedBands
+        : (availableBands[availableBands.length - 1] || DEFAULTS.bands);
+    const minFrequency = Math.round(clampNumber(value.minFrequency, 1, 95999, DEFAULTS.minFrequency));
+    const maxFrequency = Math.round(clampNumber(
+        value.maxFrequency, minFrequency + 1, 96000, DEFAULTS.maxFrequency
+    ));
 
     return {
-        bands: BAND_OPTIONS.includes(bands) ? bands : DEFAULT_SETTINGS.bands,
-        fftSize: FFT_OPTIONS.includes(fftSize) ? fftSize : DEFAULT_SETTINGS.fftSize,
-        fps: FPS_OPTIONS.includes(fps) ? fps : DEFAULT_SETTINGS.fps,
-        minFrequency: normalizedMin,
-        maxFrequency: validMax,
-        sensitivity: Number.isFinite(sensitivity)
-            ? Math.max(0.5, Math.min(3, sensitivity))
-            : DEFAULT_SETTINGS.sensitivity,
-        decay: Number.isFinite(decay)
-            ? Math.max(0.75, Math.min(0.98, decay))
-            : DEFAULT_SETTINGS.decay
+        bands,
+        fftSize,
+        fps: FPS_OPTIONS.includes(Number(value.fps)) ? Number(value.fps) : DEFAULTS.fps,
+        minFrequency,
+        maxFrequency: Math.max(minFrequency + 1, maxFrequency),
+        output: value.output === 'bins' ? 'bins' : 'bands',
+        scale: value.scale === 'db' ? 'db' : 'weighted',
+        channels: value.channels === 'stereo' ? 'stereo' : 'mix',
+        backgroundThrottle: value.backgroundThrottle !== false,
+        sensitivity: clampNumber(value.sensitivity, 0.5, 3, DEFAULTS.sensitivity),
+        decay: clampNumber(value.decay, 0.75, 0.98, DEFAULTS.decay),
+        backgroundColor: /^#[0-9a-f]{6}$/i.test(value.backgroundColor) ? value.backgroundColor : DEFAULTS.backgroundColor,
+        barColorStart: /^#[0-9a-f]{6}$/i.test(value.barColorStart) ? value.barColorStart : DEFAULTS.barColorStart,
+        barColorMid: /^#[0-9a-f]{6}$/i.test(value.barColorMid) ? value.barColorMid : DEFAULTS.barColorMid,
+        barColorEnd: /^#[0-9a-f]{6}$/i.test(value.barColorEnd) ? value.barColorEnd : DEFAULTS.barColorEnd
     };
 }
 
 function readSettings() {
     try {
-        const stored = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
-        return stored ? normalizeSettings(JSON.parse(stored)) : { ...DEFAULT_SETTINGS };
+        const saved = window.localStorage.getItem(SETTINGS_KEY);
+        return saved ? normalizeSettings(JSON.parse(saved)) : { ...DEFAULTS };
     } catch {
-        return { ...DEFAULT_SETTINGS };
+        return { ...DEFAULTS };
     }
 }
 
-function drawBars(canvas, values) {
-    if (!canvas) return;
-
-    const bounds = canvas.getBoundingClientRect();
-    if (bounds.width <= 0 || bounds.height <= 0) return;
-
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    const pixelWidth = Math.round(bounds.width * pixelRatio);
-    const pixelHeight = Math.round(bounds.height * pixelRatio);
-
-    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-        canvas.width = pixelWidth;
-        canvas.height = pixelHeight;
-    }
-
-    const context = canvas.getContext('2d');
-    if (!context) return;
-
-    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    context.clearRect(0, 0, bounds.width, bounds.height);
-    context.fillStyle = '#101418';
-    context.fillRect(0, 0, bounds.width, bounds.height);
-
-    const count = values.length;
-    if (count === 0) return;
-
-    const gap = Math.max(0.5, Math.min(2, bounds.width / count * 0.18));
-    const barWidth = Math.max(0.5, (bounds.width - gap * (count - 1)) / count);
-    const gradient = context.createLinearGradient(0, bounds.height, 0, 0);
-    gradient.addColorStop(0, '#1477b8');
-    gradient.addColorStop(0.65, '#29a9d8');
-    gradient.addColorStop(1, '#79d7e8');
-    context.fillStyle = gradient;
-
-    values.forEach((value, index) => {
-        if (value < 0.01) return;
-        const barHeight = Math.max(1, Math.min(bounds.height, value * bounds.height));
-        const x = index * (barWidth + gap);
-        context.fillRect(x, bounds.height - barHeight, barWidth, barHeight);
+function normalizeValues(values, settings, decibels) {
+    if (!Array.isArray(values)) return [];
+    return values.map((raw) => {
+        const number = Number(raw);
+        const value = decibels
+            ? Math.max(0, Math.min(1, ((Number.isFinite(number) ? number : -160) + 90) / 90))
+            : Math.max(0, Math.min(1, Number.isFinite(number) ? number : 0));
+        return Math.min(1, Math.pow(value, 0.78) * settings.sensitivity);
     });
 }
 
-function SelectField({ label, value, options, onChange, formatOption = String }) {
+function smooth(target, previous, decay) {
+    const count = Math.max(target.length, previous.length);
+    return Array.from({ length: count }, (_, index) => {
+        const next = target[index] || 0;
+        const prior = previous[index] || 0;
+        const result = next >= prior ? prior + (next - prior) * 0.42 : Math.max(next, prior * decay);
+        return result < 0.002 ? 0 : result;
+    });
+}
+
+function smoothFrame(target, previous, decay) {
+    if (Array.isArray(target)) return smooth(target, Array.isArray(previous) ? previous : [], decay);
+    if (target && typeof target === 'object') {
+        const oldLeft = previous && !Array.isArray(previous) ? previous.left : [];
+        const oldRight = previous && !Array.isArray(previous) ? previous.right : [];
+        return {
+            left: smooth(target.left || [], oldLeft || [], decay),
+            right: smooth(target.right || [], oldRight || [], decay)
+        };
+    }
+    return [];
+}
+
+function drawSeries(context, values, x, y, width, height) {
+    if (!values.length || width <= 0 || height <= 0) return;
+    const gap = Math.max(0.5, Math.min(2, width / values.length * 0.18));
+    const barWidth = Math.max(0.5, (width - gap * (values.length - 1)) / values.length);
+    values.forEach((value, index) => {
+        if (value < 0.01) return;
+        const barHeight = Math.max(1, Math.min(height, value * height));
+        context.fillRect(x + index * (barWidth + gap), y + height - barHeight, barWidth, barHeight);
+    });
+}
+
+function drawBars(canvas, frame, settings = DEFAULTS) {
+    if (!canvas) return;
+    const bounds = canvas.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const width = Math.round(bounds.width * ratio);
+    const height = Math.round(bounds.height * ratio);
+    if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+    }
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.clearRect(0, 0, bounds.width, bounds.height);
+    context.fillStyle = settings.backgroundColor;
+    context.fillRect(0, 0, bounds.width, bounds.height);
+    const gradient = context.createLinearGradient(0, bounds.height, 0, 0);
+    gradient.addColorStop(0, settings.barColorStart);
+    gradient.addColorStop(0.65, settings.barColorMid);
+    gradient.addColorStop(1, settings.barColorEnd);
+    context.fillStyle = gradient;
+
+    if (frame && !Array.isArray(frame) && Array.isArray(frame.left) && Array.isArray(frame.right)) {
+        const rowHeight = Math.max(1, (bounds.height - 3) / 2);
+        drawSeries(context, frame.left, 0, 0, bounds.width, rowHeight);
+        drawSeries(context, frame.right, 0, rowHeight + 3, bounds.width, rowHeight);
+    } else {
+        drawSeries(context, Array.isArray(frame) ? frame : [], 0, 0, bounds.width, bounds.height);
+    }
+}
+
+function SelectField({ label, value, options, onChange }) {
     return (
         <label className="spectrum-field">
             <span>{label}</span>
-            <select value={value} onChange={(event) => onChange(Number(event.target.value))}>
+            <select value={value} onChange={(event) => onChange(event.target.value)}>
                 {options.map((option) => (
-                    <option key={option} value={option}>
-                        {formatOption(option)}
-                    </option>
+                    <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
             </select>
+        </label>
+    );
+}
+
+function NumberField({ label, value, min, max, onChange }) {
+    return (
+        <label className="spectrum-field">
+            <span>{label}</span>
+            <div className="spectrum-number-control">
+                <input
+                    type="number"
+                    min={min}
+                    max={max}
+                    value={value}
+                    onChange={(event) => onChange(event.target.value === '' ? '' : Number(event.target.value))}
+                />
+                <span>Hz</span>
+            </div>
         </label>
     );
 }
@@ -120,41 +181,45 @@ function SelectField({ label, value, options, onChange, formatOption = String })
 export default function SpectrumVisualizer({ visible = true }) {
     const canvasRef = useRef(null);
     const dialogRef = useRef(null);
-    const contextMenuRef = useRef(null);
-    const targetBarsRef = useRef([]);
-    const currentBarsRef = useRef([]);
-    const receivedFrameRef = useRef(false);
-
+    const menuRef = useRef(null);
     const settingsRef = useRef(null);
+    const targetRef = useRef([]);
+    const currentRef = useRef([]);
+    const receivedRef = useRef(false);
+    const fallbackMessageRef = useRef('');
+
     const [settings, setSettings] = useState(readSettings);
-    const [draftSettings, setDraftSettings] = useState(settings);
+    const [draft, setDraft] = useState(settings);
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [contextMenu, setContextMenu] = useState(null);
+    const [menu, setMenu] = useState(null);
     const [status, setStatus] = useState('Panel oculto');
 
     settingsRef.current = settings;
 
     const redraw = useCallback(() => {
-        drawBars(canvasRef.current, currentBarsRef.current);
+        drawBars(canvasRef.current, currentRef.current, settingsRef.current || DEFAULTS);
     }, []);
 
-    const receiveSpectrum = useCallback((spectrum) => {
-        const values = Array.isArray(spectrum) ? spectrum : [];
-        const currentSettings = settingsRef.current || DEFAULT_SETTINGS;
-        targetBarsRef.current = values.map((value) => {
-            const normalized = Math.max(0, Math.min(1, Number(value) || 0));
-            return Math.min(
-                1,
-                Math.pow(normalized, 0.78) * currentSettings.sensitivity
-            );
-        });
+    const receiveFrame = useCallback((frame) => {
+        const currentSettings = settingsRef.current || DEFAULTS;
+        const isDb = currentSettings.output === 'bins' || currentSettings.scale === 'db';
+        if (currentSettings.output === 'bins'
+            && currentSettings.channels === 'stereo'
+            && Array.isArray(frame?.left) && Array.isArray(frame?.right)) {
+            targetRef.current = {
+                left: normalizeValues(frame.left, currentSettings, true),
+                right: normalizeValues(frame.right, currentSettings, true)
+            };
+        } else {
+            targetRef.current = normalizeValues(frame?.spectrum, currentSettings, isDb);
+        }
     }, []);
 
     useEffect(() => {
         if (!visible) {
             setStatus('Panel oculto');
-            targetBarsRef.current = [];
-            currentBarsRef.current = [];
+            targetRef.current = [];
+            currentRef.current = [];
             redraw();
             return undefined;
         }
@@ -162,27 +227,19 @@ export default function SpectrumVisualizer({ visible = true }) {
         let active = true;
         let unsubscribe = null;
         let animationFrame = 0;
-        receivedFrameRef.current = false;
+        receivedRef.current = false;
+        targetRef.current = [];
+        currentRef.current = [];
         setStatus('Conectando con foobar2000…');
-        targetBarsRef.current = [];
-        currentBarsRef.current = [];
         redraw();
 
         function animate() {
-            const targets = targetBarsRef.current;
-            const previous = currentBarsRef.current;
-            const currentSettings = settingsRef.current || DEFAULT_SETTINGS;
-            const count = Math.max(targets.length, previous.length);
-
-            currentBarsRef.current = Array.from({ length: count }, (_, index) => {
-                const target = targets[index] || 0;
-                const prior = previous[index] || 0;
-                const next = target >= prior
-                    ? prior + (target - prior) * 0.42
-                    : Math.max(target, prior * currentSettings.decay);
-                return next < 0.002 ? 0 : next;
-            });
-
+            const currentSettings = settingsRef.current || DEFAULTS;
+            currentRef.current = smoothFrame(
+                targetRef.current,
+                currentRef.current,
+                currentSettings.decay
+            );
             redraw();
             animationFrame = window.requestAnimationFrame(animate);
         }
@@ -193,23 +250,29 @@ export default function SpectrumVisualizer({ visible = true }) {
                 throw new Error('El SDK no expone fb.audio.subscribeSpectrum().');
             }
 
-            unsubscribe = sdk.audio.subscribeSpectrum((frame) => {
-                if (!active) return;
-                receiveSpectrum(frame?.spectrum);
-                if (!receivedFrameRef.current) {
-                    receivedFrameRef.current = true;
-                    setStatus('Recibiendo espectro');
-                }
-            }, {
-                bands: settings.bands,
+            const options = {
                 fftSize: settings.fftSize,
                 fps: settings.fps,
                 minFrequency: settings.minFrequency,
                 maxFrequency: settings.maxFrequency,
-                scale: 'weighted',
-                output: 'bands',
-                backgroundThrottle: true
-            });
+                output: settings.output,
+                backgroundThrottle: settings.backgroundThrottle
+            };
+            if (settings.output === 'bands') {
+                options.bands = settings.bands;
+                options.scale = settings.scale;
+            } else {
+                options.channels = settings.channels;
+            }
+
+            unsubscribe = sdk.audio.subscribeSpectrum((frame) => {
+                if (!active) return;
+                receiveFrame(frame);
+                if (!receivedRef.current) {
+                    receivedRef.current = true;
+                    setStatus('Recibiendo espectro');
+                }
+            }, options);
 
             animationFrame = window.requestAnimationFrame(animate);
             unsubscribe.ready.then((outcome) => {
@@ -220,10 +283,25 @@ export default function SpectrumVisualizer({ visible = true }) {
                     setStatus('Spectrum no disponible: ' + (outcome.error || outcome.code || 'error desconocido'));
                     return;
                 }
-                if (!receivedFrameRef.current) {
-                    setStatus(outcome.streamReady === false
-                        ? 'Esperando una señal de audio…'
-                        : 'Conectado · esperando audio');
+
+                if (settings.output === 'bins' && outcome.output !== 'bins') {
+                    fallbackMessageRef.current = 'Este host no admite bins FFT; se usarán bandas logarítmicas.';
+                    const supported = normalizeSettings({ ...settings, output: 'bands' });
+                    setSettings(supported);
+                    try {
+                        window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(supported));
+                    } catch {
+                        // Keep the supported setting for this session.
+                    }
+                    return;
+                }
+
+                if (!receivedRef.current) {
+                    setStatus(fallbackMessageRef.current || (
+                        outcome.streamReady === false
+                            ? 'Esperando una señal de audio…'
+                            : 'Conectado · esperando audio'
+                    ));
                 }
             });
         } catch (error) {
@@ -242,15 +320,17 @@ export default function SpectrumVisualizer({ visible = true }) {
         settings.fps,
         settings.minFrequency,
         settings.maxFrequency,
-        receiveSpectrum,
+        settings.output,
+        settings.scale,
+        settings.channels,
+        settings.backgroundThrottle,
+        receiveFrame,
         redraw
     ]);
 
     useEffect(() => {
-        const canvas = canvasRef.current;
-        const container = canvas?.parentElement;
+        const container = canvasRef.current?.parentElement;
         if (!container || typeof ResizeObserver === 'undefined') return undefined;
-
         const observer = new ResizeObserver(redraw);
         observer.observe(container);
         return () => observer.disconnect();
@@ -259,104 +339,73 @@ export default function SpectrumVisualizer({ visible = true }) {
     useEffect(() => {
         const dialog = dialogRef.current;
         if (!dialog) return;
-
-        if (dialogOpen && !dialog.open) {
-            dialog.showModal();
-        } else if (!dialogOpen && dialog.open) {
-            dialog.close();
-        }
+        if (dialogOpen && !dialog.open) dialog.showModal();
+        else if (!dialogOpen && dialog.open) dialog.close();
     }, [dialogOpen]);
 
     useEffect(() => {
-        if (!contextMenu) return undefined;
-
-        function handlePointerDown(event) {
-            if (!contextMenuRef.current?.contains(event.target)) {
-                setContextMenu(null);
-            }
+        if (!menu) return undefined;
+        function dismiss(event) {
+            if (!menuRef.current?.contains(event.target)) setMenu(null);
         }
-
-        function handleKeyDown(event) {
-            if (event.key === 'Escape') setContextMenu(null);
+        function escape(event) {
+            if (event.key === 'Escape') setMenu(null);
         }
-
-        document.addEventListener('pointerdown', handlePointerDown);
-        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('pointerdown', dismiss);
+        document.addEventListener('keydown', escape);
         return () => {
-            document.removeEventListener('pointerdown', handlePointerDown);
-            document.removeEventListener('keydown', handleKeyDown);
+            document.removeEventListener('pointerdown', dismiss);
+            document.removeEventListener('keydown', escape);
         };
-    }, [contextMenu]);
+    }, [menu]);
 
-    function handleContextMenu(event) {
+    function openContextMenu(event) {
         event.preventDefault();
         const menuWidth = 205;
         const menuHeight = 42;
-        setContextMenu({
+        setMenu({
             left: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
             top: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8))
         });
     }
 
     function openSettings() {
-        setDraftSettings({ ...settings });
-        setContextMenu(null);
+        setDraft({ ...settings });
+        setMenu(null);
         setDialogOpen(true);
     }
 
     function updateDraft(field, value) {
-        setDraftSettings((current) => ({ ...current, [field]: value }));
+        setDraft((current) => ({ ...current, [field]: value }));
     }
 
     function saveSettings() {
-        const nextSettings = normalizeSettings(draftSettings);
-        setSettings(nextSettings);
+        const next = normalizeSettings(draft);
+        setSettings(next);
         try {
-            window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings));
+            window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
         } catch {
-            // The settings still apply for this session if storage is unavailable.
+            // Settings remain active for this session.
         }
         setDialogOpen(false);
     }
 
-    function resetDraft() {
-        setDraftSettings({ ...DEFAULT_SETTINGS });
-    }
-
     return (
-        <section
-            className="spectrum-section"
-            aria-label="Spectrum Visualizer"
-            onContextMenu={handleContextMenu}
-        >
-            <header className="sidebar-section-heading spectrum-heading">
-                <strong>Spectrum</strong>
-                <span className="spectrum-status" title={status}>{status}</span>
-            </header>
-
+        <section className="spectrum-section" aria-label="Spectrum Visualizer" onContextMenu={openContextMenu}>
             <div className="spectrum-canvas-wrap">
-                <canvas
-                    ref={canvasRef}
-                    className="spectrum-canvas"
-                    role="img"
-                    aria-label="Visualizador de espectro de audio"
-                />
+                <canvas ref={canvasRef} className="spectrum-canvas" role="img" aria-label="Visualizador de espectro de audio" />
                 <div className="spectrum-hint">Clic derecho para configurar</div>
             </div>
 
-            {contextMenu && (
+            {menu && (
                 <div
-                    ref={contextMenuRef}
+                    ref={menuRef}
                     className="spectrum-context-menu"
                     role="menu"
-                    style={{ left: contextMenu.left + 'px', top: contextMenu.top + 'px' }}
+                    style={{ left: menu.left + 'px', top: menu.top + 'px' }}
                     onContextMenu={(event) => event.preventDefault()}
                 >
-                    <button
-                        type="button"
-                        role="menuitem"
-                        onClick={openSettings}
-                    >
+                    <button type="button" role="menuitem" onClick={openSettings}>
                         Configurar Spectrum…
                     </button>
                 </div>
@@ -382,7 +431,7 @@ export default function SpectrumVisualizer({ visible = true }) {
                     <header className="spectrum-settings-heading">
                         <div>
                             <strong id="SpectrumSettingsTitle">Configuración del Spectrum</strong>
-                            <span>Los cambios se aplican al guardar.</span>
+                            <span>Opciones de análisis FFT y presentación.</span>
                         </div>
                         <button
                             className="spectrum-settings-close"
@@ -394,83 +443,169 @@ export default function SpectrumVisualizer({ visible = true }) {
                         </button>
                     </header>
 
-                    <div className="spectrum-settings-grid">
-                        <SelectField
-                            label="Bandas"
-                            value={draftSettings.bands}
-                            options={BAND_OPTIONS}
-                            onChange={(value) => updateDraft('bands', value)}
-                        />
-                        <SelectField
-                            label="Tamaño FFT"
-                            value={draftSettings.fftSize}
-                            options={FFT_OPTIONS}
-                            onChange={(value) => updateDraft('fftSize', value)}
-                        />
-                        <SelectField
-                            label="Actualización"
-                            value={draftSettings.fps}
-                            options={FPS_OPTIONS}
-                            onChange={(value) => updateDraft('fps', value)}
-                            formatOption={(value) => value + ' FPS'}
-                        />
-                        <SelectField
-                            label="Frecuencia mínima"
-                            value={draftSettings.minFrequency}
-                            options={MIN_FREQUENCY_OPTIONS}
-                            onChange={(value) => updateDraft('minFrequency', value)}
-                            formatOption={(value) => value + ' Hz'}
-                        />
-                        <SelectField
-                            label="Frecuencia máxima"
-                            value={draftSettings.maxFrequency}
-                            options={MAX_FREQUENCY_OPTIONS}
-                            onChange={(value) => updateDraft('maxFrequency', value)}
-                            formatOption={(value) => (value / 1000) + ' kHz'}
-                        />
-
-                        <label className="spectrum-field spectrum-range-field">
-                            <span>
-                                Sensibilidad
-                                <output>{draftSettings.sensitivity.toFixed(1)}×</output>
-                            </span>
-                            <input
-                                type="range"
-                                min="0.5"
-                                max="3"
-                                step="0.1"
-                                value={draftSettings.sensitivity}
-                                onChange={(event) => updateDraft('sensitivity', Number(event.target.value))}
-                            />
-                        </label>
-
-                        <label className="spectrum-field spectrum-range-field">
-                            <span>
-                                Persistencia de barras
-                                <output>{Math.round(draftSettings.decay * 100)}%</output>
-                            </span>
-                            <input
-                                type="range"
-                                min="0.75"
-                                max="0.98"
-                                step="0.01"
-                                value={draftSettings.decay}
-                                onChange={(event) => updateDraft('decay', Number(event.target.value))}
-                            />
-                        </label>
+                    <div className="spectrum-dialog-status" role="status" title={status}>
+                        <span>Estado del visualizador</span>
+                        <strong>{status}</strong>
                     </div>
 
+                    <section className="spectrum-settings-section">
+                        <strong>Análisis FFT</strong>
+                        <div className="spectrum-settings-grid">
+                            <SelectField
+                                label="Salida"
+                                value={draft.output}
+                                options={[
+                                    { value: 'bands', label: 'Bandas logarítmicas' },
+                                    { value: 'bins', label: 'Bins FFT lineales' }
+                                ]}
+                                onChange={(value) => updateDraft('output', value)}
+                            />
+                            {draft.output === 'bands' && (
+                                <SelectField
+                                    label="Número de bandas"
+                                    value={String(draft.bands)}
+                                    options={BAND_OPTIONS.map((value) => ({
+                                        value: String(value), label: String(value)
+                                    }))}
+                                    onChange={(value) => updateDraft('bands', Number(value))}
+                                />
+                            )}
+                            <SelectField
+                                label="Tamaño FFT"
+                                value={String(draft.fftSize)}
+                                options={FFT_OPTIONS.map((value) => ({
+                                    value: String(value), label: value.toLocaleString('es-MX')
+                                }))}
+                                onChange={(value) => updateDraft('fftSize', Number(value))}
+                            />
+                            <SelectField
+                                label="Actualización"
+                                value={String(draft.fps)}
+                                options={FPS_OPTIONS.map((value) => ({
+                                    value: String(value), label: value + ' FPS'
+                                }))}
+                                onChange={(value) => updateDraft('fps', Number(value))}
+                            />
+                            {draft.output === 'bands' && (
+                                <SelectField
+                                    label="Escala de amplitud"
+                                    value={draft.scale}
+                                    options={[
+                                        { value: 'weighted', label: 'Weighted (visual)' },
+                                        { value: 'db', label: 'Decibelios (dB)' }
+                                    ]}
+                                    onChange={(value) => updateDraft('scale', value)}
+                                />
+                            )}
+                            {draft.output === 'bins' && (
+                                <SelectField
+                                    label="Canales"
+                                    value={draft.channels}
+                                    options={[
+                                        { value: 'mix', label: 'Mezcla' },
+                                        { value: 'stereo', label: 'Estéreo (L / R)' }
+                                    ]}
+                                    onChange={(value) => updateDraft('channels', value)}
+                                />
+                            )}
+                            <NumberField
+                                label="Frecuencia mínima"
+                                value={draft.minFrequency}
+                                min={1}
+                                max={95999}
+                                onChange={(value) => updateDraft('minFrequency', value)}
+                            />
+                            <NumberField
+                                label="Frecuencia máxima"
+                                value={draft.maxFrequency}
+                                min={Number(draft.minFrequency) + 1}
+                                max={96000}
+                                onChange={(value) => updateDraft('maxFrequency', value)}
+                            />
+                            <label className="spectrum-check-field">
+                                <input
+                                    type="checkbox"
+                                    checked={draft.backgroundThrottle}
+                                    onChange={(event) => updateDraft('backgroundThrottle', event.target.checked)}
+                                />
+                                <span>Reducir FPS cuando otra aplicación esté en primer plano</span>
+                            </label>
+                        </div>
+                        <p className="spectrum-settings-note">
+                            La API genera FFT. Bandas: distribución logarítmica del host.
+                            Bins: resolución lineal. La salida bins utiliza dB.
+                        </p>
+                        <p className="spectrum-settings-note is-limited">
+                            CQT, SWIFT, Analog-style, funciones de ventana, Hop Size, Window Skew,
+                            Reaction Alignment y Reassignment Sharpening requieren transformaciones
+                            que la API de espectro actual no expone. No se muestran como controles
+                            porque no tendrían efecto.
+                        </p>
+                        {draft.fftSize >= 32768 && (
+                            <p className="spectrum-settings-warning">
+                                FFT de alta resolución: 32768 o 65536 pueden aumentar notablemente
+                                el uso de CPU y el tiempo de análisis.
+                            </p>
+                        )}
+                    </section>
+
+                    <section className="spectrum-settings-section">
+                        <strong>Presentación</strong>
+                        <div className="spectrum-settings-grid">
+                            <label className="spectrum-field spectrum-color-field">
+                                <span>Fondo del visualizador</span>
+                                <input type="color" value={draft.backgroundColor} onChange={(event) => updateDraft('backgroundColor', event.target.value)} />
+                            </label>
+                            <label className="spectrum-field spectrum-color-field">
+                                <span>Color inferior de barras</span>
+                                <input type="color" value={draft.barColorStart} onChange={(event) => updateDraft('barColorStart', event.target.value)} />
+                            </label>
+                            <label className="spectrum-field spectrum-color-field">
+                                <span>Color medio de barras</span>
+                                <input type="color" value={draft.barColorMid} onChange={(event) => updateDraft('barColorMid', event.target.value)} />
+                            </label>
+                            <label className="spectrum-field spectrum-color-field">
+                                <span>Color superior de barras</span>
+                                <input type="color" value={draft.barColorEnd} onChange={(event) => updateDraft('barColorEnd', event.target.value)} />
+                            </label>
+                            <label className="spectrum-field spectrum-range-field">
+                                <span>
+                                    Sensibilidad
+                                    <output>{Number(draft.sensitivity).toFixed(1)}×</output>
+                                </span>
+                                <input
+                                    type="range" min="0.5" max="3" step="0.1"
+                                    value={draft.sensitivity}
+                                    onChange={(event) => updateDraft('sensitivity', Number(event.target.value))}
+                                />
+                            </label>
+                            <label className="spectrum-field spectrum-range-field">
+                                <span>
+                                    Persistencia de barras
+                                    <output>{Math.round(draft.decay * 100)}%</output>
+                                </span>
+                                <input
+                                    type="range" min="0.75" max="0.98" step="0.01"
+                                    value={draft.decay}
+                                    onChange={(event) => updateDraft('decay', Number(event.target.value))}
+                                />
+                            </label>
+                        </div>
+                    </section>
+
                     <footer className="spectrum-settings-actions">
-                        <button type="button" className="spectrum-secondary-button" onClick={resetDraft}>
+                        <button
+                            type="button"
+                            className="spectrum-secondary-button"
+                            onClick={() => setDraft({ ...DEFAULTS })}
+                        >
                             Restablecer valores
                         </button>
                         <div>
                             <button type="button" className="spectrum-secondary-button" onClick={() => setDialogOpen(false)}>
                                 Cancelar
                             </button>
-                            <button type="submit" className="spectrum-primary-button">
-                                Guardar
-                            </button>
+                            <button type="submit" className="spectrum-primary-button">Guardar</button>
                         </div>
                     </footer>
                 </form>

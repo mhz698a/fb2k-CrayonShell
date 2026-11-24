@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import SpectrumVisualizer from './audio/SpectrumVisualizer.jsx';
+import ReFacetsPanel from './refacets/ReFacetsPanel.jsx';
 
 const DEFAULT_FACET_HEIGHT = 68;
 const MIN_FACET_HEIGHT = 30;
@@ -8,7 +9,9 @@ const FACET_HEIGHT_STORAGE_KEY = 'crayonshell.sidebar.refacetsHeight.v1';
 
 function readFacetHeight() {
     try {
-        const stored = Number(window.localStorage.getItem(FACET_HEIGHT_STORAGE_KEY));
+        const saved = window.localStorage.getItem(FACET_HEIGHT_STORAGE_KEY);
+        if (saved === null) return DEFAULT_FACET_HEIGHT;
+        const stored = Number(saved);
         return Number.isFinite(stored)
             ? Math.max(MIN_FACET_HEIGHT, Math.min(MAX_FACET_HEIGHT, stored))
             : DEFAULT_FACET_HEIGHT;
@@ -91,13 +94,7 @@ export default function Sidebar({ visible = true }) {
                 style={{ '--refacets-height': facetHeight + '%' }}
             >
                 <section className="sidebar-refacets" aria-label="ReFacets">
-                    <header className="sidebar-section-heading">
-                        <strong>ReFacets</strong>
-                        <span>Etapa 2</span>
-                    </header>
-                    <div className="sidebar-refacets-placeholder">
-                        El panel de facetas se integrará en la siguiente etapa.
-                    </div>
+                    <ReFacetsPanel visible={visible} />
                 </section>
 
                 <div
