@@ -107,7 +107,6 @@ export default function ReFacetsPanel({ visible = true }) {
     function clearColumnSelection() {
         if (menu?.column === 'year') clearYears();
         else clearSubfolders();
-        addDiagnostic('info', 'Selección limpiada', menu?.column === 'year' ? 'Years' : 'Subfolders');
         setMenu(null);
     }
 
