@@ -2,14 +2,8 @@ import FacetColumn from './FacetColumn.jsx';
 import { useLibraryFacets } from '../../hooks/useLibraryFacets.js';
 
 function formatProgress(progress) {
-    if (!progress || !progress.total) {
-        return progress?.fetched
-            ? progress.fetched.toLocaleString('es-MX') + ' pistas'
-            : 'Preparando…';
-    }
-    return progress.fetched.toLocaleString('es-MX')
-        + ' / '
-        + progress.total.toLocaleString('es-MX');
+    if (!progress) return 'Preparando consulta…';
+    return (Number(progress.fetched) || 0).toLocaleString('es-MX') + ' carpetas consultadas';
 }
 
 export default function ReFacetsPanel({ visible = true }) {
@@ -23,6 +17,8 @@ export default function ReFacetsPanel({ visible = true }) {
         selectedYears,
         selectedSubfolders,
         filteredCount,
+        playlistSyncStatus,
+        playlistSyncMessage,
         selectYear,
         selectSubfolder,
         clearYears,
@@ -31,10 +27,6 @@ export default function ReFacetsPanel({ visible = true }) {
     } = useLibraryFacets(visible);
 
     const isLoading = status === 'loading';
-    const showProgress = isLoading && progress && progress.total > 0;
-    const progressValue = showProgress
-        ? Math.min(100, (progress.fetched / progress.total) * 100)
-        : 0;
 
     return (
         <div className="refacets-panel">
@@ -43,7 +35,7 @@ export default function ReFacetsPanel({ visible = true }) {
                     <strong>ReFacets</strong>
                     <span className={'refacets-status is-' + status} title={message}>
                         {status === 'ready' ? 'Conectado'
-                            : status === 'loading' ? 'Indexando'
+                            : status === 'loading' ? 'Consultando'
                                 : status === 'waiting' ? 'Esperando'
                                     : status === 'disabled' ? 'Deshabilitada'
                                         : status === 'unavailable' ? 'Sin conexión'
@@ -54,8 +46,8 @@ export default function ReFacetsPanel({ visible = true }) {
                 <button
                     type="button"
                     className="refacets-refresh"
-                    title="Actualizar Media Library"
-                    aria-label="Actualizar Media Library"
+                    title="Actualizar estructura de Media Library"
+                    aria-label="Actualizar estructura de Media Library"
                     disabled={isLoading || status === 'unavailable' || status === 'waiting'}
                     onClick={refresh}
                 >
@@ -66,18 +58,6 @@ export default function ReFacetsPanel({ visible = true }) {
             {isLoading && (
                 <div className="refacets-progress" aria-live="polite">
                     <span>{formatProgress(progress)}</span>
-                    {showProgress && (
-                        <div
-                            className="refacets-progress-track"
-                            role="progressbar"
-                            aria-label="Indexación de Media Library"
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-valuenow={Math.round(progressValue)}
-                        >
-                            <span style={{ width: progressValue + '%' }} />
-                        </div>
-                    )}
                 </div>
             )}
 
@@ -95,7 +75,7 @@ export default function ReFacetsPanel({ visible = true }) {
                     selectedValues={selectedYears}
                     onSelect={selectYear}
                     onClear={clearYears}
-                    emptyMessage={status === 'loading' ? 'Cargando años…' : 'No hay años.'}
+                    emptyMessage={isLoading ? 'Consultando años…' : 'No hay años.'}
                 />
                 <FacetColumn
                     title="Subfolders"
@@ -103,7 +83,7 @@ export default function ReFacetsPanel({ visible = true }) {
                     selectedValues={selectedSubfolders}
                     onSelect={selectSubfolder}
                     onClear={clearSubfolders}
-                    emptyMessage={status === 'loading' ? 'Cargando carpetas…' : 'No hay subcarpetas.'}
+                    emptyMessage={isLoading ? 'Consultando carpetas…' : 'No hay subcarpetas.'}
                 />
             </div>
 
@@ -116,6 +96,14 @@ export default function ReFacetsPanel({ visible = true }) {
                         ? selectedYears.length + selectedSubfolders.length + ' filtros'
                         : totalTracks.toLocaleString('es-MX') + ' en biblioteca'}
                 </span>
+                {playlistSyncMessage && (
+                    <span
+                        className={'facet-playlist-status is-' + playlistSyncStatus}
+                        title={playlistSyncMessage}
+                    >
+                        {playlistSyncMessage}
+                    </span>
+                )}
                 <span className="facet-selection-hint">Ctrl + clic: múltiple</span>
             </footer>
         </div>
