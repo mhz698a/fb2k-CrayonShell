@@ -276,6 +276,7 @@ export function useLibraryFacets(enabled) {
 
         ['library:initialized', 'library:itemsAdded', 'library:itemsRemoved'].forEach((eventName) => {
             const unsubscribe = sdk.on(eventName, () => {
+                addDiagnostic('info', 'Evento de Media Library recibido', eventName);
                 if (eventName === 'library:initialized') {
                     void initialize();
                 } else {
@@ -371,15 +372,24 @@ export function useLibraryFacets(enabled) {
     }, [enabled, matchingDirectories, selectedSubfolders, selectedYears, addDiagnostic]);
 
     const selectYear = useCallback((value, multi = false) => {
+        addDiagnostic('info', 'Filtro de año modificado', String(value));
         setSelectedYears((current) => updateSelection(current, value, multi));
-    }, []);
+    }, [addDiagnostic]);
 
     const selectSubfolder = useCallback((value, multi = false) => {
+        addDiagnostic('info', 'Filtro de subcarpeta modificado', String(value));
         setSelectedSubfolders((current) => updateSelection(current, value, multi));
-    }, []);
+    }, [addDiagnostic]);
 
-    const clearYears = useCallback(() => setSelectedYears([]), []);
-    const clearSubfolders = useCallback(() => setSelectedSubfolders([]), []);
+    const clearYears = useCallback(() => {
+        addDiagnostic('info', 'Selección de Years limpiada');
+        setSelectedYears([]);
+    }, [addDiagnostic]);
+
+    const clearSubfolders = useCallback(() => {
+        addDiagnostic('info', 'Selección de Subfolders limpiada');
+        setSelectedSubfolders([]);
+    }, [addDiagnostic]);
     const refresh = useCallback(() => {
         addDiagnostic('info', 'Actualización manual solicitada');
         refreshRef.current();
@@ -411,6 +421,7 @@ export function useLibraryFacets(enabled) {
         status: state.status,
         message: state.message,
         progress: state.progress,
+        directoryCount: directories.length,
         totalTracks: directories.reduce(
             (total, directory) => total + (Number(directory.trackCount) || 0),
             0
