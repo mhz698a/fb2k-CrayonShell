@@ -121,6 +121,7 @@ export default function SpectrumVisualizer({ visible = true }) {
     const dialogRef = useRef(null);
     const contextMenuRef = useRef(null);
     const settingsRef = useRef(null);
+    const targetBarsRef = useRef([]);
     const currentBarsRef = useRef([]);
     const receivedFrameRef = useRef(false);
 
@@ -139,27 +140,19 @@ export default function SpectrumVisualizer({ visible = true }) {
     const receiveSpectrum = useCallback((spectrum) => {
         const values = Array.isArray(spectrum) ? spectrum : [];
         const currentSettings = settingsRef.current || DEFAULT_SETTINGS;
-        const previous = currentBarsRef.current;
-        const next = values.map((value, index) => {
+        targetBarsRef.current = values.map((value) => {
             const normalized = Math.max(0, Math.min(1, Number(value) || 0));
-            const target = Math.min(
+            return Math.min(
                 1,
                 Math.pow(normalized, 0.78) * currentSettings.sensitivity
             );
-            const prior = previous[index] || 0;
-
-            return target >= prior
-                ? prior + (target - prior) * 0.72
-                : Math.max(target, prior * currentSettings.decay);
         });
-
-        currentBarsRef.current = next;
-        redraw();
-    }, [redraw]);
+    }, []);
 
     useEffect(() => {
         if (!visible) {
             setStatus('Panel oculto');
+            targetBarsRef.current = [];
             currentBarsRef.current = [];
             redraw();
             return undefined;
@@ -169,6 +162,7 @@ export default function SpectrumVisualizer({ visible = true }) {
         let unsubscribe = null;
         receivedFrameRef.current = false;
         setStatus('Conectando con foobar2000…');
+        targetBarsRef.current = [];
         currentBarsRef.current = [];
         redraw();
 
@@ -226,6 +220,32 @@ export default function SpectrumVisualizer({ visible = true }) {
         receiveSpectrum,
         redraw
     ]);
+
+    useEffect(() => {
+        if (!visible) return undefined;
+
+        let animationFrame = 0;
+        function animate() {
+            const targets = targetBarsRef.current;
+            const previous = currentBarsRef.current;
+            const currentSettings = settingsRef.current || DEFAULT_SETTINGS;
+            const count = Math.max(targets.length, previous.length);
+
+            currentBarsRef.current = Array.from({ length: count }, (_, index) => {
+                const target = targets[index] || 0;
+                const prior = previous[index] || 0;
+                return target >= prior
+                    ? prior + (target - prior) * 0.42
+                    : Math.max(target, prior * currentSettings.decay);
+            });
+
+            redraw();
+            animationFrame = window.requestAnimationFrame(animate);
+        }
+
+        animationFrame = window.requestAnimationFrame(animate);
+        return () => window.cancelAnimationFrame(animationFrame);
+    }, [visible, redraw]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
