@@ -9,7 +9,9 @@ const FACET_HEIGHT_STORAGE_KEY = 'crayonshell.sidebar.refacetsHeight.v1';
 
 function readFacetHeight() {
     try {
-        const stored = Number(window.localStorage.getItem(FACET_HEIGHT_STORAGE_KEY));
+        const saved = window.localStorage.getItem(FACET_HEIGHT_STORAGE_KEY);
+        if (saved === null) return DEFAULT_FACET_HEIGHT;
+        const stored = Number(saved);
         return Number.isFinite(stored)
             ? Math.max(MIN_FACET_HEIGHT, Math.min(MAX_FACET_HEIGHT, stored))
             : DEFAULT_FACET_HEIGHT;
