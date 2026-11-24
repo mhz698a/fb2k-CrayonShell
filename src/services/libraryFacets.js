@@ -279,7 +279,10 @@ export async function syncLibraryViewerSelection(sdk, directories, options = {})
     });
 
     const orderedTracks = Array.from(uniqueTracks.values()).sort((left, right) => (
-        left.index - right.index
+        left.path.localeCompare(right.path, 'en', {
+            numeric: true,
+            sensitivity: 'base'
+        }) || left.subsong - right.subsong
     ));
     const handles = orderedTracks.map((track) => (
         track.subsong > 0
