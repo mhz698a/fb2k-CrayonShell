@@ -231,7 +231,10 @@ export default function ReFacetsPanel({ visible = true }) {
             <div
                 ref={columnsRef}
                 className={'refacets-columns' + (isColumnResizing ? ' is-resizing' : '')}
-                style={{ '--refacets-years-width': yearsWidth + '%' }}
+                style={{
+                    '--refacets-years-width': yearsWidth + 'fr',
+                    '--refacets-subfolders-width': (100 - yearsWidth) + 'fr'
+                }}
             >
                 <FacetColumn
                     title="Years"
