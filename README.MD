@@ -108,14 +108,16 @@ Para probar la integración real, utiliza **Vite** cargado desde `WebView2 UI �
 
 El panel izquierdo es ocultable desde el botón de la barra de playlist y conserva el ancho configurado. Su divisor exterior cambia el ancho; el divisor horizontal interior distribuye el espacio entre ReFacets y Spectrum. Ambos divisores admiten arrastre, teclado y doble clic para restaurar el valor inicial.
 
-**ReFacets** consulta la Media Library de foobar2000. Las columnas usan exactamente estas expresiones Title Formatting:
+**ReFacets** consulta la estructura de la Media Library mediante `fb.library.getRoots()` y `fb.library.enumerateTree()`. El puente nativo mantiene en caché el árbol de directorios; React ya no crea una segunda lista con todos los tracks ni ejecuta dos evaluaciones Title Formatting por pista. Para obtener los contadores, utiliza los totales acumulados de cada carpeta y resta los totales de sus carpetas hijas para calcular los archivos directos.
+
+Las facetas conservan exactamente las expresiones Title Formatting originales:
 
 - Years: `$directory(%path%,3)`
 - Subfolders: `$directory(%path%,1)`
 
-El índice se construye por páginas con `fb.library.enumerateTracks()` y evalúa ambas expresiones en lote mediante `fb.titleformat.evalFieldsBatch()`. Espera a que la Media Library esté inicializada. Cuando el host dispone de `fb.library.getChanges()` y `fb.library.getTracks()`, aplica las altas, bajas y modificaciones por handle. Si esos endpoints no están disponibles, reconstruye el índice completo tras los eventos de biblioteca.
+**Years** permanece completa al seleccionar cualquier faceta y se ordena cronológicamente de menor a mayor. La columna Subfolders puede reducir sus opciones según los años seleccionados. Cada columna admite selección múltiple con **Ctrl + clic**: OR dentro de cada columna y AND entre ambas.
 
-Cada columna admite selección múltiple con **Ctrl + clic**. La combinación aplica OR dentro de Years y OR dentro de Subfolders, y AND entre ambas columnas. Los contadores de cada columna se calculan considerando la selección de la columna opuesta. Los botones de cada encabezado limpian solamente esa columna. La selección de facetas no modifica la playlist en esta etapa.
+Al seleccionar una o varias subcarpetas, CrayonShell consulta sus archivos directos en el árbol nativo y reemplaza el contenido de la playlist **Library Viewer Selection**. Si también hay años seleccionados, se aplica esa intersección. Si la playlist no existe, se crea; al limpiar la selección de subcarpetas se vacía, sin eliminar la playlist. La carga se ordena según el orden original de la Media Library.
 
 **Spectrum** utiliza `fb.audio.subscribeSpectrum()`. Haz clic derecho dentro del visualizador y selecciona **Configurar Spectrum…**. El diálogo permite elegir salida por bandas logarítmicas o bins FFT lineales, tamaño FFT, cantidad de bandas, FPS, frecuencia mínima/máxima, escala Weighted o dB, canales mezclados o estéreo para salida por bins, reducción de FPS en segundo plano, sensibilidad y persistencia. Los ajustes se aplican al guardar y se conservan en el almacenamiento local de la plantilla. Al cambiar parámetros de análisis se reinicia la suscripción nativa; al ocultar el panel se libera.
 
@@ -123,7 +125,7 @@ La API utilizada expone FFT, no todos los transformadores de `foo_vis_spectrum_a
 
 El Spectrum necesita ejecutarse dentro de foobar2000/WebView2 con el puente nativo y la API de audio disponibles. En un navegador externo se muestra el estado de disponibilidad, pero no se simulan datos de espectro.
 
-**Reservado para la etapa siguiente:** enviar los elementos de la subcarpeta seleccionada a **Library Viewer Selection** y actualizar esa selección cuando cambie la subcarpeta; vaciar y rellenar la playlist al seleccionar una subcarpeta. Estas acciones no forman parte de la etapa 2.
+**Comportamiento de ReFacets:** la selección de subcarpetas actualiza **Library Viewer Selection**; los cambios de años recalculan esa selección y la lista de Years permanece siempre visible.
 
 ## Estructura del proyecto
 
@@ -150,7 +152,7 @@ fb2k-CrayonShell/
 │   │   └── useLibraryFacets.js # Índice, sincronización y filtros de ReFacets
 │   ├── services/
 │   │   ├── fooSdk.js          # Acceso compartido a foo-webview-sdk
-│   │   ├── libraryFacets.js   # Indexación Title Formatting de la Media Library
+│   │   ├── libraryFacets.js   # Consulta del árbol nativo y actualización de Library Viewer Selection
 │   │   ├── foobarApi.js       # Puente existente de playlist
 │   │   ├── mediaPlaybackProbe.js # Integración y diagnóstico del SDK multimedia
 │   │   ├── mockFb2k.js        # Datos ficticios para desarrollo
