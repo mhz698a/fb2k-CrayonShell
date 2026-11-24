@@ -3,12 +3,27 @@ import FacetColumn from './FacetColumn.jsx';
 import { useLibraryFacets } from '../../hooks/useLibraryFacets.js';
 
 const PREFS_KEY = 'crayonshell.refacets.presentation.v1';
+const COLUMN_SPLIT_STORAGE_KEY = 'crayonshell.refacets.columnSplit.v1';
+const DEFAULT_YEARS_WIDTH = 50;
+const MIN_YEARS_WIDTH = 25;
+const MAX_YEARS_WIDTH = 75;
 const DEFAULT_PREFS = {
     showHeader: true,
     showFooter: true,
     yearsCount: true,
     subfoldersCount: true
 };
+
+function readColumnSplit() {
+    try {
+        const value = Number(window.localStorage.getItem(COLUMN_SPLIT_STORAGE_KEY));
+        return Number.isFinite(value)
+            ? Math.max(MIN_YEARS_WIDTH, Math.min(MAX_YEARS_WIDTH, value))
+            : DEFAULT_YEARS_WIDTH;
+    } catch {
+        return DEFAULT_YEARS_WIDTH;
+    }
+}
 
 function readPrefs() {
     try {
@@ -52,6 +67,10 @@ export default function ReFacetsPanel({ visible = true }) {
     const [menu, setMenu] = useState(null);
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
     const menuRef = useRef(null);
+    const columnsRef = useRef(null);
+    const columnDraggingRef = useRef(false);
+    const [yearsWidth, setYearsWidth] = useState(readColumnSplit);
+    const [isColumnResizing, setIsColumnResizing] = useState(false);
     const isLoading = status === 'loading';
 
     useEffect(() => {
@@ -61,6 +80,55 @@ export default function ReFacetsPanel({ visible = true }) {
             // Las preferencias permanecen activas durante esta sesión.
         }
     }, [prefs]);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(COLUMN_SPLIT_STORAGE_KEY, String(yearsWidth));
+        } catch {
+            // Keep the current column proportions for this session.
+        }
+    }, [yearsWidth]);
+
+    function handleColumnSplitterPointerDown(event) {
+        if (event.button !== 0) return;
+        columnDraggingRef.current = true;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setIsColumnResizing(true);
+        event.preventDefault();
+    }
+
+    function handleColumnSplitterPointerMove(event) {
+        if (!columnDraggingRef.current || !columnsRef.current) return;
+        const bounds = columnsRef.current.getBoundingClientRect();
+        if (bounds.width <= 0) return;
+        const nextWidth = ((event.clientX - bounds.left) / bounds.width) * 100;
+        setYearsWidth(Math.round(Math.max(
+            MIN_YEARS_WIDTH,
+            Math.min(MAX_YEARS_WIDTH, nextWidth)
+        )));
+    }
+
+    function stopColumnSplitterDrag(event) {
+        if (!columnDraggingRef.current) return;
+        if (event?.pointerId !== undefined
+            && event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        columnDraggingRef.current = false;
+        setIsColumnResizing(false);
+    }
+
+    function handleColumnSplitterKeyDown(event) {
+        const step = event.shiftKey ? 10 : 2;
+        let nextWidth = yearsWidth;
+        if (event.key === 'ArrowLeft') nextWidth -= step;
+        else if (event.key === 'ArrowRight') nextWidth += step;
+        else if (event.key === 'Home') nextWidth = MIN_YEARS_WIDTH;
+        else if (event.key === 'End') nextWidth = MAX_YEARS_WIDTH;
+        else return;
+        event.preventDefault();
+        setYearsWidth(Math.max(MIN_YEARS_WIDTH, Math.min(MAX_YEARS_WIDTH, nextWidth)));
+    }
 
     useEffect(() => {
         if (!menu) return undefined;
@@ -158,7 +226,11 @@ export default function ReFacetsPanel({ visible = true }) {
                 </div>
             )}
 
-            <div className="refacets-columns">
+            <div
+                ref={columnsRef}
+                className={'refacets-columns' + (isColumnResizing ? ' is-resizing' : '')}
+                style={{ '--refacets-years-width': yearsWidth + '%' }}
+            >
                 <FacetColumn
                     title="Years"
                     items={years}
@@ -169,6 +241,27 @@ export default function ReFacetsPanel({ visible = true }) {
                     showCount={prefs.yearsCount}
                     showHeader={prefs.showHeader}
                     emptyMessage={isLoading ? 'Consultando años…' : 'No hay años.'}
+                />
+                <div
+                    className="refacets-column-splitter"
+                    role="separator"
+                    aria-label="Cambiar el ancho entre Years y Subfolders"
+                    aria-orientation="vertical"
+                    aria-valuemin={MIN_YEARS_WIDTH}
+                    aria-valuemax={MAX_YEARS_WIDTH}
+                    aria-valuenow={yearsWidth}
+                    tabIndex={visible ? 0 : -1}
+                    title="Arrastrar para cambiar el ancho de las columnas"
+                    onPointerDown={handleColumnSplitterPointerDown}
+                    onPointerMove={handleColumnSplitterPointerMove}
+                    onPointerUp={stopColumnSplitterDrag}
+                    onPointerCancel={stopColumnSplitterDrag}
+                    onLostPointerCapture={() => {
+                        columnDraggingRef.current = false;
+                        setIsColumnResizing(false);
+                    }}
+                    onKeyDown={handleColumnSplitterKeyDown}
+                    onDoubleClick={() => setYearsWidth(DEFAULT_YEARS_WIDTH)}
                 />
                 <FacetColumn
                     title="Subfolders"
