@@ -235,11 +235,31 @@ export function useLibraryFacets(enabled) {
             }, SYNC_DEBOUNCE_MS);
         }
 
-        async function initialize() {
+        async function initialize(options = {}) {
             try {
+                if (options.refreshLibrary) {
+                    addDiagnostic('info', 'Solicitando actualización de la Media Library de foobar2000');
+                    if (typeof sdk.library?.refresh !== 'function') {
+                        throw new Error('El SDK no expone fb.library.refresh().');
+                    }
+                    const refreshResult = await sdk.library.refresh();
+                    if (!refreshResult || refreshResult.success === false) {
+                        throw new Error(refreshResult?.error || 'foobar2000 no pudo actualizar la Media Library.');
+                    }
+                    if (typeof sdk.library.invalidateCache === 'function') {
+                        const cacheResult = await sdk.library.invalidateCache();
+                        if (cacheResult?.success === false) {
+                            throw new Error(cacheResult.error || 'No se pudo invalidar la caché del árbol de Media Library.');
+                        }
+                    }
+                    addDiagnostic('success', 'Media Library actualizada; reconstruyendo estructura');
+                }
                 await queueSync();
             } catch (error) {
-                if (active) setStatus('error', error.message || String(error));
+                if (active) {
+                    addDiagnostic('error', 'Falló la actualización de Media Library', error.message || String(error));
+                    setStatus('error', error.message || String(error));
+                }
             }
         }
 
@@ -266,7 +286,7 @@ export function useLibraryFacets(enabled) {
         });
 
         refreshRef.current = () => {
-            void initialize();
+            void initialize({ refreshLibrary: true });
         };
 
         void initialize();
