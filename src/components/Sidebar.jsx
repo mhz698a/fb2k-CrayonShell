@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import SpectrumVisualizer from './audio/SpectrumVisualizer.jsx';
+import ReFacetsPanel from './refacets/ReFacetsPanel.jsx';
 
 const DEFAULT_FACET_HEIGHT = 68;
 const MIN_FACET_HEIGHT = 30;
@@ -91,13 +92,7 @@ export default function Sidebar({ visible = true }) {
                 style={{ '--refacets-height': facetHeight + '%' }}
             >
                 <section className="sidebar-refacets" aria-label="ReFacets">
-                    <header className="sidebar-section-heading">
-                        <strong>ReFacets</strong>
-                        <span>Etapa 2</span>
-                    </header>
-                    <div className="sidebar-refacets-placeholder">
-                        El panel de facetas se integrará en la siguiente etapa.
-                    </div>
+                    <ReFacetsPanel visible={visible} />
                 </section>
 
                 <div
