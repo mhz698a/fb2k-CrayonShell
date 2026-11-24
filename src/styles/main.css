@@ -1061,7 +1061,7 @@ button.play-btn {
 .refacets-columns {
     display: grid;
     flex: 1 1 auto;
-    grid-template-columns: minmax(0, var(--refacets-years-width, 50%)) 7px minmax(0, 1fr);
+    grid-template-columns: minmax(0, var(--refacets-years-width, 1fr)) 7px minmax(0, var(--refacets-subfolders-width, 1fr));
     gap: 0;
     min-width: 0;
     min-height: 0;
