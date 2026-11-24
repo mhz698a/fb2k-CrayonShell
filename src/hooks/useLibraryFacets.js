@@ -97,6 +97,18 @@ export function useLibraryFacets(enabled) {
     const [selectedSubfolders, setSelectedSubfolders] = useState([]);
     const [playlistSyncStatus, setPlaylistSyncStatus] = useState('idle');
     const [playlistSyncMessage, setPlaylistSyncMessage] = useState('');
+    const [diagnostics, setDiagnostics] = useState([]);
+
+    const addDiagnostic = useCallback((level, message, details = '') => {
+        const entry = {
+            id: Date.now() + Math.random(),
+            time: new Date().toLocaleTimeString('es-MX'),
+            level,
+            message: String(message || ''),
+            details: details ? String(details) : ''
+        };
+        setDiagnostics((current) => [...current.slice(-99), entry]);
+    }, []);
 
     const sdkRef = useRef(null);
     const refreshRef = useRef(() => {});
@@ -120,6 +132,7 @@ export function useLibraryFacets(enabled) {
         function setStatus(status, message, progress = null) {
             if (!active) return;
             setState({ status, message, progress });
+            addDiagnostic(status === 'error' ? 'error' : 'info', message);
         }
 
         function publishDirectories(nextDirectories) {
@@ -266,7 +279,7 @@ export function useLibraryFacets(enabled) {
             if (sdkRef.current === sdk) sdkRef.current = null;
             refreshRef.current = () => {};
         };
-    }, [enabled]);
+    }, [enabled, addDiagnostic]);
 
     const facetData = useMemo(
         () => buildFacetData(directories, selectedYears, selectedSubfolders),
@@ -321,19 +334,21 @@ export function useLibraryFacets(enabled) {
                     + (result.trackCount || 0).toLocaleString('es-MX')
                     + ' pistas'
                 );
+                addDiagnostic('success', 'Playlist actualizada', (result.trackCount || 0) + ' pistas');
             } catch (error) {
                 if (generation !== sync.generation) return;
                 setPlaylistSyncStatus('error');
                 setPlaylistSyncMessage(
                     'Library Viewer Selection: ' + (error.message || String(error))
                 );
+                addDiagnostic('error', 'Error al actualizar la playlist', error.message || String(error));
             }
         });
 
         return () => {
             if (sync.generation === generation) sync.generation += 1;
         };
-    }, [enabled, matchingDirectories, selectedSubfolders, selectedYears]);
+    }, [enabled, matchingDirectories, selectedSubfolders, selectedYears, addDiagnostic]);
 
     const selectYear = useCallback((value, multi = false) => {
         setSelectedYears((current) => updateSelection(current, value, multi));
@@ -345,7 +360,32 @@ export function useLibraryFacets(enabled) {
 
     const clearYears = useCallback(() => setSelectedYears([]), []);
     const clearSubfolders = useCallback(() => setSelectedSubfolders([]), []);
-    const refresh = useCallback(() => refreshRef.current(), []);
+    const refresh = useCallback(() => {
+        addDiagnostic('info', 'Actualización manual solicitada');
+        refreshRef.current();
+    }, [addDiagnostic]);
+
+    const openFacetFolder = useCallback(async (column, value) => {
+        const matches = directories.filter((directory) => (
+            column === 'year' ? directory.yearValue === value
+                : directory.subfolderValue === value
+        ));
+        const directory = matches[0];
+        if (!directory) throw new Error('No se encontró una carpeta para esta faceta.');
+        let path = directory.absolutePath;
+        if (column === 'year') {
+            const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
+            const yearIndex = parts.length - 3;
+            if (yearIndex >= 0) path = parts.slice(0, yearIndex + 1).join('\\');
+        }
+        const sdk = sdkRef.current;
+        if (typeof sdk?.shell?.showInExplorer !== 'function') {
+            throw new Error('El SDK no expone fb.shell.showInExplorer().');
+        }
+        const result = await sdk.shell.showInExplorer(path);
+        if (result?.success === false) throw new Error(result.error || 'No se pudo abrir la carpeta.');
+        addDiagnostic('success', 'Carpeta abierta en el Explorador', path);
+    }, [directories, addDiagnostic]);
 
     return {
         status: state.status,
@@ -362,6 +402,9 @@ export function useLibraryFacets(enabled) {
         filteredCount: facetData.filteredCount,
         playlistSyncStatus,
         playlistSyncMessage,
+        diagnostics,
+        addDiagnostic,
+        openFacetFolder,
         selectYear,
         selectSubfolder,
         clearYears,
