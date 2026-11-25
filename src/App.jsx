@@ -13,6 +13,9 @@ import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
 import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
 import {
+    SIDEBAR_COLLAPSED_STORAGE_KEY,
+    SIDEBAR_VIEW_STORAGE_KEY,
+    SIDEBAR_WIDTH_STORAGE_KEY,
     MAX_SIDEBAR_WIDTH,
     MIN_SIDEBAR_WIDTH,
     readSidebarCollapsed,
