@@ -15,3 +15,15 @@ export function registerSettingsProvider(provider) {
 export function registerSettingsProviders(providers) {
     return settingsRegistry.registerMany(providers);
 }
+
+export {
+    createSettingsBackup,
+    serializeSettingsBackup,
+    SETTINGS_BACKUP_FORMAT,
+    SETTINGS_BACKUP_FORMAT_VERSION
+} from './settingsBackupService.js';
+
+export {
+    createCoreSettingsProviders,
+    registerCoreSettingsProviders
+} from './providers/coreSettingsProviders.js';
