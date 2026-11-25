@@ -1,4 +1,4 @@
-import { getFooSdk as getSdk } from './fooSdk.js';
+import { getFooSdk as getSdk, hasNativeBridge } from './fooSdk.js';
 
 function compareVersions(left, right) {
     const parse = (value) => {
@@ -66,10 +66,13 @@ export function getMediaSdk() {
     return getSdk();
 }
 
-export async function inspectWebViewEnvironment() {
-    const origin = window.location.origin;
-    const protocol = window.location.protocol;
-    const nativeBridgeAvailable = Boolean(hasNativeBridge());
+export async function inspectWebViewEnvironment({
+    location = window.location,
+    nativeBridgeAvailable = hasNativeBridge(),
+    getSdkInstance = getSdk
+} = {}) {
+    const origin = location.origin;
+    const protocol = location.protocol;
 
     if (!nativeBridgeAvailable) {
         return {
@@ -84,8 +87,10 @@ export async function inspectWebViewEnvironment() {
         };
     }
 
-    const sdkAvailable = Boolean(fb.isAvailable());
-    if (!sdkAvailable) {
+    let sdk;
+    try {
+        sdk = getSdkInstance();
+    } catch (error) {
         return {
             hasHostBridge: true,
             hasSdkFacade: false,
@@ -94,7 +99,7 @@ export async function inspectWebViewEnvironment() {
             isHttpOrigin: protocol === 'http:' || protocol === 'https:',
             isFileOrigin: protocol === 'file:',
             source: 'Puente nativo detectado',
-            sourceError: 'window.fb2k está disponible, pero el SDK importado no pudo enlazarse con el puente.'
+            sourceError: error.message || String(error)
         };
     }
 
@@ -106,7 +111,7 @@ export async function inspectWebViewEnvironment() {
 
     try {
         const versionInfo = unwrap(
-            await fb.config.getVersionInfo(),
+            await sdk.config.getVersionInfo(),
             'config.getVersionInfo'
         );
         pluginVersion = versionInfo.plugin?.version || '';
@@ -118,7 +123,7 @@ export async function inspectWebViewEnvironment() {
 
     try {
         sourceInfo = unwrap(
-            await fb.webview.getSource(),
+            await sdk.webview.getSource(),
             'webview.getSource'
         );
     } catch (error) {
@@ -141,21 +146,20 @@ export async function inspectWebViewEnvironment() {
         mediaRouteSupported,
         versionError,
         hasMediaApi: Boolean(
-            fb.media
-            && typeof fb.media.getContainerInfo === 'function'
-            && typeof fb.media.getStreamUrl === 'function'
+            sdk.media
+            && typeof sdk.media.getContainerInfo === 'function'
+            && typeof sdk.media.getStreamUrl === 'function'
         ),
-        hasMediaElementFollower: typeof fb.MediaElementFollower === 'function',
-        hasArtworkApi: Boolean(fb.artwork && typeof fb.artwork.getForTrack === 'function'),
+        hasMediaElementFollower: typeof sdk.MediaElementFollower === 'function',
+        hasArtworkApi: Boolean(sdk.artwork && typeof sdk.artwork.getForTrack === 'function'),
         hasPlaybackApi: Boolean(
-            fb.player
-            && typeof fb.player.getPosition === 'function'
-            && typeof fb.player.getState === 'function'
+            sdk.player
+            && typeof sdk.player.getPosition === 'function'
+            && typeof sdk.player.getState === 'function'
         ),
         sourceError
     };
 }
-
 export async function inspectCurrentMediaTrack() {
     const sdk = getSdk();
 
