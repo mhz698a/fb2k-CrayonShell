@@ -2,24 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import SpectrumVisualizer from './audio/SpectrumVisualizer.jsx';
 import ReFacetsPanel from './refacets/ReFacetsPanel.jsx';
 import YearbookExplorerPanel from './yearbook/YearbookExplorerPanel.jsx';
-
-const DEFAULT_FACET_HEIGHT = 68;
-const MIN_FACET_HEIGHT = 30;
-const MAX_FACET_HEIGHT = 85;
-const FACET_HEIGHT_STORAGE_KEY = 'crayonshell.sidebar.refacetsHeight.v1';
-
-function readFacetHeight() {
-    try {
-        const saved = window.localStorage.getItem(FACET_HEIGHT_STORAGE_KEY);
-        if (saved === null) return DEFAULT_FACET_HEIGHT;
-        const stored = Number(saved);
-        return Number.isFinite(stored)
-            ? Math.max(MIN_FACET_HEIGHT, Math.min(MAX_FACET_HEIGHT, stored))
-            : DEFAULT_FACET_HEIGHT;
-    } catch {
-        return DEFAULT_FACET_HEIGHT;
-    }
-}
+import {
+    REFACETS_HEIGHT_STORAGE_KEY,
+    readRefacetsHeight
+} from '../features/settings/providers/coreUiSettings.js';
 
 export default function Sidebar({
     visible = true,
@@ -29,14 +15,14 @@ export default function Sidebar({
 }) {
     const sidebarRef = useRef(null);
     const draggingRef = useRef(false);
-    const [facetHeight, setFacetHeight] = useState(readFacetHeight);
+    const [facetHeight, setFacetHeight] = useState(readRefacetsHeight);
     const [isResizing, setIsResizing] = useState(false);
     const libraryVisible = visible && activeView === 'library';
     const yearbookVisible = visible && activeView === 'yearbook';
 
     useEffect(() => {
         try {
-            window.localStorage.setItem(FACET_HEIGHT_STORAGE_KEY, String(facetHeight));
+            window.localStorage.setItem(REFACETS_HEIGHT_STORAGE_KEY, String(facetHeight));
         } catch {
             // Keep the selected proportion for this session when storage is unavailable.
         }
