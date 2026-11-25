@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import 'font-awesome/css/font-awesome.min.css';
 import './styles/main.css';
 
 const rootElement = document.getElementById('root');
