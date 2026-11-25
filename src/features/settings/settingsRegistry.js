@@ -34,6 +34,12 @@ function normalizeProvider(definition) {
             );
         }
     }
+    if (definition.migrateSettings !== undefined
+        && typeof definition.migrateSettings !== 'function') {
+        throw new TypeError(
+            'El proveedor "' + id + '" debe implementar migrateSettings() como función.'
+        );
+    }
 
     const order = Number(definition.order);
     return Object.freeze({
@@ -46,7 +52,8 @@ function normalizeProvider(definition) {
         order: Number.isFinite(order) ? order : 0,
         readSettings: definition.readSettings,
         validateSettings: definition.validateSettings,
-        applySettings: definition.applySettings
+        applySettings: definition.applySettings,
+        migrateSettings: definition.migrateSettings || null
     });
 }
 
