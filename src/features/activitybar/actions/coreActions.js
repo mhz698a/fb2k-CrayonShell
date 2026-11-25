@@ -57,6 +57,7 @@ export function registerCoreActivityBarActions(registry) {
         description: 'Abre el administrador de botones, iconos y orden de ActivityBar.',
         defaultIcon: 'cogs',
         isAvailable: callbackAvailability('openActivityBarManager', 'El administrador de ActivityBar'),
+        isActive: (context) => context.activityBarManagerOpen === true,
         execute: (context) => context.openActivityBarManager()
     }));
 
