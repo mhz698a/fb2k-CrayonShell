@@ -1,0 +1,295 @@
+import { getFooSdk, hasNativeBridge } from '../../../services/fooSdk.js';
+
+const RECYCLE_BIN_PATH = 'E:\\_Exclude\\l_reallydeleted';
+
+function requireSuccessfulResult(result, operation) {
+    if (!result) {
+        throw new Error(operation + ' no devolvió una respuesta.');
+    }
+    if (result.success === false) {
+        const error = new Error(result.error || (operation + ' falló.'));
+        error.code = result.code || 'UNKNOWN_ERROR';
+        error.details = result.details;
+        throw error;
+    }
+    return result;
+}
+
+function requireActivePlaylist(context) {
+    const playlistGuid = String(context?.activePlaylistGuid || '').trim();
+    if (!playlistGuid) {
+        throw new Error('No hay una playlist activa.');
+    }
+    return playlistGuid;
+}
+
+async function getSelectedTracks(context, sdk) {
+    const playlistGuid = requireActivePlaylist(context);
+    const result = requireSuccessfulResult(
+        await sdk.playlist.getSelectedTracks(playlistGuid),
+        'playlist.getSelectedTracks'
+    );
+    const tracks = Array.isArray(result.tracks) ? result.tracks : [];
+    if (!tracks.length) {
+        throw new Error('No hay archivos seleccionados en la playlist activa.');
+    }
+    return tracks;
+}
+
+function getFileName(path, includeExtension = true) {
+    const value = String(path || '').replace(/\\|subsong:\\d+$/i, '');
+    const decoded = (() => {
+        try {
+            return decodeURIComponent(value);
+        } catch {
+            return value;
+        }
+    })();
+    const name = decoded.replace(/\\\\/g, '/').split('/').pop() || '';
+    if (includeExtension) return name;
+    const extensionIndex = name.lastIndexOf('.');
+    return extensionIndex > 0 ? name.slice(0, extensionIndex) : name;
+}
+
+async function copySelectedTracks(context, sdk, getValue, label) {
+    const tracks = await getSelectedTracks(context, sdk);
+    const value = tracks.map(getValue).filter((item) => item !== '').join('\\r\\n');
+    if (!value) throw new Error('La selección no contiene valores para copiar.');
+    requireSuccessfulResult(await sdk.clipboard.write(value), 'clipboard.write');
+    return { count: tracks.length, label };
+}
+
+async function runContextCommand(sdk, command) {
+    return requireSuccessfulResult(
+        await sdk.menu.runContextCommand(command),
+        'menu.runContextCommand'
+    );
+}
+
+async function runMainMenuCommand(sdk, command) {
+    return requireSuccessfulResult(
+        await sdk.menu.runMainMenuCommand(command),
+        'menu.runMainMenuCommand'
+    );
+}
+
+function buildGoogleQueries(track) {
+    const filename = getFileName(track.path || track.absolutePath, false);
+    const title = String(track.title || '').trim();
+    const artist = String(track.artist || track.albumArtist || '').trim();
+    const titleArtist = [title, artist].filter(Boolean).join(' ').trim();
+    const base = titleArtist || filename;
+
+    return [
+        { id: 'filename', label: 'Buscar por nombre de archivo', query: filename },
+        { id: 'filename-lyrics', label: 'Nombre de archivo + lyrics', query: filename ? filename + ' lyrics' : '' },
+        { id: 'filename-release', label: 'Nombre de archivo + release date', query: filename ? filename + ' release date' : '' },
+        { id: 'title-artist', label: 'Buscar por título + artista', query: base },
+        { id: 'title-artist-lyrics', label: 'Título + artista + lyrics', query: base ? base + ' lyrics' : '' },
+        { id: 'title-artist-release', label: 'Título + artista + release date', query: base ? base + ' release date' : '' }
+    ].filter((item) => item.query);
+}
+
+async function openGoogleSearcher(context, sdk) {
+    const tracks = await getSelectedTracks(context, sdk);
+    const track = tracks[0];
+    const items = buildGoogleQueries(track).map((item) => ({
+        id: item.id,
+        label: item.label
+    }));
+    const selectedId = await sdk.menu.popup(items, undefined, {
+        windowModel: 'contentSized'
+    });
+    if (!selectedId) return { cancelled: true };
+
+    const selected = buildGoogleQueries(track).find((item) => item.id === selectedId);
+    if (!selected) return { cancelled: true };
+
+    const url = 'https://www.google.com/search?q=' + encodeURIComponent(selected.query);
+    requireSuccessfulResult(await sdk.shell.openExternal(url), 'shell.openExternal');
+    return { query: selected.query, url };
+}
+
+async function openNewgroundsPage(context, sdk) {
+    const tracks = await getSelectedTracks(context, sdk);
+    const track = tracks[0];
+    const fileName = getFileName(track.path || track.absolutePath, false);
+    if (!/\\s\\(\\u03b7\\)$/i.test(fileName)) {
+        throw new Error('El nombre del archivo debe terminar con " (η)".');
+    }
+
+    const title = String(track.title || '').trim();
+    const match = title.match(/\\(ID:\\s*(\\d+)\\)$/i);
+    if (!match) {
+        throw new Error('El título de la pista debe terminar con "(ID: XXXXX)".');
+    }
+
+    const url = 'https://www.newgrounds.com/audio/listen/' + match[1];
+    requireSuccessfulResult(await sdk.shell.openExternal(url), 'shell.openExternal');
+    return { url };
+}
+
+async function showNumHandExtrasMenu(context, sdk) {
+    const items = [
+        { id: 'copy-names', label: 'Copy Names' },
+        { id: 'copy-paths', label: 'Copy Paths' },
+        { id: 'explore-directory', label: 'Explore folder of current song' },
+        { type: 'separator' },
+        { id: 'recycle-bin', label: 'Open Recycle Bin' }
+    ];
+    const selectedId = await sdk.menu.popup(items, undefined, {
+        windowModel: 'contentSized'
+    });
+
+    switch (selectedId) {
+        case 'copy-names':
+            return copySelectedTracks(
+                context,
+                sdk,
+                (track) => getFileName(track.path || track.absolutePath, true),
+                'nombres'
+            );
+        case 'copy-paths':
+            return copySelectedTracks(
+                context,
+                sdk,
+                (track) => String(track.path || track.absolutePath || ''),
+                'rutas'
+            );
+        case 'explore-directory':
+            return runContextCommand(sdk, 'Run service/Explore Directory');
+        case 'recycle-bin':
+            return requireSuccessfulResult(
+                await sdk.shell.showInExplorer(RECYCLE_BIN_PATH),
+                'shell.showInExplorer'
+            );
+        default:
+            return { cancelled: true };
+    }
+}
+
+export function createLegacyActivityActions({
+    getSdk = getFooSdk,
+    isNativeAvailable = hasNativeBridge
+} = {}) {
+    const nativeAvailability = (context) => ({
+        available: isNativeAvailable() && context?.isDemoMode !== true,
+        reason: 'Esta acción requiere CrayonShell dentro de foobar2000/WebView2.'
+    });
+    const selectionAvailability = (context) => {
+        const host = nativeAvailability(context);
+        if (!host.available) return host;
+        return {
+            available: Boolean(context?.activePlaylistGuid),
+            reason: 'No hay una playlist activa.'
+        };
+    };
+
+    return [
+        {
+            id: 'legacy.shazam',
+            label: 'Buscar con Shazam',
+            category: 'Servicios de foobar2000',
+            description: 'Ejecuta el servicio Search with Shazam sobre la pista actual.',
+            defaultIcon: 'music',
+            isAvailable: nativeAvailability,
+            execute: () => runContextCommand(getSdk(), 'Run service/Search with Shazam')
+        },
+        {
+            id: 'legacy.mp3tag.editFolder',
+            label: 'Editar carpeta con mp3tag',
+            category: 'Servicios de foobar2000',
+            description: 'Ejecuta el servicio Edit Folder with mp3Tag sobre la pista o selección actual.',
+            defaultIcon: 'tags',
+            isAvailable: nativeAvailability,
+            execute: () => runContextCommand(getSdk(), 'Run service/Edit Folder with mp3Tag')
+        },
+        {
+            id: 'legacy.exploreDirectory',
+            label: 'Explorar carpeta de la pista',
+            category: 'Servicios de foobar2000',
+            description: 'Ejecuta el servicio nativo Explore Directory.',
+            defaultIcon: 'folder-open',
+            isAvailable: nativeAvailability,
+            execute: () => runContextCommand(getSdk(), 'Run service/Explore Directory')
+        },
+        {
+            id: 'legacy.effects.playbackRate',
+            label: 'DSP: Playback Rate',
+            category: 'DSP y reproducción',
+            description: 'Abre el panel Playback Rate de foobar2000.',
+            defaultIcon: 'tachometer',
+            isAvailable: nativeAvailability,
+            execute: () => runMainMenuCommand(getSdk(), 'View/DSP/Playback Rate')
+        },
+        {
+            id: 'legacy.effects.tempo',
+            label: 'DSP: Tempo',
+            category: 'DSP y reproducción',
+            description: 'Abre el panel Tempo de foobar2000.',
+            defaultIcon: 'sliders',
+            isAvailable: nativeAvailability,
+            execute: () => runMainMenuCommand(getSdk(), 'View/DSP/Tempo')
+        },
+        {
+            id: 'legacy.effects.iirFilter',
+            label: 'DSP: IIR Filter',
+            category: 'DSP y reproducción',
+            description: 'Abre el panel IIR Filter de foobar2000.',
+            defaultIcon: 'filter',
+            isAvailable: nativeAvailability,
+            execute: () => runMainMenuCommand(getSdk(), 'View/DSP/IIR Filter')
+        },
+        {
+            id: 'legacy.youtube.omniget',
+            label: 'Descargar con Omniget',
+            category: 'Servicios de foobar2000',
+            description: 'Ejecuta el servicio Download with Omniget.',
+            defaultIcon: 'download',
+            isAvailable: nativeAvailability,
+            execute: () => runContextCommand(getSdk(), 'Run service/Download with Omniget')
+        },
+        {
+            id: 'legacy.youtube.searcher',
+            label: 'YouTube Searcher',
+            category: 'Servicios de foobar2000',
+            description: 'Abre YouTube Source / Search on Site.',
+            defaultIcon: 'youtube-play',
+            isAvailable: nativeAvailability,
+            execute: () => runMainMenuCommand(getSdk(), 'View/Youtube Source/Search on Site')
+        },
+        {
+            id: 'legacy.googleSearcherSongs',
+            label: 'Google Song Searcher',
+            category: 'Búsqueda web',
+            description: 'Abre un menú para buscar la pista seleccionada por nombre, título, artista, lyrics o fecha.',
+            defaultIcon: 'google',
+            isAvailable: selectionAvailability,
+            execute: (context) => openGoogleSearcher(context, getSdk())
+        },
+        {
+            id: 'legacy.newgrounds.openPage',
+            label: 'Abrir página de Newgrounds',
+            category: 'Búsqueda web',
+            description: 'Abre Newgrounds cuando el archivo termina en (η) y el título contiene un ID válido.',
+            defaultIcon: 'external-link',
+            isAvailable: selectionAvailability,
+            execute: (context) => openNewgroundsPage(context, getSdk())
+        },
+        {
+            id: 'legacy.numhand.extrasMenu',
+            label: 'NumHand: herramientas de selección',
+            category: 'Archivos y selección',
+            description: 'Menú de copiar nombres/rutas, explorar la carpeta de la pista y abrir la carpeta de reciclaje.',
+            defaultIcon: 'files-o',
+            isAvailable: nativeAvailability,
+            execute: (context) => showNumHandExtrasMenu(context, getSdk())
+        }
+    ];
+}
+
+export function registerLegacyActivityActions(registry, options) {
+    const unregister = createLegacyActivityActions(options)
+        .map((definition) => registry.register(definition));
+    return () => unregister.reverse().forEach((remove) => remove());
+}
