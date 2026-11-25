@@ -172,7 +172,7 @@ test('Google Song Searcher construye la consulta y abre el navegador predetermin
     assert.equal(calls[2][0], 'openExternal');
     assert.equal(
         calls[2][1],
-        'https://www.google.com/search?q=Track%20Title%20%28ID%3A%2012345%29%20Artist%20Name%20lyrics'
+        'https://www.google.com/search?q=Track%20Title%20Artist%20Name%20lyrics'
     );
 });
 
