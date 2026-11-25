@@ -75,7 +75,9 @@ async function runMainMenuCommand(sdk, command) {
 
 function buildGoogleQueries(track) {
     const filename = getFileName(track.path || track.absolutePath, false);
-    const title = String(track.title || '').trim();
+    const title = String(track.title || '')
+        .replace(/\s*\(ID:\s*\d+\)\s*$/, '')
+        .trim();
     const artist = String(track.artist || track.albumArtist || '').trim();
     const titleArtist = [title, artist].filter(Boolean).join(' ').trim();
     const base = titleArtist || filename;
