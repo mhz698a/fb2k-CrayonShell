@@ -7,19 +7,10 @@ import {
     listYearbookDirectories,
     openYearbookDirectory
 } from '../../features/yearbook/yearbookService.js';
-
-const EXPANDED_STORAGE_KEY = 'crayonshell.yearbookExplorer.expanded.v1';
-
-function readExpandedPaths(rootPath) {
-    try {
-        const stored = JSON.parse(window.localStorage.getItem(EXPANDED_STORAGE_KEY) || '{}');
-        return stored.rootPath === rootPath && Array.isArray(stored.paths)
-            ? new Set(stored.paths.filter((path) => typeof path === 'string').slice(0, 500))
-            : new Set();
-    } catch {
-        return new Set();
-    }
-}
+import {
+    YEARBOOK_EXPLORER_YEARBOOK_EXPLORER_EXPANDED_STORAGE_KEY,
+    readYearbookExpandedPaths
+} from '../../features/yearbook/yearbookExplorerSettings.js';
 
 export default function YearbookExplorerPanel({
     visible = false,
@@ -28,7 +19,7 @@ export default function YearbookExplorerPanel({
 }) {
     const rootPath = String(externalTools?.internalBasePath || '').trim();
     const [directoriesByPath, setDirectoriesByPath] = useState({});
-    const [expandedPaths, setExpandedPaths] = useState(() => readExpandedPaths(rootPath));
+    const [expandedPaths, setExpandedPaths] = useState(() => readYearbookExpandedPaths(rootPath));
     const [selectedNode, setSelectedNode] = useState(null);
     const [loadingPaths, setLoadingPaths] = useState(() => new Set());
     const [error, setError] = useState('');
