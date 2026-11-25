@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ActivityBar from './components/activitybar/ActivityBar.jsx';
 import ActivityBarManagerDialog from './components/activitybar/ActivityBarManagerDialog.jsx';
+import ExternalToolsDialog from './components/activitybar/ExternalToolsDialog.jsx';
+import { useExternalToolsConfig } from './features/activitybar/hooks/useExternalToolsConfig.js';
 import { useActivityBarConfig } from './features/activitybar/hooks/useActivityBarConfig.js';
 import { useActivityBarActions } from './features/activitybar/hooks/useActivityBarActions.js';
 import Sidebar from './components/Sidebar.jsx';
@@ -58,6 +60,8 @@ export default function App() {
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
     const [activityActionError, setActivityActionError] = useState('');
     const [activityBarManagerOpen, setActivityBarManagerOpen] = useState(false);
+    const [externalToolsSettingsOpen, setExternalToolsSettingsOpen] = useState(false);
+    const { config: externalToolsConfig, saveConfig: saveExternalToolsConfig } = useExternalToolsConfig();
     const {
         config: activityBarConfig,
         addButton: addActivityBarButton,
@@ -86,6 +90,14 @@ export default function App() {
 
     const closeActivityBarManager = useCallback(() => {
         setActivityBarManagerOpen(false);
+    }, []);
+
+    const openExternalToolsSettings = useCallback(() => {
+        setExternalToolsSettingsOpen(true);
+    }, []);
+
+    const closeExternalToolsSettings = useCallback(() => {
+        setExternalToolsSettingsOpen(false);
     }, []);
 
     const reportActivityActionError = useCallback((failure) => {
@@ -151,6 +163,9 @@ export default function App() {
         sidebarCollapsed,
         contentView,
         activePlaylistGuid,
+        externalTools: externalToolsConfig,
+        externalToolsSettingsOpen,
+        openExternalToolsSettings,
         toggleSidebar,
         toggleContentView,
         refreshPlaylist,
@@ -161,6 +176,9 @@ export default function App() {
         sidebarCollapsed,
         contentView,
         activePlaylistGuid,
+        externalToolsConfig,
+        externalToolsSettingsOpen,
+        openExternalToolsSettings,
         toggleSidebar,
         toggleContentView,
         refreshPlaylist,
@@ -250,6 +268,12 @@ export default function App() {
                 onExecuteAction={executeActivityBarAction}
             />
 
+            <ExternalToolsDialog
+                open={externalToolsSettingsOpen}
+                config={externalToolsConfig}
+                onClose={closeExternalToolsSettings}
+                onSave={saveExternalToolsConfig}
+            />
             <ActivityBarManagerDialog
                 open={activityBarManagerOpen}
                 buttons={activityBarConfig.buttons}
