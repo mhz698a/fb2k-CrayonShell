@@ -169,3 +169,48 @@ Las seis áreas se registran durante el arranque de CrayonShell. La función de 
 - Pruebas de registro, normalización, exportación, serialización y transformación de rutas.
 - Sin interfaz de importación/exportación todavía; corresponde a una etapa posterior.
 - La implementación de importación y la aplicación coordinada de ajustes quedan para la etapa 3.
+
+
+## Etapa 3 — Inspección, compatibilidad e importación
+
+Se añadió el servicio src/features/settings/settingsImportService.js para inspeccionar y aplicar respaldos desde código, todavía sin interfaz gráfica.
+
+### Inspección previa
+
+inspectSettingsBackup(registry, input) acepta texto JSON u objetos JSON y no modifica almacenamiento. La inspección:
+
+- Comprueba el identificador y la versión del contenedor global. Los formatos futuros se rechazan; las migraciones de versiones anteriores del contenedor aún no están definidas.
+- Limita los archivos de texto a 5 MB y rechaza objetos no JSON, referencias circulares, números no finitos, propiedades calculadas, posiciones vacías y claves peligrosas.
+- Comprueba la estructura y versión de cada proveedor antes de invocar su normalizador.
+- Distingue proveedores listos (ready), migrados (migrated), inválidos (invalid), con versión futura (newer-version), sin migración (migration-required), ausentes del respaldo (not-in-backup) y desconocidos para la instalación (unknown).
+- Omite proveedores desconocidos y no ejecuta código procedente del archivo.
+- Detecta referencias de ActivityBar que no existen en los módulos registrados. Las conserva como referencias declarativas y las reporta como advertencia; no se convierten en código ni se ejecutan.
+- Identifica como dependientes del equipo los ejecutables y rutas de External Tools.
+- Calcula la raíz de destino de Yearbook Explorer. Las expansiones relativas se reconstruirán bajo el internalBasePath que esté activo durante la restauración.
+
+### Migraciones por proveedor
+
+El contrato del registro admite ahora dos métodos opcionales:
+
+- migrateSettings(value, fromVersion, context): transforma un esquema anterior a la versión actual del proveedor. El resultado todavía pasa por validateSettings antes de considerarse importable.
+- getImportWarnings(value, context): agrega advertencias específicas del proveedor a la vista previa. No aplica cambios.
+
+No se inventaron migraciones para los proveedores integrados porque todos exportan actualmente la versión 1. Las migraciones se activarán cuando un proveedor cambie formalmente su esquema.
+
+### Aplicación y reversión
+
+applySettingsBackup(registry, input, options) vuelve a inspeccionar el archivo antes de escribir. El llamador puede limitar la restauración mediante providerIds.
+
+- External Tools se excluye de la selección predeterminada para proteger las rutas locales.
+- Para importar External Tools se debe seleccionar el proveedor y pasar confirmMachineDependent: true.
+- Si External Tools no se importa, Yearbook conserva la raíz local actual y reconstruye ahí sus rutas relativas.
+- Antes de la primera escritura se valida y captura el estado actual de todos los proveedores registrados.
+- Los proveedores seleccionados se aplican en orden de registro, con acceso al conjunto coherente de ajustes de destino mediante context.getSettings(id).
+- Si una aplicación falla, se intenta restaurar en orden inverso cada proveedor que pudo haber sido modificado, incluido el que falló.
+- Si alguna operación de reversión también falla, se lanza SettingsImportRollbackError con el error original y los fallos de reversión para facilitar el diagnóstico.
+
+El resultado indica los proveedores restaurados y omitidos, y declara requiresReload: true. El reinicio de la vista es necesario porque algunos módulos consumen sus ajustes al inicializarse; el servicio no recarga la aplicación por su cuenta.
+
+### Fuera de alcance de esta etapa
+
+La selección visual de archivo, la tabla de vista previa, las casillas por proveedor, la confirmación de rutas dependientes del equipo y los controles de restauración corresponden a la etapa 4. La etapa 3 expone el servicio y sus contratos para que esa interfaz no replique lógica de validación ni escritura.
