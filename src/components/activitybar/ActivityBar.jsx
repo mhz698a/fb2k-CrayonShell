@@ -1,37 +1,63 @@
-export default function ActivityBar({ sidebarCollapsed, sidebarAction, onExecuteAction }) {
-    const sidebarLabel = sidebarCollapsed
-        ? 'Mostrar panel izquierdo'
-        : 'Ocultar panel izquierdo';
+function FaIcon({ name }) {
+    return <i className={'fa fa-' + name} aria-hidden="true" />;
+}
+
+export default function ActivityBar({
+    buttons = [],
+    actionCatalog = [],
+    onExecuteAction
+}) {
+    const actionMap = new Map(actionCatalog.map((action) => [action.id, action]));
+    const managerAction = actionMap.get('activitybar.manage');
 
     return (
         <nav className="activitybar" aria-label="Barra de actividad">
             <div className="activitybar-actions">
+                {buttons.map((button) => {
+                    const action = actionMap.get(button.actionId);
+                    const available = Boolean(action?.available);
+
+                    return (
+                        <button
+                            key={button.id}
+                            id={'ActivityBarButton-' + button.id.replace(/[^a-zA-Z0-9_-]/g, '-')}
+                            className={
+                                'activitybar-button'
+                                + (action?.active ? ' is-active' : '')
+                            }
+                            type="button"
+                            aria-label={button.label}
+                            aria-pressed={Boolean(action?.active)}
+                            title={available
+                                ? button.label
+                                : (action?.unavailableReason || 'La acción ya no está registrada.')}
+                            disabled={!available}
+                            onClick={() => onExecuteAction(button.actionId)}
+                        >
+                            <FaIcon name={button.icon}/>
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div className="activitybar-bottom">
+                <div className="activitybar-bottom-separator" />
                 <button
-                    id="ActivityBarSidebarToggle"
-                    className="activitybar-button"
+                    id="ActivityBarManager"
+                    className={
+                        'activitybar-button'
+                        + (managerAction?.active ? ' is-active' : '')
+                    }
                     type="button"
-                    aria-controls="LeftSidebar"
-                    aria-expanded={!sidebarCollapsed}
-                    aria-pressed={Boolean(sidebarAction?.active)}
-                    aria-label={sidebarLabel}
-                    title={sidebarAction?.available === false
-                        ? sidebarAction.unavailableReason || sidebarLabel
-                        : sidebarLabel}
-                    disabled={sidebarAction?.available === false}
-                    onClick={() => onExecuteAction('ui.toggleSidebar')}
+                    aria-label="Administrar ActivityBar"
+                    aria-pressed={Boolean(managerAction?.active)}
+                    title={managerAction?.available
+                        ? 'Administrar ActivityBar'
+                        : (managerAction?.unavailableReason || 'Administrador no disponible')}
+                    disabled={!managerAction?.available}
+                    onClick={() => onExecuteAction('activitybar.manage')}
                 >
-                    <svg
-                        className="activitybar-button-icon"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        focusable="false"
-                    >
-                        <rect x="3.25" y="4.25" width="17.5" height="15.5" rx="1.75" />
-                        <path d="M9 4.5v15" />
-                        {sidebarCollapsed
-                            ? <path d="m13.5 9 3 3-3 3" />
-                            : <path d="m16.5 9-3 3 3 3" />}
-                    </svg>
+                    <FaIcon name="cogs"/>
                 </button>
             </div>
         </nav>
