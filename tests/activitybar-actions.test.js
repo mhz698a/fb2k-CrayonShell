@@ -163,6 +163,26 @@ test('Action Registry rechaza módulos duplicados y requiere una función regist
     }), /debe proporcionar register/);
 });
 
+test('Action Registry refresh vuelve a evaluar disponibilidad dinámica', () => {
+    const registry = createActionRegistry();
+    let enabled = false;
+    let notifications = 0;
+
+    registry.register({
+        id: 'test.external-state',
+        isAvailable: () => enabled,
+        execute: () => undefined
+    });
+    registry.subscribe(() => { notifications += 1; });
+
+    assert.equal(registry.getState('test.external-state').available, false);
+    enabled = true;
+    registry.refresh();
+
+    assert.equal(registry.getState('test.external-state').available, true);
+    assert.equal(notifications, 1);
+});
+
 test('Action Registry rechaza identificadores duplicados y acciones sin ejecutor', () => {
     const registry = createActionRegistry();
     registry.register({ id: 'test.duplicate', execute: () => undefined });
