@@ -135,6 +135,8 @@ test('El catálogo principal contiene las cinco acciones iniciales', () => {
         toggleContentView: () => undefined,
         refreshPlaylist: () => undefined,
         openDiagnostics: () => undefined,
+        openActivityBarManager: () => undefined,
+        activityBarManagerOpen: false,
         sidebarCollapsed: false,
         contentView: 'video'
     });
