@@ -26,8 +26,8 @@ function normalizeSelectionList(value) {
 
     for (const entry of value) {
         if (typeof entry !== 'string') continue;
-        const item = entry.trim().slice(0, MAX_SELECTION_VALUE_LENGTH);
-        if (!item || seen.has(item)) continue;
+        const item = entry.slice(0, MAX_SELECTION_VALUE_LENGTH);
+        if (!item.trim() || seen.has(item)) continue;
         seen.add(item);
         normalized.push(item);
         if (normalized.length >= MAX_SELECTION_VALUES) break;
