@@ -12,43 +12,17 @@ import PlaylistStatus from './components/PlaylistStatus.jsx';
 import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
 import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
+import {
+    MAX_SIDEBAR_WIDTH,
+    MIN_SIDEBAR_WIDTH,
+    readSidebarCollapsed,
+    readSidebarView,
+    readSidebarWidth
+} from './features/settings/providers/coreUiSettings.js';
+import { settingsRegistry } from './features/settings/index.js';
+import { registerCoreSettingsProviders } from './features/settings/providers/coreSettingsProviders.js';
 
-const MIN_SIDEBAR_WIDTH = 240;
-const MAX_SIDEBAR_WIDTH = 520;
-const DEFAULT_SIDEBAR_WIDTH = 320;
-const SIDEBAR_WIDTH_STORAGE_KEY = 'crayonshell.sidebar.width.v1';
-const SIDEBAR_COLLAPSED_STORAGE_KEY = 'crayonshell.sidebar.collapsed.v1';
-const SIDEBAR_VIEW_STORAGE_KEY = 'crayonshell.sidebar.view.v1';
-
-function readSidebarCollapsed() {
-    try {
-        const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
-        return stored === null ? true : stored === 'true';
-    } catch {
-        return true;
-    }
-}
-
-function readSidebarView() {
-    try {
-        return window.localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY) === 'yearbook'
-            ? 'yearbook'
-            : 'library';
-    } catch {
-        return 'library';
-    }
-}
-
-function readSidebarWidth() {
-    try {
-        const stored = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
-        return Number.isFinite(stored) && stored >= MIN_SIDEBAR_WIDTH && stored <= MAX_SIDEBAR_WIDTH
-            ? stored
-            : DEFAULT_SIDEBAR_WIDTH;
-    } catch {
-        return DEFAULT_SIDEBAR_WIDTH;
-    }
-}
+registerCoreSettingsProviders(settingsRegistry);
 
 function clampSidebarWidth(width, containerWidth) {
     const availableMaximum = Math.max(
