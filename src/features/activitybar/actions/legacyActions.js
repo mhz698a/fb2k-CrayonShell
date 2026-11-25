@@ -138,7 +138,7 @@ function joinWindowsPath(...parts) {
     return parts
         .map((part) => String(part || '').replace(/^[\\/]+|[\\/]+$/g, ''))
         .filter(Boolean)
-        .join('\\\\');
+        .join('\\');
 }
 
 async function listSubdirectories(sdk, path) {
@@ -228,14 +228,15 @@ async function showYearbookExplorer(sdk) {
     });
     if (!selectedChild) return { cancelled: true };
 
-    const targetPath = selectedChild === 'open-parent-folder'
-        ? folderPath
-        : selectedChild === 'child:' + Number(selectedChild.slice('child:'.length))
-            && Number.isInteger(Number(selectedChild.slice('child:'.length)))
-            && Number(selectedChild.slice('child:'.length)) >= 0
-            && Number(selectedChild.slice('child:'.length)) < children.length
-            ? joinWindowsPath(folderPath, children[Number(selectedChild.slice('child:'.length))])
-            : '';
+    let targetPath = '';
+    if (selectedChild === 'open-parent-folder') {
+        targetPath = folderPath;
+    } else if (selectedChild.startsWith('child:')) {
+        const childIndex = Number(selectedChild.slice('child:'.length));
+        if (Number.isInteger(childIndex) && childIndex >= 0 && childIndex < children.length) {
+            targetPath = joinWindowsPath(folderPath, children[childIndex]);
+        }
+    }
 
     if (!targetPath) return { cancelled: true };
 
