@@ -9,17 +9,24 @@ import {
     parseActivityBarConfig
 } from '../src/features/activitybar/config/schema.js';
 import { FA4_ICON_NAMES, isFa4IconName } from '../src/features/activitybar/icons/fa4Catalog.js';
+import { ACTIVITY_BAR_STORAGE_KEY, loadActivityBarConfig } from '../src/features/activitybar/config/storage.js';
 
 test('La configuración predeterminada incluye el botón para mostrar el panel izquierdo', () => {
     const config = createDefaultActivityBarConfig();
 
     assert.equal(config.version, ACTIVITY_BAR_CONFIG_VERSION);
-    assert.equal(config.buttons.length, 1);
+    assert.equal(config.buttons.length, 2);
     assert.deepEqual(config.buttons[0], {
         id: 'ui.toggleSidebar',
         actionId: 'ui.toggleSidebar',
-        label: 'Panel izquierdo',
+        label: 'Biblioteca',
         icon: 'columns'
+    });
+    assert.deepEqual(config.buttons[1], {
+        id: 'legacy.yearbookExplorer',
+        actionId: 'legacy.yearbookExplorer',
+        label: 'Yearbook Explorer',
+        icon: 'calendar'
     });
 });
 
@@ -77,4 +84,42 @@ test('El selector utiliza el catálogo completo de nombres de Font Awesome 4.7.0
         assert.equal(isFa4IconName(name), true);
     }
     assert.equal(isFa4IconName('solid-user'), false);
+});
+
+
+test('Migra la configuración predeterminada anterior sin alterar configuraciones personalizadas', () => {
+    const storage = {
+        getItem: (key) => key === ACTIVITY_BAR_STORAGE_KEY
+            ? JSON.stringify({
+                version: ACTIVITY_BAR_CONFIG_VERSION,
+                buttons: [{
+                    id: 'ui.toggleSidebar',
+                    actionId: 'ui.toggleSidebar',
+                    label: 'Panel izquierdo',
+                    icon: 'columns'
+                }]
+            })
+            : null
+    };
+
+    const migrated = loadActivityBarConfig(storage);
+    assert.deepEqual(migrated.buttons.map((button) => button.actionId), [
+        'ui.toggleSidebar',
+        'legacy.yearbookExplorer'
+    ]);
+
+    const customStorage = {
+        getItem: () => JSON.stringify({
+            version: ACTIVITY_BAR_CONFIG_VERSION,
+            buttons: [{
+                id: 'playlist.refresh',
+                actionId: 'playlist.refresh',
+                label: 'Refresh',
+                icon: 'refresh'
+            }]
+        })
+    };
+
+    const custom = loadActivityBarConfig(customStorage);
+    assert.deepEqual(custom.buttons.map((button) => button.actionId), ['playlist.refresh']);
 });

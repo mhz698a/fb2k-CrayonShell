@@ -118,7 +118,7 @@ Migrated actions:
 - Google Song Searcher: selection-aware popup with filename, title/artist, lyrics and release-date queries.
 - Newgrounds: opens the selected track's page only when the filename ends in `(η)` and its title ends in `(ID: number)`.
 - NumHand utilities menu: copy selected filenames, copy selected paths, launch NumHand or the SMB year dialog with the selected file path, explore the current track's folder and open the configured recycle location.
-- Yearbook Explorer: browse a configurable year root using `file.list`; folders marked `.album` launch GalleryAnuary with the selected child folder.
+- Yearbook Explorer: opens its switchable Sidebar panel. The folder tree uses `file.list`; a child of a `.album` container launches GalleryAnuary.
 - External tool launchers: FrameEtude, CatchEtude and AnuarySignature.
 
 Native menu, clipboard, playlist, file and process operations use the typed SDK. Selected-file launchers pass `absolutePath` as a separate process argument; no command-line string concatenation is used. External scripts run through `shell.spawn` with the current configured window visibility (`hidden: false` in this branch) and are not invoked from Chrome/Edge or demo mode. No Spider Monkey Panel globals such as `plman`, `ActiveXObject` or `window.CreatePopupMenu` are used.
@@ -141,3 +141,10 @@ Automated tests cover atomic registration, duplicate IDs, module metadata, modul
 ## Sidebar lifecycle
 
 ReFacets and Spectrum initialize on first display. Their activation state is sticky: hiding the Sidebar changes presentation only. It does not cancel Media Library subscriptions, repeat Library Viewer Selection synchronization, clear FFT data or stop the Spectrum animation loop. They are cleaned up when their React components are unmounted or when Spectrum settings require a new subscription.
+
+
+## Yearbook Explorer panel
+
+Yearbook Explorer is a persistent Sidebar view, selected from its ActivityBar button. The Biblioteca button switches back to ReFacets and Spectrum. Selecting the already active view collapses the Sidebar; selecting the other view opens it.
+
+The explorer reads year directories from the configured `internalBasePath` using `file.list`, then lazily loads child directories as the tree expands. Expanded nodes are persisted locally. The panel provides direct actions to refresh the root, open the configured root or open the selected folder. A child inside a directory whose name contains `.album` is sent to the configured GalleryAnuary script; other selections open in Windows Explorer. No native popup sequence is used.

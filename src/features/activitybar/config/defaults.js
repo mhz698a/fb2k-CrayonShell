@@ -7,8 +7,14 @@ export function createDefaultActivityBarConfig() {
             {
                 id: 'ui.toggleSidebar',
                 actionId: 'ui.toggleSidebar',
-                label: 'Panel izquierdo',
+                label: 'Biblioteca',
                 icon: 'columns'
+            },
+            {
+                id: 'legacy.yearbookExplorer',
+                actionId: 'legacy.yearbookExplorer',
+                label: 'Yearbook Explorer',
+                icon: 'calendar'
             }
         ]
     };

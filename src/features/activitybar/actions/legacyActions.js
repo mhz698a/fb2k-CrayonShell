@@ -180,132 +180,6 @@ async function openNewgroundsPage(context, sdk) {
 }
 
 
-function joinWindowsPath(...parts) {
-    return parts
-        .map((part) => String(part || '').replace(/^[\\/]+|[\\/]+$/g, ''))
-        .filter(Boolean)
-        .join('\\');
-}
-
-async function listSubdirectories(sdk, path) {
-    const result = requireSuccessfulResult(
-        await sdk.file.list(path),
-        'file.list'
-    );
-    return Array.isArray(result.directories) ? result.directories : [];
-}
-
-async function showYearbookExplorer(context, sdk) {
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    for (let year = 1999; year <= currentYear; year += 1) {
-        years.push({ id: 'year:' + year, label: String(year) });
-    }
-
-    const selectedYear = await sdk.menu.popup(years, undefined, {
-        windowModel: 'contentSized'
-    });
-    if (!selectedYear || !selectedYear.startsWith('year:')) {
-        return { cancelled: true };
-    }
-
-    const year = Number(selectedYear.slice(5));
-    if (!Number.isInteger(year) || year < 1999 || year > currentYear) {
-        throw new Error('El año seleccionado no es válido.');
-    }
-
-    const internalBasePath = String(getExternalToolSettings(context).internalBasePath || '').trim();
-    if (!internalBasePath) {
-        throw new Error('Configura la raíz de Yearbook Explorer en "Configurar herramientas externas".');
-    }
-    const yearRoot = joinWindowsPath(internalBasePath, String(year));
-    const folders = (await listSubdirectories(sdk, yearRoot))
-        .sort((a, b) => String(a).localeCompare(String(b), undefined, {
-            numeric: true,
-            sensitivity: 'base'
-        }));
-
-    const folderItems = [
-        { id: 'open-year-root', label: '...' },
-        { type: 'separator' },
-        ...(folders.length
-            ? folders.map((folder, index) => ({
-                id: 'folder:' + index,
-                label: folder
-            }))
-            : [{ id: 'no-folders', label: '(sin carpetas)', enabled: false }])
-    ];
-
-    const selectedFolder = await sdk.menu.popup(folderItems, undefined, {
-        windowModel: 'contentSized'
-    });
-    if (!selectedFolder) return { cancelled: true };
-
-    if (selectedFolder === 'open-year-root') {
-        return requireSuccessfulResult(
-            await sdk.shell.showInExplorer(yearRoot),
-            'shell.showInExplorer'
-        );
-    }
-    if (selectedFolder === 'no-folders') return { cancelled: true };
-
-    const folderIndex = Number(selectedFolder.slice('folder:'.length));
-    if (!Number.isInteger(folderIndex) || folderIndex < 0 || folderIndex >= folders.length) {
-        return { cancelled: true };
-    }
-
-    const folderName = folders[folderIndex];
-    const folderPath = joinWindowsPath(yearRoot, folderName);
-    const isAlbumContainer = /\.\s*album/i.test(folderName);
-    const children = (await listSubdirectories(sdk, folderPath))
-        .sort((a, b) => String(a).localeCompare(String(b), undefined, {
-            numeric: true,
-            sensitivity: 'base'
-        }));
-
-    const childItems = [
-        { id: 'open-parent-folder', label: '...' },
-        { type: 'separator' },
-        ...(children.length
-            ? children.map((folder, index) => ({
-                id: 'child:' + index,
-                label: folder
-            }))
-            : [{ id: 'no-children', label: '(sin subcarpetas)', enabled: false }])
-    ];
-
-    const selectedChild = await sdk.menu.popup(childItems, undefined, {
-        windowModel: 'contentSized'
-    });
-    if (!selectedChild) return { cancelled: true };
-
-    let targetPath = '';
-    if (selectedChild === 'open-parent-folder') {
-        targetPath = folderPath;
-    } else if (selectedChild.startsWith('child:')) {
-        const childIndex = Number(selectedChild.slice('child:'.length));
-        if (Number.isInteger(childIndex) && childIndex >= 0 && childIndex < children.length) {
-            targetPath = joinWindowsPath(folderPath, children[childIndex]);
-        }
-    }
-
-    if (!targetPath) return { cancelled: true };
-
-    if (isAlbumContainer) {
-        return spawnConfiguredPythonTool(
-            context,
-            sdk,
-            'galleryAnuaryScript',
-            [targetPath]
-        );
-    }
-
-    return requireSuccessfulResult(
-        await sdk.shell.showInExplorer(targetPath),
-        'shell.showInExplorer'
-    );
-}
-
 async function showNumHandExtrasMenu(context, sdk) {
     const items = [
         { id: 'copy-names', label: 'Copy Names' },
@@ -512,11 +386,11 @@ export function createLegacyActivityActions({
             id: 'legacy.yearbookExplorer',
             label: 'Yearbook Explorer',
             category: 'Archivos y selección',
-            description: 'Navega por los años y subcarpetas de la raíz configurable y abre carpetas en Explorer o GalleryAnuary.',
+            description: 'Abre el panel explorador Yearbook para recorrer años y carpetas de la raíz configurable.',
             defaultIcon: 'calendar',
-            executionPolicy: 'single',
             isAvailable: nativeAvailability,
-            execute: (context) => showYearbookExplorer(context, getSdk())
+            isActive: (context) => context.sidebarCollapsed === false && context.sidebarView === 'yearbook',
+            execute: (context) => context.selectSidebarView('yearbook')
         },
         {
             id: 'legacy.googleSearcherSongs',

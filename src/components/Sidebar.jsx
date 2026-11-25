@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import SpectrumVisualizer from './audio/SpectrumVisualizer.jsx';
 import ReFacetsPanel from './refacets/ReFacetsPanel.jsx';
+import YearbookExplorerPanel from './yearbook/YearbookExplorerPanel.jsx';
 
 const DEFAULT_FACET_HEIGHT = 68;
 const MIN_FACET_HEIGHT = 30;
@@ -20,11 +21,18 @@ function readFacetHeight() {
     }
 }
 
-export default function Sidebar({ visible = true }) {
+export default function Sidebar({
+    visible = true,
+    activeView = 'library',
+    externalTools = {},
+    onOpenSettings
+}) {
     const sidebarRef = useRef(null);
     const draggingRef = useRef(false);
     const [facetHeight, setFacetHeight] = useState(readFacetHeight);
     const [isResizing, setIsResizing] = useState(false);
+    const libraryVisible = visible && activeView === 'library';
+    const yearbookVisible = visible && activeView === 'yearbook';
 
     useEffect(() => {
         try {
@@ -89,37 +97,59 @@ export default function Sidebar({ visible = true }) {
             aria-label="Panel lateral"
             aria-hidden={!visible}
         >
-            <div
-                className={'sidebar-layout' + (isResizing ? ' is-resizing' : '')}
-                style={{ '--refacets-height': facetHeight + '%' }}
-            >
-                <section className="sidebar-refacets" aria-label="ReFacets">
-                    <ReFacetsPanel visible={visible} />
+            <div className="sidebar-views">
+                <section
+                    className="sidebar-view"
+                    aria-label="ReFacets y Spectrum"
+                    aria-hidden={activeView !== 'library'}
+                    hidden={activeView !== 'library'}
+                >
+                    <div
+                        className={'sidebar-layout' + (isResizing ? ' is-resizing' : '')}
+                        style={{ '--refacets-height': facetHeight + '%' }}
+                    >
+                        <section className="sidebar-refacets" aria-label="ReFacets">
+                            <ReFacetsPanel visible={libraryVisible} />
+                        </section>
+
+                        <div
+                            className="sidebar-section-splitter"
+                            role="separator"
+                            aria-label="Cambiar la altura entre ReFacets y Spectrum"
+                            aria-orientation="horizontal"
+                            aria-valuemin={MIN_FACET_HEIGHT}
+                            aria-valuemax={MAX_FACET_HEIGHT}
+                            aria-valuenow={facetHeight}
+                            tabIndex={libraryVisible ? 0 : -1}
+                            title="Arrastrar para cambiar la altura"
+                            onPointerDown={handleSplitterPointerDown}
+                            onPointerMove={handleSplitterPointerMove}
+                            onPointerUp={stopSplitterDrag}
+                            onPointerCancel={stopSplitterDrag}
+                            onLostPointerCapture={() => {
+                                draggingRef.current = false;
+                                setIsResizing(false);
+                            }}
+                            onKeyDown={handleSplitterKeyDown}
+                            onDoubleClick={() => setFacetHeight(DEFAULT_FACET_HEIGHT)}
+                        />
+
+                        <SpectrumVisualizer visible={libraryVisible} />
+                    </div>
                 </section>
 
-                <div
-                    className="sidebar-section-splitter"
-                    role="separator"
-                    aria-label="Cambiar la altura entre ReFacets y Spectrum"
-                    aria-orientation="horizontal"
-                    aria-valuemin={MIN_FACET_HEIGHT}
-                    aria-valuemax={MAX_FACET_HEIGHT}
-                    aria-valuenow={facetHeight}
-                    tabIndex={visible ? 0 : -1}
-                    title="Arrastrar para cambiar la altura"
-                    onPointerDown={handleSplitterPointerDown}
-                    onPointerMove={handleSplitterPointerMove}
-                    onPointerUp={stopSplitterDrag}
-                    onPointerCancel={stopSplitterDrag}
-                    onLostPointerCapture={() => {
-                        draggingRef.current = false;
-                        setIsResizing(false);
-                    }}
-                    onKeyDown={handleSplitterKeyDown}
-                    onDoubleClick={() => setFacetHeight(DEFAULT_FACET_HEIGHT)}
-                />
-
-                <SpectrumVisualizer visible={visible} />
+                <section
+                    className="sidebar-view"
+                    aria-label="Yearbook Explorer"
+                    aria-hidden={activeView !== 'yearbook'}
+                    hidden={activeView !== 'yearbook'}
+                >
+                    <YearbookExplorerPanel
+                        visible={yearbookVisible}
+                        externalTools={externalTools}
+                        onOpenSettings={onOpenSettings}
+                    />
+                </section>
             </div>
         </aside>
     );

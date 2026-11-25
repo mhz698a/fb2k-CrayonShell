@@ -2095,3 +2095,251 @@ button.play-btn {
         align-items: flex-end;
     }
 }
+
+
+/* Keep switchable Sidebar views mounted while hiding the inactive view. */
+.sidebar-views,
+.sidebar-view {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+.sidebar-view[hidden] { display: none; }
+
+/* Yearbook Explorer: persistent folder tree. */
+.yearbook-explorer-panel {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    color: #dedede;
+    background: #252526;
+    font-size: 11px;
+}
+.yearbook-explorer-heading {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 30px;
+    padding: 3px 7px 3px 9px;
+    border-bottom: 1px solid rgba(128,128,128,.22);
+}
+.yearbook-explorer-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.yearbook-explorer-title strong {
+    overflow: hidden;
+    color: #ededed;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 600;
+}
+.yearbook-explorer-title > span {
+    flex: 0 0 auto;
+    color: #999;
+    font-size: 9px;
+}
+.yearbook-explorer-title > span.is-ready { color: #91c99a; }
+.yearbook-explorer-title > span.is-loading { color: #d2b879; }
+.yearbook-explorer-title > span.is-error { color: #e29b91; }
+.yearbook-explorer-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+}
+.yearbook-explorer-actions button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 25px;
+    height: 24px;
+    padding: 0;
+    color: #c9c9c9;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.yearbook-explorer-actions button:hover:not(:disabled) {
+    color: #fff;
+    background: #37373a;
+    border-color: #555;
+}
+.yearbook-explorer-actions button:disabled { opacity: .38; cursor: default; }
+.yearbook-explorer-root {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    min-height: 25px;
+    padding: 3px 9px;
+    color: #a6a6a6;
+    background: #202022;
+    border-bottom: 1px solid rgba(128,128,128,.16);
+    font-size: 9px;
+}
+.yearbook-explorer-root > i { flex: 0 0 auto; color: #c6a86b; }
+.yearbook-explorer-root > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.yearbook-explorer-error {
+    flex: 0 0 auto;
+    margin: 6px 8px 2px;
+    padding: 6px 7px;
+    color: #e6b0a9;
+    background: rgba(170,74,58,.1);
+    border-left: 2px solid #b75b50;
+    font-size: 10px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.yearbook-explorer-empty {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 0;
+    padding: 18px;
+    color: #999;
+    text-align: center;
+    line-height: 1.45;
+}
+.yearbook-explorer-empty > i { color: #777; font-size: 26px; }
+.yearbook-explorer-empty button,
+.yearbook-explorer-footer button {
+    min-height: 26px;
+    padding: 4px 8px;
+    color: #e7e7e7;
+    background: #333337;
+    border: 1px solid #555;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+}
+.yearbook-explorer-empty button:hover,
+.yearbook-explorer-footer button:hover:not(:disabled) { background: #414147; }
+.yearbook-tree {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    padding: 4px 0;
+    scrollbar-color: #4b4b4b #202020;
+    scrollbar-width: thin;
+}
+.yearbook-tree::-webkit-scrollbar { width: 8px; }
+.yearbook-tree::-webkit-scrollbar-track { background: #202020; }
+.yearbook-tree::-webkit-scrollbar-thumb {
+    background: #4b4b4b;
+    border: 1px solid #202020;
+    border-radius: 5px;
+}
+.yearbook-tree-row {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    min-width: 0;
+    min-height: 24px;
+    padding-right: 7px;
+    padding-left: calc(5px + var(--tree-depth,0) * 15px);
+}
+.yearbook-tree-row:hover { background: rgba(128,128,128,.12); }
+.yearbook-tree-row.is-selected { background: rgba(0,122,204,.34); }
+.yearbook-tree-toggle {
+    display: flex;
+    flex: 0 0 18px;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 22px;
+    padding: 0;
+    color: #999;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font-size: 9px;
+}
+.yearbook-tree-toggle:hover:not(:disabled) { color: #fff; }
+.yearbook-tree-toggle:disabled { opacity: .25; cursor: default; }
+.yearbook-tree-label {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    height: 23px;
+    padding: 0 3px;
+    color: #cfcfcf;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+    font-size: 10px;
+}
+.yearbook-tree-row.is-selected .yearbook-tree-label { color: #fff; }
+.yearbook-tree-label > i { flex: 0 0 auto; color: #c6a86b; }
+.yearbook-tree-label > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.yearbook-tree-message {
+    flex: 0 0 auto;
+    padding: 7px 10px 7px 29px;
+    color: #858585;
+    font-size: 10px;
+}
+.yearbook-explorer-footer {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    min-height: 31px;
+    padding: 3px 7px 3px 9px;
+    color: #999;
+    background: #242426;
+    border-top: 1px solid rgba(128,128,128,.2);
+    font-size: 9px;
+}
+.yearbook-explorer-footer > span:first-child {
+    flex: 0 0 auto;
+    color: #c9c9c9;
+    font-variant-numeric: tabular-nums;
+}
+.yearbook-selected-path {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.yearbook-explorer-footer button {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    min-height: 25px;
+}
+.yearbook-explorer-footer button:disabled { opacity: .4; cursor: default; }
