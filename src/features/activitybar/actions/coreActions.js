@@ -15,7 +15,7 @@ export function registerCoreActivityBarActions(registry) {
         description: 'Muestra u oculta ReFacets y Spectrum; también vuelve a esta vista desde Yearbook Explorer.',
         defaultIcon: 'columns',
         isAvailable: callbackAvailability('toggleSidebar', 'El control del panel izquierdo'),
-        isActive: (context) => context.sidebarCollapsed === false && context.sidebarView === 'library',
+        isActive: (context) => context.sidebarCollapsed === false && (context.sidebarView || 'library') === 'library',
         execute: (context) => context.toggleSidebar()
     }));
 
