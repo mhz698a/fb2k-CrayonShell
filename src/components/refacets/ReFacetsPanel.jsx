@@ -1,40 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import FacetColumn from './FacetColumn.jsx';
 import { useLibraryFacets } from '../../hooks/useLibraryFacets.js';
-
-const PREFS_KEY = 'crayonshell.refacets.presentation.v1';
-const COLUMN_SPLIT_STORAGE_KEY = 'crayonshell.refacets.columnSplit.v1';
-const DEFAULT_YEARS_WIDTH = 50;
-const MIN_YEARS_WIDTH = 25;
-const MAX_YEARS_WIDTH = 75;
-const DEFAULT_PREFS = {
-    showHeader: true,
-    showFooter: true,
-    yearsCount: true,
-    subfoldersCount: true
-};
-
-function readColumnSplit() {
-    try {
-        const saved = window.localStorage.getItem(COLUMN_SPLIT_STORAGE_KEY);
-        if (saved === null) return DEFAULT_YEARS_WIDTH;
-        const value = Number(saved);
-        return Number.isFinite(value)
-            ? Math.max(MIN_YEARS_WIDTH, Math.min(MAX_YEARS_WIDTH, value))
-            : DEFAULT_YEARS_WIDTH;
-    } catch {
-        return DEFAULT_YEARS_WIDTH;
-    }
-}
-
-function readPrefs() {
-    try {
-        const stored = JSON.parse(window.localStorage.getItem(PREFS_KEY) || '{}');
-        return { ...DEFAULT_PREFS, ...stored };
-    } catch {
-        return { ...DEFAULT_PREFS };
-    }
-}
+import {
+    DEFAULT_REFACETS_COLUMN_SPLIT as DEFAULT_YEARS_WIDTH,
+    MAX_REFACETS_COLUMN_SPLIT as MAX_YEARS_WIDTH,
+    MIN_REFACETS_COLUMN_SPLIT as MIN_YEARS_WIDTH,
+    REFACETS_COLUMN_SPLIT_STORAGE_KEY as COLUMN_SPLIT_STORAGE_KEY,
+    REFACETS_PRESENTATION_STORAGE_KEY as PREFS_KEY,
+    readRefacetsColumnSplit,
+    readRefacetsPresentation
+} from '../../features/refacets/refacetsSettings.js';
 
 function formatProgress(progress) {
     if (!progress) return 'Preparando consulta…';
@@ -72,13 +47,13 @@ export default function ReFacetsPanel({ visible = true }) {
         refresh
     } = useLibraryFacets(hasBeenVisible);
 
-    const [prefs, setPrefs] = useState(readPrefs);
+    const [prefs, setPrefs] = useState(readRefacetsPresentation);
     const [menu, setMenu] = useState(null);
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
     const menuRef = useRef(null);
     const columnsRef = useRef(null);
     const columnDraggingRef = useRef(false);
-    const [yearsWidth, setYearsWidth] = useState(readColumnSplit);
+    const [yearsWidth, setYearsWidth] = useState(readRefacetsColumnSplit);
     const [isColumnResizing, setIsColumnResizing] = useState(false);
     const isLoading = status === 'loading';
 

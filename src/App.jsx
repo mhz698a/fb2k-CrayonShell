@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ActivityBar from './components/activitybar/ActivityBar.jsx';
 import ActivityBarManagerDialog from './components/activitybar/ActivityBarManagerDialog.jsx';
 import ExternalToolsDialog from './components/activitybar/ExternalToolsDialog.jsx';
+import SettingsBackupDialog from './components/settings/SettingsBackupDialog.jsx';
 import { useExternalToolsConfig } from './features/activitybar/hooks/useExternalToolsConfig.js';
 import { useActivityBarConfig } from './features/activitybar/hooks/useActivityBarConfig.js';
 import { useActivityBarActions } from './features/activitybar/hooks/useActivityBarActions.js';
@@ -12,43 +13,20 @@ import PlaylistStatus from './components/PlaylistStatus.jsx';
 import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
 import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
+import {
+    SIDEBAR_COLLAPSED_STORAGE_KEY,
+    SIDEBAR_VIEW_STORAGE_KEY,
+    SIDEBAR_WIDTH_STORAGE_KEY,
+    MAX_SIDEBAR_WIDTH,
+    MIN_SIDEBAR_WIDTH,
+    readSidebarCollapsed,
+    readSidebarView,
+    readSidebarWidth
+} from './features/settings/providers/coreUiSettings.js';
+import { settingsRegistry } from './features/settings/index.js';
+import { registerCoreSettingsProviders } from './features/settings/providers/coreSettingsProviders.js';
 
-const MIN_SIDEBAR_WIDTH = 240;
-const MAX_SIDEBAR_WIDTH = 520;
-const DEFAULT_SIDEBAR_WIDTH = 320;
-const SIDEBAR_WIDTH_STORAGE_KEY = 'crayonshell.sidebar.width.v1';
-const SIDEBAR_COLLAPSED_STORAGE_KEY = 'crayonshell.sidebar.collapsed.v1';
-const SIDEBAR_VIEW_STORAGE_KEY = 'crayonshell.sidebar.view.v1';
-
-function readSidebarCollapsed() {
-    try {
-        const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
-        return stored === null ? true : stored === 'true';
-    } catch {
-        return true;
-    }
-}
-
-function readSidebarView() {
-    try {
-        return window.localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY) === 'yearbook'
-            ? 'yearbook'
-            : 'library';
-    } catch {
-        return 'library';
-    }
-}
-
-function readSidebarWidth() {
-    try {
-        const stored = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
-        return Number.isFinite(stored) && stored >= MIN_SIDEBAR_WIDTH && stored <= MAX_SIDEBAR_WIDTH
-            ? stored
-            : DEFAULT_SIDEBAR_WIDTH;
-    } catch {
-        return DEFAULT_SIDEBAR_WIDTH;
-    }
-}
+registerCoreSettingsProviders(settingsRegistry);
 
 function clampSidebarWidth(width, containerWidth) {
     const availableMaximum = Math.max(
@@ -73,6 +51,7 @@ export default function App() {
     const [activityActionError, setActivityActionError] = useState('');
     const [activityBarManagerOpen, setActivityBarManagerOpen] = useState(false);
     const [externalToolsSettingsOpen, setExternalToolsSettingsOpen] = useState(false);
+    const [settingsBackupOpen, setSettingsBackupOpen] = useState(false);
     const { config: externalToolsConfig, saveConfig: saveExternalToolsConfig } = useExternalToolsConfig();
     const {
         config: activityBarConfig,
@@ -125,6 +104,14 @@ export default function App() {
 
     const closeExternalToolsSettings = useCallback(() => {
         setExternalToolsSettingsOpen(false);
+    }, []);
+
+    const openSettingsBackup = useCallback(() => {
+        setSettingsBackupOpen(true);
+    }, []);
+
+    const closeSettingsBackup = useCallback(() => {
+        setSettingsBackupOpen(false);
     }, []);
 
     const reportActivityActionError = useCallback((failure) => {
@@ -307,6 +294,7 @@ export default function App() {
                 buttons={activityBarConfig.buttons}
                 actionCatalog={activityBarActionCatalog}
                 onExecuteAction={executeActivityBarAction}
+                onOpenSettingsBackup={openSettingsBackup}
             />
 
             <ExternalToolsDialog
@@ -314,6 +302,10 @@ export default function App() {
                 config={externalToolsConfig}
                 onClose={closeExternalToolsSettings}
                 onSave={saveExternalToolsConfig}
+            />
+            <SettingsBackupDialog
+                open={settingsBackupOpen}
+                onClose={closeSettingsBackup}
             />
             <ActivityBarManagerDialog
                 open={activityBarManagerOpen}

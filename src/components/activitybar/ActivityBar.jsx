@@ -5,7 +5,8 @@ function FaIcon({ name }) {
 export default function ActivityBar({
     buttons = [],
     actionCatalog = [],
-    onExecuteAction
+    onExecuteAction,
+    onOpenSettingsBackup
 }) {
     const actionMap = new Map(actionCatalog.map((action) => [action.id, action]));
     const managerAction = actionMap.get('activitybar.manage');
@@ -47,6 +48,17 @@ export default function ActivityBar({
 
             <div className="activitybar-bottom">
                 <div className="activitybar-bottom-separator" />
+                <button
+                    id="SettingsBackup"
+                    className="activitybar-button"
+                    type="button"
+                    aria-label="Respaldar y restaurar configuración"
+                    aria-haspopup="dialog"
+                    title="Respaldar y restaurar configuración"
+                    onClick={() => onOpenSettingsBackup?.()}
+                >
+                    <FaIcon name="archive"/>
+                </button>
                 <button
                     id="ActivityBarManager"
                     className={

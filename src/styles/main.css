@@ -2343,3 +2343,276 @@ button.play-btn {
     min-height: 25px;
 }
 .yearbook-explorer-footer button:disabled { opacity: .4; cursor: default; }
+
+
+/* Global settings backup and restore dialog. */
+.settings-backup-dialog {
+    width: min(820px, calc(100vw - 28px));
+}
+.settings-backup-manager {
+    width: 100%;
+}
+.settings-backup-content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    padding: 13px 15px;
+    overflow: auto;
+    scrollbar-color: #505050 #202020;
+    scrollbar-width: thin;
+}
+.settings-backup-intro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px;
+    background: #1e1e1e;
+    border: 1px solid #414141;
+    border-radius: 4px;
+}
+.settings-backup-intro > div {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+}
+.settings-backup-intro > div > .fa {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: #8fc7e8;
+    font-size: 17px;
+}
+.settings-backup-intro > div > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.settings-backup-intro strong {
+    color: #ededed;
+    font-size: 11px;
+}
+.settings-backup-intro span {
+    color: #999;
+    font-size: 9px;
+    line-height: 1.45;
+}
+.settings-backup-intro button,
+.settings-backup-file-row button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 30px;
+    padding: 5px 9px;
+    color: #fff;
+    background: #075f95;
+    border: 1px solid #0878b8;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+}
+.settings-backup-intro button:hover,
+.settings-backup-file-row button:hover {
+    background: #0877b5;
+}
+.settings-backup-import,
+.settings-backup-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+.settings-backup-file-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+.settings-backup-file-row > span {
+    min-width: 0;
+    overflow: hidden;
+    color: #bcbcbc;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+}
+.settings-backup-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+}
+.settings-backup-summary > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    padding: 7px 8px;
+    background: #1e1e1e;
+    border: 1px solid #3b3b3e;
+    border-radius: 3px;
+}
+.settings-backup-summary strong {
+    color: #f0f0f0;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+}
+.settings-backup-summary span {
+    color: #999;
+    font-size: 9px;
+}
+.settings-backup-exported {
+    margin: 0;
+    color: #999;
+    font-size: 9px;
+}
+.settings-backup-provider-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 300px;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 3px;
+    scrollbar-color: #505050 #202020;
+    scrollbar-width: thin;
+}
+.settings-backup-provider {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px;
+    background: #1e1e1e;
+    border: 1px solid #39393c;
+    border-radius: 3px;
+}
+.settings-backup-provider > input,
+.settings-backup-machine-confirm input {
+    flex: 0 0 auto;
+    margin: 3px 0 0;
+    accent-color: var(--accent-color);
+}
+.settings-backup-provider-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.settings-backup-provider-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px 9px;
+}
+.settings-backup-provider-heading > strong {
+    color: #e8e8e8;
+    font-size: 10px;
+}
+.settings-backup-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    padding: 2px 6px;
+    color: #c3c3c3;
+    background: #333337;
+    border-radius: 3px;
+    font-size: 8px;
+    white-space: nowrap;
+}
+.settings-backup-status.is-ready,
+.settings-backup-status.is-migrated { color: #a9d9ae; }
+.settings-backup-status.is-invalid,
+.settings-backup-status.is-newer-version,
+.settings-backup-status.is-migration-required { color: #e6b0a9; }
+.settings-backup-status.is-unknown { color: #d8c38c; }
+.settings-backup-provider-main > p {
+    margin: 0;
+    color: #999;
+    font-size: 9px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.settings-backup-version {
+    color: #a7a7a7;
+    font-size: 8px;
+    font-variant-numeric: tabular-nums;
+}
+.settings-backup-provider-main > .settings-backup-warning {
+    padding: 5px 7px;
+    color: #d8c38c;
+    background: rgba(176,139,56,.09);
+    border-left: 2px solid #9c8244;
+}
+.settings-backup-provider-main > .settings-backup-error {
+    padding: 5px 7px;
+    color: #e6b0a9;
+    background: rgba(170,74,58,.1);
+    border-left: 2px solid #b75b50;
+}
+.settings-backup-machine-confirm {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px;
+    color: #e0d3ae;
+    background: rgba(176,139,56,.09);
+    border: 1px solid rgba(176,139,56,.35);
+    border-radius: 3px;
+    font-size: 9px;
+    line-height: 1.45;
+}
+.settings-backup-feedback {
+    margin: 0;
+    padding: 7px 9px;
+    color: #a9d9ae;
+    background: rgba(75,140,80,.1);
+    border-left: 2px solid #5f9e67;
+    font-size: 9px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.settings-backup-feedback.is-error {
+    color: #e6b0a9;
+    background: rgba(170,74,58,.1);
+    border-left-color: #b75b50;
+}
+.settings-backup-footer {
+    align-items: center;
+}
+.settings-backup-footer > div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 7px;
+}
+.settings-backup-footer button:not(.activitybar-manager-primary) {
+    color: #ddd;
+    background: #353538;
+    border-color: #555558;
+}
+.settings-backup-footer button:not(.activitybar-manager-primary):hover:not(:disabled) {
+    color: #fff;
+    background: #454548;
+}
+@media (max-width: 560px) {
+    .settings-backup-content { padding: 10px; }
+    .settings-backup-intro {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .settings-backup-intro button { align-self: flex-start; }
+    .settings-backup-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .settings-backup-provider-list { max-height: 250px; }
+    .settings-backup-footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .settings-backup-footer > div { width: 100%; }
+}
