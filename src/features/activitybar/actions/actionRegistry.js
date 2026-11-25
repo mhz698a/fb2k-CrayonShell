@@ -295,6 +295,10 @@ export function createActionRegistry() {
         getState,
         getCatalog,
         getModules,
+        refresh: () => {
+            notify();
+            return revision;
+        },
         subscribe,
         getRevision: () => revision,
         has: (id) => actions.has(String(id || ''))
