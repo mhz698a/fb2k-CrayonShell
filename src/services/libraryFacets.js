@@ -349,19 +349,24 @@ export async function syncLibraryViewerSelection(sdk, directories, options = {})
         if (!uniqueTracks.has(key)) {
             uniqueTracks.set(key, {
                 index: Number.isFinite(Number(track.index)) ? Number(track.index) : Number.MAX_SAFE_INTEGER,
-                path: String(track?.path || track?.absolutePath || ''),
+                path: accessMode === 'media-library'
+                    ? String(track?.absolutePath || path)
+                    : path,
                 sortPath: String(track?.absolutePath || track?.path || path),
                 subsong
             });
         }
     });
 
-    const orderedTracks = Array.from(uniqueTracks.values()).sort((left, right) => (
-        left.sortPath.localeCompare(right.sortPath, 'en', {
-            sensitivity: 'base',
-            numeric: true
-        }) || left.subsong - right.subsong
-    ));
+    const orderedTracks = Array.from(uniqueTracks.values());
+    if (accessMode === 'immediate') {
+        orderedTracks.sort((left, right) => (
+            left.sortPath.localeCompare(right.sortPath, 'en', {
+                sensitivity: 'base',
+                numeric: true
+            }) || left.subsong - right.subsong
+        ));
+    }
     const handles = orderedTracks.map((track) => (
         track.subsong > 0
             ? { path: track.path, subsong: track.subsong }
