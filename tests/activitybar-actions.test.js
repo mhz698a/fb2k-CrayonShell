@@ -91,6 +91,24 @@ test('Action Dispatcher no ejecuta acciones no disponibles', async () => {
     assert.equal(executed, false);
 });
 
+test('Action Dispatcher reporta errores al consultar disponibilidad', async () => {
+    const registry = createActionRegistry();
+    const reported = [];
+    registry.register({
+        id: 'test.availability-failure',
+        isAvailable: () => { throw new Error('Falló la consulta de disponibilidad'); },
+        execute: () => undefined
+    });
+    const dispatcher = createActionDispatcher(registry, {
+        onError: (failure) => reported.push(failure)
+    });
+
+    const result = await dispatcher.execute('test.availability-failure');
+    assert.equal(result.status, 'error');
+    assert.equal(result.error.message, 'Falló la consulta de disponibilidad');
+    assert.equal(reported.length, 1);
+});
+
 test('Action Dispatcher captura y reporta errores de ejecución', async () => {
     const registry = createActionRegistry();
     const reported = [];
