@@ -8,7 +8,7 @@ import {
     openYearbookDirectory
 } from '../../features/yearbook/yearbookService.js';
 import {
-    YEARBOOK_EXPLORER_YEARBOOK_EXPLORER_EXPANDED_STORAGE_KEY,
+    YEARBOOK_EXPLORER_EXPANDED_STORAGE_KEY,
     readYearbookExpandedPaths
 } from '../../features/yearbook/yearbookExplorerSettings.js';
 
@@ -82,7 +82,7 @@ export default function YearbookExplorerPanel({
             pendingLoadsRef.current.clear();
             setDirectoriesByPath({});
             setLoadingPaths(new Set());
-            setExpandedPaths(readExpandedPaths(rootPath));
+            setExpandedPaths(readYearbookExpandedPaths(rootPath));
             setSelectedNode(null);
             setError('');
         }
