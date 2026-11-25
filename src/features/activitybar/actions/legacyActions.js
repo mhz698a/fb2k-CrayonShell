@@ -456,6 +456,7 @@ export function createLegacyActivityActions({
             category: 'Herramientas externas',
             description: 'Inicia el script configurado de FrameEtude.',
             defaultIcon: 'film',
+            executionPolicy: 'single',
             isAvailable: nativeAvailability,
             execute: (context) => spawnConfiguredPythonTool(context, getSdk(), 'frameEtudeScript')
         },
@@ -465,6 +466,7 @@ export function createLegacyActivityActions({
             category: 'Herramientas externas',
             description: 'Inicia el script configurado de CatchEtude.',
             defaultIcon: 'download',
+            executionPolicy: 'single',
             isAvailable: nativeAvailability,
             execute: (context) => spawnConfiguredPythonTool(context, getSdk(), 'catchEtudeScript')
         },
@@ -474,6 +476,7 @@ export function createLegacyActivityActions({
             category: 'Herramientas externas',
             description: 'Inicia el script configurado de AnuarySignature.',
             defaultIcon: 'pencil-square-o',
+            executionPolicy: 'single',
             isAvailable: nativeAvailability,
             execute: (context) => spawnConfiguredPythonTool(context, getSdk(), 'anuarySignatureScript')
         },
@@ -483,6 +486,7 @@ export function createLegacyActivityActions({
             category: 'Herramientas externas',
             description: 'Inicia NumHand pasando la ruta local del único archivo seleccionado.',
             defaultIcon: 'sort-numeric-asc',
+            executionPolicy: 'single',
             isAvailable: selectionAvailability,
             execute: async (context) => {
                 const sdk = getSdk();
@@ -496,6 +500,7 @@ export function createLegacyActivityActions({
             category: 'Herramientas externas',
             description: 'Abre el diálogo SMB pasando la ruta local del único archivo seleccionado.',
             defaultIcon: 'folder-open',
+            executionPolicy: 'single',
             isAvailable: selectionAvailability,
             execute: async (context) => {
                 const sdk = getSdk();
@@ -509,6 +514,7 @@ export function createLegacyActivityActions({
             category: 'Archivos y selección',
             description: 'Navega por los años y subcarpetas de la raíz configurable y abre carpetas en Explorer o GalleryAnuary.',
             defaultIcon: 'calendar',
+            executionPolicy: 'single',
             isAvailable: nativeAvailability,
             execute: (context) => showYearbookExplorer(context, getSdk())
         },
