@@ -28,9 +28,21 @@ function getNativeTrackPath(track) {
     return path;
 }
 
-async function getFirstSelectedTrackPath(context, sdk) {
+async function getExactlyOneSelectedTrackPath(context, sdk, operationLabel) {
     const tracks = await getSelectedTracks(context, sdk);
-    return getNativeTrackPath(tracks[0]);
+    if (tracks.length !== 1) {
+        throw new Error('Esta operación solo acepta UN archivo seleccionado.');
+    }
+
+    const trackPath = getNativeTrackPath(tracks[0]);
+    const result = requireSuccessfulResult(
+        await sdk.file.exists(trackPath),
+        'file.exists'
+    );
+    if (!result.exists || !result.isFile) {
+        throw new Error('El archivo seleccionado no existe o no es válido: ' + trackPath);
+    }
+    return trackPath;
 }
 
 async function spawnConfiguredPythonTool(context, sdk, scriptKey, args = []) {
@@ -324,11 +336,11 @@ async function showNumHandExtrasMenu(context, sdk) {
                 'rutas'
             );
         case 'numhand': {
-            const trackPath = await getFirstSelectedTrackPath(context, sdk);
+            const trackPath = await getExactlyOneSelectedTrackPath(context, sdk, 'NumHand');
             return spawnConfiguredPythonTool(context, sdk, 'numHandScript', [trackPath]);
         }
         case 'smb-year': {
-            const trackPath = await getFirstSelectedTrackPath(context, sdk);
+            const trackPath = await getExactlyOneSelectedTrackPath(context, sdk, 'SMB');
             return spawnConfiguredPythonTool(context, sdk, 'smbYearScript', [trackPath]);
         }
         case 'explore-directory':
