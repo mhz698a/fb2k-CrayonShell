@@ -178,7 +178,7 @@ function NumberField({ label, value, min, max, onChange }) {
     );
 }
 
-export default function SpectrumVisualizer({ visible = true }) {
+export default function SpectrumVisualizer() {
     const canvasRef = useRef(null);
     const dialogRef = useRef(null);
     const menuRef = useRef(null);
@@ -192,7 +192,7 @@ export default function SpectrumVisualizer({ visible = true }) {
     const [draft, setDraft] = useState(settings);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [menu, setMenu] = useState(null);
-    const [status, setStatus] = useState('Panel oculto');
+    const [status, setStatus] = useState('Conectando con foobar2000…');
 
     settingsRef.current = settings;
 
@@ -216,14 +216,6 @@ export default function SpectrumVisualizer({ visible = true }) {
     }, []);
 
     useEffect(() => {
-        if (!visible) {
-            setStatus('Panel oculto');
-            targetRef.current = [];
-            currentRef.current = [];
-            redraw();
-            return undefined;
-        }
-
         let active = true;
         let unsubscribe = null;
         let animationFrame = 0;
@@ -314,7 +306,6 @@ export default function SpectrumVisualizer({ visible = true }) {
             if (typeof unsubscribe === 'function') unsubscribe();
         };
     }, [
-        visible,
         settings.bands,
         settings.fftSize,
         settings.fps,
