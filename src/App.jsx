@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ActivityBar from './components/activitybar/ActivityBar.jsx';
+import { useActivityBarActions } from './features/activitybar/hooks/useActivityBarActions.js';
 import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
@@ -53,6 +54,25 @@ export default function App() {
     const [filter, setFilter] = useState('');
     const [contentView, setContentView] = useState('playlist');
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+    const [activityActionError, setActivityActionError] = useState('');
+
+    const toggleSidebar = useCallback(() => {
+        setSidebarCollapsed((value) => !value);
+    }, []);
+
+    const toggleContentView = useCallback(() => {
+        setContentView((value) => value === 'playlist' ? 'video' : 'playlist');
+    }, []);
+
+    const openDiagnostics = useCallback(() => {
+        setDiagnosticsOpen(true);
+    }, []);
+
+    const reportActivityActionError = useCallback((failure) => {
+        const message = failure.error?.message || 'Error desconocido al ejecutar la acción.';
+        console.error('[ActivityBar] ' + failure.actionId + ': ' + message, failure.error?.cause);
+        setActivityActionError(failure.actionId + ': ' + message);
+    }, []);
 
     useEffect(() => {
         try {
@@ -106,6 +126,34 @@ export default function App() {
         : visibleItems.length === items.length
             ? items.length + ' pistas'
             : visibleItems.length + ' / ' + items.length + ' pistas';
+
+    const activityBarContext = useMemo(() => ({
+        sidebarCollapsed,
+        contentView,
+        toggleSidebar,
+        toggleContentView,
+        refreshPlaylist,
+        openDiagnostics
+    }), [
+        sidebarCollapsed,
+        contentView,
+        toggleSidebar,
+        toggleContentView,
+        refreshPlaylist,
+        openDiagnostics
+    ]);
+
+    const {
+        dispatch: dispatchActivityBarAction,
+        getActionState
+    } = useActivityBarActions(activityBarContext, reportActivityActionError);
+
+    const sidebarActionState = getActionState('ui.toggleSidebar');
+
+    const executeActivityBarAction = useCallback((actionId, payload) => {
+        setActivityActionError('');
+        return dispatchActivityBarAction(actionId, payload);
+    }, [dispatchActivityBarAction]);
 
     function handlePointerDown(event) {
         if (sidebarCollapsed || event.button !== 0) return;
@@ -171,7 +219,8 @@ export default function App() {
         >
             <ActivityBar
                 sidebarCollapsed={sidebarCollapsed}
-                onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
+                sidebarAction={sidebarActionState}
+                onExecuteAction={executeActivityBarAction}
             />
 
             <Sidebar visible={!sidebarCollapsed} />
@@ -198,6 +247,19 @@ export default function App() {
                 onDoubleClick={handleResizerDoubleClick}
             />
 
+            {activityActionError && (
+                <div className="activitybar-action-error" role="alert">
+                    <span>{activityActionError}</span>
+                    <button
+                        type="button"
+                        aria-label="Cerrar aviso de error"
+                        onClick={() => setActivityActionError('')}
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
+
             <main className="main-playlist">
                 <section id="PlaylistPanel" aria-label="Playlist">
                     <PlaylistToolbar
@@ -207,12 +269,8 @@ export default function App() {
                         summary={summary}
                         onFilterChange={setFilter}
                         onPlaylistChange={changePlaylist}
-                        onRefresh={refreshPlaylist}
                         contentView={contentView}
-                        onToggleContentView={() => setContentView((value) => (
-                            value === 'playlist' ? 'video' : 'playlist'
-                        ))}
-                        onOpenDiagnostics={() => setDiagnosticsOpen(true)}
+                        onExecuteAction={executeActivityBarAction}
                     />
 
                     {isDemoMode && (
