@@ -14,6 +14,12 @@ export function useActivityBarActions(context, onError) {
         [onError]
     );
 
+    useSyncExternalStore(
+        dispatcher.subscribe,
+        dispatcher.getRevision,
+        dispatcher.getRevision
+    );
+
     const dispatch = useCallback(
         (actionId, payload) => dispatcher.execute(actionId, context, payload),
         [dispatcher, context]
