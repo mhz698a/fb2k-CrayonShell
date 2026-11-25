@@ -1,0 +1,215 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createLegacyActivityActions } from '../src/features/activitybar/actions/legacyActions.js';
+
+function createSdk(overrides = {}) {
+    const calls = [];
+    const sdk = {
+        playlist: {
+            getSelectedTracks: async (playlistGuid) => {
+                calls.push(['getSelectedTracks', playlistGuid]);
+                return {
+                    success: true,
+                    tracks: [
+                        {
+                            path: 'file:///C:/Music/Track%20Name%20(%CE%B7).mp3',
+                            title: 'Track Title (ID: 12345)',
+                            artist: 'Artist Name'
+                        }
+                    ]
+                };
+            }
+        },
+        clipboard: {
+            write: async (text) => {
+                calls.push(['clipboard.write', text]);
+                return { success: true };
+            }
+        },
+        menu: {
+            runContextCommand: async (command) => {
+                calls.push(['runContextCommand', command]);
+                return { success: true };
+            },
+            runMainMenuCommand: async (command) => {
+                calls.push(['runMainMenuCommand', command]);
+                return { success: true };
+            },
+            popup: async (items) => {
+                calls.push(['popup', items]);
+                return 'title-artist-lyrics';
+            }
+        },
+        shell: {
+            openExternal: async (url) => {
+                calls.push(['openExternal', url]);
+                return { success: true };
+            },
+            showInExplorer: async (path) => {
+                calls.push(['showInExplorer', path]);
+                return { success: true };
+            }
+        }
+    };
+
+    for (const [namespace, methods] of Object.entries(overrides)) {
+        sdk[namespace] = { ...sdk[namespace], ...methods };
+    }
+
+    return { sdk, calls };
+}
+
+function findAction(actions, id) {
+    const action = actions.find((item) => item.id === id);
+    assert.ok(action, 'No se registró ' + id);
+    return action;
+}
+
+const context = {
+    activePlaylistGuid: '{11111111-1111-1111-1111-111111111111}',
+    isDemoMode: false
+};
+
+test('Registra acciones nativas heredadas para menús, DSP y servicios', () => {
+    const actions = createLegacyActivityActions({
+        getSdk: () => ({}),
+        isNativeAvailable: () => true
+    });
+    const ids = actions.map((action) => action.id);
+
+    for (const id of [
+        'legacy.shazam',
+        'legacy.mp3tag.editFolder',
+        'legacy.exploreDirectory',
+        'legacy.effects.playbackRate',
+        'legacy.effects.tempo',
+        'legacy.effects.iirFilter',
+        'legacy.youtube.omniget',
+        'legacy.youtube.searcher',
+        'legacy.googleSearcherSongs',
+        'legacy.newgrounds.openPage',
+        'legacy.numhand.extrasMenu'
+    ]) {
+        assert.ok(ids.includes(id), 'Falta la acción ' + id);
+    }
+});
+
+test('Deshabilita acciones nativas fuera de foobar2000/WebView2', () => {
+    const actions = createLegacyActivityActions({
+        getSdk: () => ({}),
+        isNativeAvailable: () => false
+    });
+    const shazam = findAction(actions, 'legacy.shazam');
+    const google = findAction(actions, 'legacy.googleSearcherSongs');
+
+    assert.equal(shazam.isAvailable(context).available, false);
+    assert.equal(google.isAvailable(context).available, false);
+});
+
+test('Adapta los servicios nativos de Shazam y DSP al SDK tipado', async () => {
+    const { sdk, calls } = createSdk();
+    const actions = createLegacyActivityActions({
+        getSdk: () => sdk,
+        isNativeAvailable: () => true
+    });
+
+    await findAction(actions, 'legacy.shazam').execute(context);
+    await findAction(actions, 'legacy.effects.tempo').execute(context);
+
+    assert.deepEqual(calls, [
+        ['runContextCommand', 'Run service/Search with Shazam'],
+        ['runMainMenuCommand', 'View/DSP/Tempo']
+    ]);
+});
+
+test('Copia los nombres y rutas de la selección real de foobar2000', async () => {
+    const { sdk, calls } = createSdk({
+        menu: {
+            popup: async (items) => {
+                calls.push(['popup', items]);
+                return 'copy-names';
+            }
+        }
+    });
+    const actions = createLegacyActivityActions({
+        getSdk: () => sdk,
+        isNativeAvailable: () => true
+    });
+
+    await findAction(actions, 'legacy.numhand.extrasMenu').execute(context);
+
+    assert.deepEqual(calls, [
+        ['popup', [
+            { id: 'copy-names', label: 'Copy Names' },
+            { id: 'copy-paths', label: 'Copy Paths' },
+            { id: 'explore-directory', label: 'Explore folder of current song' },
+            { type: 'separator' },
+            { id: 'recycle-bin', label: 'Open Recycle Bin' }
+        ]],
+        ['getSelectedTracks', context.activePlaylistGuid],
+        ['clipboard.write', 'Track Name (η).mp3']
+    ]);
+});
+
+test('Google Song Searcher construye la consulta y abre el navegador predeterminado', async () => {
+    const { sdk, calls } = createSdk({
+        menu: {
+            popup: async (items) => {
+                calls.push(['popup', items]);
+                return 'title-artist-lyrics';
+            }
+        }
+    });
+    const actions = createLegacyActivityActions({
+        getSdk: () => sdk,
+        isNativeAvailable: () => true
+    });
+
+    await findAction(actions, 'legacy.googleSearcherSongs').execute(context);
+
+    assert.equal(calls[0][0], 'getSelectedTracks');
+    assert.equal(calls[1][0], 'popup');
+    assert.equal(calls[2][0], 'openExternal');
+    assert.equal(
+        calls[2][1],
+        'https://www.google.com/search?q=Track%20Title%20%28ID%3A%2012345%29%20Artist%20Name%20lyrics'
+    );
+});
+
+test('Newgrounds abre la página solo cuando el nombre y el título cumplen el formato heredado', async () => {
+    const { sdk, calls } = createSdk();
+    const actions = createLegacyActivityActions({
+        getSdk: () => sdk,
+        isNativeAvailable: () => true
+    });
+
+    const result = await findAction(actions, 'legacy.newgrounds.openPage').execute(context);
+
+    assert.equal(result.url, 'https://www.newgrounds.com/audio/listen/12345');
+    assert.deepEqual(calls.at(-1), [
+        'openExternal',
+        'https://www.newgrounds.com/audio/listen/12345'
+    ]);
+});
+
+test('Propaga los errores devueltos por el host al ejecutar acciones heredadas', async () => {
+    const { sdk } = createSdk({
+        menu: {
+            runContextCommand: async () => ({
+                success: false,
+                code: 'MENU_COMMAND_NOT_FOUND',
+                error: 'No se encontró el servicio'
+            })
+        }
+    });
+    const actions = createLegacyActivityActions({
+        getSdk: () => sdk,
+        isNativeAvailable: () => true
+    });
+
+    await assert.rejects(
+        () => findAction(actions, 'legacy.shazam').execute(context),
+        (error) => error.code === 'MENU_COMMAND_NOT_FOUND'
+            && /No se encontró el servicio/.test(error.message)
+    );
+});
