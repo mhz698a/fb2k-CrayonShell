@@ -105,6 +105,7 @@ export default function ActivityBarManagerDialog({
         const file = event.currentTarget.files?.[0];
         if (!file) return;
 
+        const input = event.currentTarget;
         try {
             const json = await file.text();
             onImportConfig(json);
@@ -112,7 +113,7 @@ export default function ActivityBarManagerDialog({
         } catch (error) {
             setImportMessage(error?.message || 'No se pudo importar la configuración.');
         } finally {
-            event.currentTarget.value = '';
+            input.value = '';
         }
     }
 
@@ -168,8 +169,6 @@ export default function ActivityBarManagerDialog({
                                             'activitybar-manager-item'
                                             + (draggedButtonId === button.id ? ' is-dragging' : '')
                                         }
-                                        draggable="true"
-                                        onDragStart={(event) => handleDragStart(event, button.id)}
                                         onDragEnd={() => setDraggedButtonId('')}
                                         onDragOver={(event) => event.preventDefault()}
                                         onDrop={(event) => handleDrop(event, index)}
@@ -180,6 +179,8 @@ export default function ActivityBarManagerDialog({
                                             title="Arrastra para reordenar"
                                             aria-label={'Arrastrar ' + button.label}
                                             tabIndex={-1}
+                                            draggable="true"
+                                            onDragStart={(event) => handleDragStart(event, button.id)}
                                         >
                                             <FaIcon name="arrows"/>
                                         </button>
