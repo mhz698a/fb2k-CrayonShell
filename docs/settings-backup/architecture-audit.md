@@ -126,10 +126,46 @@ El registro no depende de `localStorage`. Los proveedores pueden implementar ada
 6. Los IDs de acciones desconocidos de ActivityBar no deben convertirse en código ni ejecutarse; deben validarse y reportarse como referencias no disponibles.
 7. La importación/exportación existente de ActivityBar debe converger en el formato global sin romper su flujo actual.
 
-## Resultado de la etapa 1
+## Etapa 2 — Exportación global
 
-- Inventario inicial documentado: 11 claves, seis áreas funcionales.
-- Clasificación de preferencias portables, datos dependientes del equipo y estado de interfaz restaurable.
-- Identificación explícita del historial de diagnóstico que debe excluirse.
-- Contrato genérico de proveedores y registro centralizado implementados.
-- Ninguna modificación al almacenamiento actual ni al comportamiento de los módulos.
+Se incorporó un exportador común sin interfaz gráfica ni acceso directo a un origen concreto.
+
+### Formato
+
+- `format`: `crayonshell-settings`.
+- `formatVersion`: versión del contenedor global, actualmente 1.
+- `exportedAt`: fecha ISO 8601.
+- `application`: nombre, versión del paquete y runtime de origen.
+- `providers`: objeto indexado por ID estable; cada entrada contiene su versión independiente y los ajustes normalizados.
+
+### Proveedores registrados
+
+| ID | Área | Contenido |
+|---|---|---|
+| `core.ui` | Interfaz general | Sidebar y altura de ReFacets |
+| `activitybar` | ActivityBar | Accesos configurables |
+| `external-tools` | Herramientas externas | Ejecutables y rutas |
+| `yearbook.explorer` | Yearbook Explorer | Rutas expandidas relativas a la raíz |
+| `refacets` | ReFacets | Presentación, divisor y filtros seleccionados |
+| `spectrum` | Spectrum | Parámetros FFT y apariencia |
+
+Las seis áreas se registran durante el arranque de CrayonShell. La función de bootstrap es idempotente para tolerar una reevaluación del módulo durante desarrollo.
+
+### Reglas de exportación
+
+- El exportador consulta únicamente los proveedores registrados; no enumera todo `localStorage`.
+- Cada proveedor valida y normaliza los datos antes de agregarlos.
+- La serialización rechaza valores no JSON, referencias circulares, números no finitos, objetos de clases y propiedades peligrosas.
+- Yearbook exporta las carpetas expandidas como segmentos relativos; no transporta las rutas absolutas de Windows en ese proveedor. La raíz sigue siendo responsabilidad de External Tools.
+- External Tools conserva rutas explícitas porque forman parte de la configuración, pero continúan clasificadas como dependientes del equipo.
+- Los datos de diagnóstico y los estados en memoria no se incorporan.
+
+### Resultado de las etapas 1 y 2
+
+- Inventario documentado: 11 claves y seis proveedores funcionales.
+- Registro centralizado con contrato de lectura, validación y aplicación.
+- Seis proveedores reales conectados al almacenamiento actual.
+- Exportador JSON global versionado, independiente de Vite y WebView2.
+- Pruebas de registro, normalización, exportación, serialización y transformación de rutas.
+- Sin interfaz de importación/exportación todavía; corresponde a una etapa posterior.
+- La implementación de importación y la aplicación coordinada de ajustes quedan para la etapa 3.
