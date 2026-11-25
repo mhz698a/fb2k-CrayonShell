@@ -10,6 +10,11 @@ export const DEFAULT_REFACETS_HEIGHT = 68;
 export const MIN_REFACETS_HEIGHT = 30;
 export const MAX_REFACETS_HEIGHT = 85;
 
+import {
+    requireSettingsStorage,
+    resolveSettingsStorage
+} from '../storageAccess.js';
+
 function clampNumber(value, minimum, maximum, fallback) {
     if (value === null || value === undefined || value === '') return fallback;
     const number = Number(value);
@@ -63,7 +68,8 @@ export function normalizeCoreUiSettings(value = {}) {
     };
 }
 
-export function readCoreUiSettings(storage = window.localStorage) {
+export function readCoreUiSettings(storageOverride) {
+    const storage = resolveSettingsStorage(storageOverride);
     const collapsed = readStorageValue(storage, SIDEBAR_COLLAPSED_STORAGE_KEY);
     const view = readStorageValue(storage, SIDEBAR_VIEW_STORAGE_KEY);
     return normalizeCoreUiSettings({
@@ -78,7 +84,8 @@ export function readCoreUiSettings(storage = window.localStorage) {
     });
 }
 
-export function writeCoreUiSettings(value, storage = window.localStorage) {
+export function writeCoreUiSettings(value, storageOverride) {
+    const storage = requireSettingsStorage(storageOverride);
     const settings = normalizeCoreUiSettings(value);
     storage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(settings.sidebar.width));
     storage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(settings.sidebar.collapsed));
@@ -87,18 +94,18 @@ export function writeCoreUiSettings(value, storage = window.localStorage) {
     return settings;
 }
 
-export function readSidebarWidth(storage = window.localStorage) {
+export function readSidebarWidth(storage) {
     return readCoreUiSettings(storage).sidebar.width;
 }
 
-export function readSidebarCollapsed(storage = window.localStorage) {
+export function readSidebarCollapsed(storage) {
     return readCoreUiSettings(storage).sidebar.collapsed;
 }
 
-export function readSidebarView(storage = window.localStorage) {
+export function readSidebarView(storage) {
     return readCoreUiSettings(storage).sidebar.view;
 }
 
-export function readRefacetsHeight(storage = window.localStorage) {
+export function readRefacetsHeight(storage) {
     return readCoreUiSettings(storage).refacets.height;
 }
