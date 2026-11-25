@@ -28,7 +28,7 @@ function getNativeTrackPath(track) {
     return path;
 }
 
-async function getExactlyOneSelectedTrackPath(context, sdk, operationLabel) {
+async function getExactlyOneSelectedTrackPath(context, sdk) {
     const tracks = await getSelectedTracks(context, sdk);
     if (tracks.length !== 1) {
         throw new Error('Esta operación solo acepta UN archivo seleccionado.');
@@ -336,11 +336,11 @@ async function showNumHandExtrasMenu(context, sdk) {
                 'rutas'
             );
         case 'numhand': {
-            const trackPath = await getExactlyOneSelectedTrackPath(context, sdk, 'NumHand');
+            const trackPath = await getExactlyOneSelectedTrackPath(context, sdk);
             return spawnConfiguredPythonTool(context, sdk, 'numHandScript', [trackPath]);
         }
         case 'smb-year': {
-            const trackPath = await getExactlyOneSelectedTrackPath(context, sdk, 'SMB');
+            const trackPath = await getExactlyOneSelectedTrackPath(context, sdk);
             return spawnConfiguredPythonTool(context, sdk, 'smbYearScript', [trackPath]);
         }
         case 'explore-directory':
@@ -486,7 +486,7 @@ export function createLegacyActivityActions({
             isAvailable: selectionAvailability,
             execute: async (context) => {
                 const sdk = getSdk();
-                const trackPath = await getFirstSelectedTrackPath(context, sdk);
+                const trackPath = await getExactlyOneSelectedTrackPath(context, sdk);
                 return spawnConfiguredPythonTool(context, sdk, 'numHandScript', [trackPath]);
             }
         },
@@ -499,7 +499,7 @@ export function createLegacyActivityActions({
             isAvailable: selectionAvailability,
             execute: async (context) => {
                 const sdk = getSdk();
-                const trackPath = await getFirstSelectedTrackPath(context, sdk);
+                const trackPath = await getExactlyOneSelectedTrackPath(context, sdk);
                 return spawnConfiguredPythonTool(context, sdk, 'smbYearScript', [trackPath]);
             }
         },
