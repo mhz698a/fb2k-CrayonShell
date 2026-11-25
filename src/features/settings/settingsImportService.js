@@ -58,29 +58,40 @@ function cloneJsonValue(value, path = '$', ancestors = new WeakSet()) {
     let cloned;
 
     if (Array.isArray(value)) {
-        cloned = value.map((entry, index) => cloneJsonValue(
-            entry,
-            path + '[' + index + ']',
-            ancestors
-        ));
+        cloned = [];
+        const ownKeys = Reflect.ownKeys(value).filter((key) => key !== 'length');
         for (let index = 0; index < value.length; index += 1) {
-            if (!Object.prototype.hasOwnProperty.call(value, index)) {
-                throw new TypeError('El archivo contiene una posición vacía en "' + path + '".');
+            const key = String(index);
+            const descriptor = Object.getOwnPropertyDescriptor(value, key);
+            if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, 'value')) {
+                throw new TypeError('El archivo contiene una posición vacía o calculada en "' + path + '".');
             }
+            cloned.push(cloneJsonValue(
+                descriptor.value,
+                path + '[' + index + ']',
+                ancestors
+            ));
+        }
+        if (ownKeys.some((key) => typeof key !== 'string'
+            || !/^(0|[1-9]\d*)$/.test(key)
+            || Number(key) >= value.length)) {
+            throw new TypeError('El archivo contiene propiedades adicionales en el arreglo "' + path + '".');
         }
     } else {
         cloned = {};
-        for (const [key, entry] of Object.entries(value)) {
+        for (const key of Reflect.ownKeys(value)) {
+            if (typeof key !== 'string') continue;
             if (UNSAFE_JSON_KEYS.has(key)) {
                 throw new TypeError(
                     'El archivo contiene una propiedad no permitida en "' + path + '": ' + key
                 );
             }
             const descriptor = Object.getOwnPropertyDescriptor(value, key);
-            if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, 'value')) {
-                throw new TypeError('El archivo contiene una propiedad calculada en "' + path + '".');
+            if (!descriptor || !descriptor.enumerable
+                || !Object.prototype.hasOwnProperty.call(descriptor, 'value')) {
+                throw new TypeError('El archivo contiene una propiedad no JSON en "' + path + '".');
             }
-            cloned[key] = cloneJsonValue(entry, path + '.' + key, ancestors);
+            cloned[key] = cloneJsonValue(descriptor.value, path + '.' + key, ancestors);
         }
     }
 
