@@ -1,3 +1,8 @@
+import {
+    requireSettingsStorage,
+    resolveSettingsStorage
+} from '../settings/storageAccess.js';
+
 export const SPECTRUM_SETTINGS_STORAGE_KEY = 'crayonshell.spectrum.settings.v1';
 
 export const DEFAULT_SPECTRUM_SETTINGS = Object.freeze({
@@ -71,7 +76,8 @@ export function normalizeSpectrumSettings(value = {}) {
     };
 }
 
-export function readSpectrumSettings(storage = window.localStorage) {
+export function readSpectrumSettings(storageOverride) {
+    const storage = resolveSettingsStorage(storageOverride);
     try {
         const saved = storage.getItem(SPECTRUM_SETTINGS_STORAGE_KEY);
         return saved
@@ -82,7 +88,8 @@ export function readSpectrumSettings(storage = window.localStorage) {
     }
 }
 
-export function writeSpectrumSettings(value, storage = window.localStorage) {
+export function writeSpectrumSettings(value, storageOverride) {
+    const storage = requireSettingsStorage(storageOverride);
     const settings = normalizeSpectrumSettings(value);
     storage.setItem(SPECTRUM_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     return settings;
