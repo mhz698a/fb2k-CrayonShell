@@ -244,7 +244,7 @@ async function showYearbookExplorer(context, sdk) {
 
     const folderName = folders[folderIndex];
     const folderPath = joinWindowsPath(yearRoot, folderName);
-    const isAlbumContainer = /\\.\\s*album/i.test(folderName);
+    const isAlbumContainer = /\.\s*album/i.test(folderName);
     const children = (await listSubdirectories(sdk, folderPath))
         .sort((a, b) => String(a).localeCompare(String(b), undefined, {
             numeric: true,
