@@ -323,8 +323,7 @@ export function inspectSettingsBackup(registry, input) {
     }
 
     const importableCount = rows.filter(getEligible).length;
-    const warningCount = rows.reduce((count, row) => count + row.warnings.length, 0)
-        + unknownProviders.length;
+    const warningCount = rows.reduce((count, row) => count + row.warnings.length, 0);
 
     return Object.freeze({
         format: backup.format,
@@ -374,12 +373,14 @@ function createApplyContext(settingsById) {
  */
 export async function applySettingsBackup(registry, input, options = {}) {
     const plan = inspectSettingsBackup(registry, input);
+    if (options.providerIds !== undefined && !Array.isArray(options.providerIds)) {
+        throw new TypeError('providerIds debe ser una lista de IDs de proveedor.');
+    }
     const requestedIds = options.providerIds === undefined
         ? null
         : new Set(options.providerIds);
 
-    if (requestedIds && (!Array.isArray(options.providerIds)
-        || requestedIds.size !== options.providerIds.length)) {
+    if (requestedIds && requestedIds.size !== options.providerIds.length) {
         throw new TypeError('providerIds debe ser una lista de IDs de proveedor sin duplicados.');
     }
 
