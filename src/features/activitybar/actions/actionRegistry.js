@@ -60,6 +60,18 @@ function evaluateAction(action, context) {
 
 export function createActionRegistry() {
     const actions = new Map();
+    const listeners = new Set();
+    let revision = 0;
+
+    function notify() {
+        revision += 1;
+        listeners.forEach((listener) => listener());
+    }
+
+    function subscribe(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+    }
 
     function register(definition) {
         if (!definition || typeof definition !== 'object') {
@@ -93,17 +105,22 @@ export function createActionRegistry() {
         });
 
         actions.set(id, action);
+        notify();
 
         let registered = true;
         return () => {
             if (!registered) return false;
             registered = false;
-            return actions.delete(id);
+            const removed = actions.delete(id);
+            if (removed) notify();
+            return removed;
         };
     }
 
     function unregister(id) {
-        return actions.delete(String(id || ''));
+        const removed = actions.delete(String(id || ''));
+        if (removed) notify();
+        return removed;
     }
 
     function get(id) {
@@ -125,6 +142,8 @@ export function createActionRegistry() {
         get,
         getState,
         getCatalog,
+        subscribe,
+        getRevision: () => revision,
         has: (id) => actions.has(String(id || ''))
     });
 }
