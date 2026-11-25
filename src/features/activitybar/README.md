@@ -118,7 +118,7 @@ Migrated actions:
 - Google Song Searcher: selection-aware popup with filename, title/artist, lyrics and release-date queries.
 - Newgrounds: opens the selected track's page only when the filename ends in `(η)` and its title ends in `(ID: number)`.
 - NumHand utilities menu: copy selected filenames, copy selected paths, launch NumHand or the SMB year dialog with the selected file path, explore the current track's folder and open the configured recycle location.
-- Yearbook Explorer: browse a configurable year root using `file.list`; folders marked `.album` launch GalleryAnuary with the selected child folder.
+- Yearbook Explorer: opens its switchable Sidebar panel. The folder tree uses `file.list`; a child of a `.album` container launches GalleryAnuary.
 - External tool launchers: FrameEtude, CatchEtude and AnuarySignature.
 
 Native menu, clipboard, playlist, file and process operations use the typed SDK. Selected-file launchers pass `absolutePath` as a separate process argument; no command-line string concatenation is used. External scripts run through `shell.spawn` with the current configured window visibility (`hidden: false` in this branch) and are not invoked from Chrome/Edge or demo mode. No Spider Monkey Panel globals such as `plman`, `ActiveXObject` or `window.CreatePopupMenu` are used.
