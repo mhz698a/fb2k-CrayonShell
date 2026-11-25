@@ -52,6 +52,7 @@ select {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: space-between;
     min-width: 0;
     min-height: 0;
     padding: 6px 0;
@@ -62,10 +63,35 @@ select {
 
 .activitybar-actions {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     align-items: center;
     gap: 6px;
     width: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.activitybar-actions::-webkit-scrollbar {
+    display: none;
+}
+
+.activitybar-bottom {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding-top: 6px;
+}
+
+.activitybar-bottom-separator {
+    width: 30px;
+    height: 1px;
+    background: rgba(255, 255, 255, .17);
 }
 
 .activitybar-button {
@@ -86,12 +112,12 @@ select {
 }
 
 .activitybar-button:hover,
-.activitybar-button[aria-expanded="true"] {
+.activitybar-button.is-active {
     background-color: #37373d;
     color: #ffffff;
 }
 
-.activitybar-button[aria-expanded="true"] {
+.activitybar-button.is-active {
     border-left-color: var(--accent-color);
 }
 
@@ -109,6 +135,494 @@ select {
     stroke-width: 1.7;
     stroke-linecap: round;
     stroke-linejoin: round;
+}
+
+.activitybar-button .fa {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.activitybar-manager-dialog {
+    width: min(780px, calc(100vw - 28px));
+    max-width: none;
+    max-height: calc(100vh - 28px);
+    margin: auto;
+    padding: 0;
+    overflow: hidden;
+    color: #eeeeee;
+    background: #252526;
+    border: 1px solid #505054;
+    border-radius: 6px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, .62);
+}
+
+.activitybar-manager-dialog::backdrop {
+    background: rgba(0, 0, 0, .7);
+}
+
+.activitybar-manager {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 30px);
+    min-height: 0;
+}
+
+.activitybar-manager-heading {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 15px 12px;
+    background: #2b2b2d;
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+}
+
+.activitybar-manager-heading > div {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.activitybar-manager-heading strong {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.activitybar-manager-heading span {
+    color: #a0a0a0;
+    font-size: 10px;
+}
+
+.activitybar-manager-close {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    color: #dddddd;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.activitybar-manager-close:hover {
+    color: #ffffff;
+    background: #414144;
+    border-color: #555555;
+}
+
+.activitybar-manager-section {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, .09);
+}
+
+.activitybar-manager-section-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.activitybar-manager-section-heading strong {
+    color: #e8e8e8;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.activitybar-manager-section-heading > span {
+    color: #929292;
+    font-size: 9px;
+}
+
+.activitybar-manager-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 230px;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 3px;
+    scrollbar-color: #505050 #202020;
+    scrollbar-width: thin;
+}
+
+.activitybar-manager-item {
+    display: grid;
+    grid-template-columns: 20px 34px minmax(120px, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 6px 7px;
+    color: #dddddd;
+    background: #1e1e1e;
+    border: 1px solid #3b3b3d;
+    border-radius: 3px;
+}
+
+.activitybar-manager-item.is-dragging {
+    opacity: .48;
+    border-color: var(--accent-color);
+}
+
+.activitybar-manager-grip {
+    width: 20px;
+    height: 27px;
+    padding: 0;
+    color: #858585;
+    background: transparent;
+    border: 0;
+    cursor: grab;
+}
+
+.activitybar-manager-grip:active {
+    cursor: grabbing;
+}
+
+.activitybar-manager-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    color: #eeeeee;
+    background: #303033;
+    border-radius: 3px;
+    font-size: 17px;
+}
+
+.activitybar-manager-item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.activitybar-manager-label {
+    width: 100%;
+    min-width: 0;
+    min-height: 26px;
+    padding: 3px 6px;
+    color: #ffffff;
+    background: #29292b;
+    border: 1px solid #4a4a4d;
+    border-radius: 2px;
+    font-size: 11px;
+}
+
+.activitybar-manager-label:focus-visible,
+.activitybar-manager-add-row select:focus-visible,
+.activitybar-manager-icon-picker input:focus-visible {
+    outline: 1px solid var(--accent-color);
+    outline-offset: 1px;
+}
+
+.activitybar-manager-item-main > span {
+    overflow: hidden;
+    color: #888888;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+}
+
+.activitybar-manager-item-main > span.is-unavailable {
+    color: #df9a90;
+}
+
+.activitybar-manager-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.activitybar-manager-item-actions button,
+.activitybar-manager-icon-picker-heading button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    color: #cfcfcf;
+    background: #333336;
+    border: 1px solid #48484b;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.activitybar-manager-item-actions button:hover:not(:disabled),
+.activitybar-manager-icon-picker-heading button:hover {
+    color: #ffffff;
+    background: #454548;
+    border-color: #68686b;
+}
+
+.activitybar-manager-item-actions button:disabled {
+    opacity: .32;
+    cursor: default;
+}
+
+.activitybar-manager-item-actions button.is-danger:hover {
+    color: #ffffff;
+    background: #7a3030;
+    border-color: #a04a4a;
+}
+
+.activitybar-manager-empty {
+    padding: 20px 12px;
+    color: #999999;
+    background: #1e1e1e;
+    border: 1px dashed #4a4a4a;
+    text-align: center;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.activitybar-manager-icon-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 9px;
+    background: #1e1e1e;
+    border: 1px solid #454548;
+    border-radius: 3px;
+}
+
+.activitybar-manager-icon-picker-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.activitybar-manager-icon-picker-heading strong {
+    overflow: hidden;
+    color: #e6e6e6;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+}
+
+.activitybar-manager-icon-picker-heading button {
+    width: auto;
+    padding: 0 8px;
+    font-size: 9px;
+}
+
+.activitybar-manager-icon-picker > input {
+    min-height: 29px;
+    padding: 5px 8px;
+    color: #ffffff;
+    background: #29292b;
+    border: 1px solid #4a4a4d;
+    border-radius: 3px;
+    font-size: 10px;
+}
+
+.activitybar-manager-icon-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 4px;
+    max-height: 190px;
+    overflow: auto;
+    padding-right: 3px;
+    scrollbar-color: #505050 #202020;
+    scrollbar-width: thin;
+}
+
+.activitybar-manager-icon-grid button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: 46px;
+    padding: 4px 2px;
+    color: #cfcfcf;
+    background: #2c2c2f;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.activitybar-manager-icon-grid button > .fa {
+    font-size: 16px;
+}
+
+.activitybar-manager-icon-grid button > span {
+    width: 100%;
+    overflow: hidden;
+    color: #999999;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    font-size: 8px;
+}
+
+.activitybar-manager-icon-grid button:hover,
+.activitybar-manager-icon-grid button.is-selected {
+    color: #ffffff;
+    background: #38383b;
+    border-color: var(--accent-color);
+}
+
+.activitybar-manager-icon-grid button.is-selected > span {
+    color: #d7edff;
+}
+
+.activitybar-manager-icon-count {
+    color: #858585;
+    font-size: 9px;
+}
+
+.activitybar-manager-add-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.activitybar-manager-add-row select {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 31px;
+    padding: 5px 8px;
+    color: #eeeeee;
+    background: #1e1e1e;
+    border: 1px solid #4d4d50;
+    border-radius: 3px;
+    font-size: 10px;
+}
+
+.activitybar-manager button,
+.activitybar-manager input,
+.activitybar-manager select {
+    font: inherit;
+}
+
+.activitybar-manager-primary,
+.activitybar-manager-config-actions button,
+.activitybar-manager-footer button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 5px 9px;
+    color: #dddddd;
+    background: #353538;
+    border: 1px solid #555558;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.activitybar-manager-primary {
+    color: #ffffff;
+    background: #075f95;
+    border-color: #0878b8;
+}
+
+.activitybar-manager-primary:hover:not(:disabled) {
+    background: #0877b5;
+}
+
+.activitybar-manager button:disabled {
+    opacity: .4;
+    cursor: default;
+}
+
+.activitybar-manager-config-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.activitybar-manager-config-actions button:hover,
+.activitybar-manager-footer button:hover {
+    color: #ffffff;
+    background: #454548;
+    border-color: #777777;
+}
+
+.activitybar-manager-file-input {
+    display: none;
+}
+
+.activitybar-manager-note {
+    margin: 0;
+    color: #929292;
+    font-size: 9px;
+    line-height: 1.45;
+}
+
+.activitybar-manager-import-message {
+    margin: 0;
+    color: #a9d9ae;
+    font-size: 9px;
+}
+
+.activitybar-manager-footer {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 15px;
+    background: #2b2b2d;
+}
+
+.activitybar-manager-footer > span {
+    color: #858585;
+    font-size: 9px;
+    line-height: 1.4;
+}
+
+.activitybar-manager-footer button {
+    min-width: 70px;
+    color: #ffffff;
+    background: #075f95;
+    border-color: #0878b8;
+}
+
+@media (max-width: 560px) {
+    .activitybar-manager-dialog {
+        width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+    }
+
+    .activitybar-manager {
+        max-height: calc(100vh - 18px);
+        overflow-y: auto;
+    }
+
+    .activitybar-manager-item {
+        grid-template-columns: 18px 30px minmax(90px, 1fr);
+    }
+
+    .activitybar-manager-item-actions {
+        grid-column: 3;
+        justify-content: flex-end;
+    }
+
+    .activitybar-manager-icon-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .activitybar-manager-footer {
+        align-items: flex-end;
+    }
 }
 
 .activitybar-button:disabled {
