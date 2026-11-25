@@ -11,7 +11,8 @@ export const DEFAULT_REFACETS_PRESENTATION = Object.freeze({
     showHeader: true,
     showFooter: true,
     yearsCount: true,
-    subfoldersCount: true
+    subfoldersCount: true,
+    playlistAccessMode: 'immediate'
 });
 
 export const DEFAULT_REFACETS_COLUMN_SPLIT = 50;
@@ -43,10 +44,21 @@ function normalizeSelectionList(value) {
 
 export function normalizeRefacetsPresentation(value = {}) {
     const source = getObject(value);
-    return Object.fromEntries(Object.entries(DEFAULT_REFACETS_PRESENTATION).map(([key, fallback]) => [
-        key,
-        typeof source[key] === 'boolean' ? source[key] : fallback
-    ]));
+    const presentation = Object.fromEntries(
+        Object.entries(DEFAULT_REFACETS_PRESENTATION)
+            .filter(([key]) => key !== 'playlistAccessMode')
+            .map(([key, fallback]) => [
+                key,
+                typeof source[key] === 'boolean' ? source[key] : fallback
+            ])
+    );
+
+    return {
+        ...presentation,
+        playlistAccessMode: source.playlistAccessMode === 'media-library'
+            ? 'media-library'
+            : 'immediate'
+    };
 }
 
 export function normalizeRefacetsColumnSplit(value) {

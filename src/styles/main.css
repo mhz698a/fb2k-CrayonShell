@@ -1862,6 +1862,14 @@ button.play-btn {
     opacity: .4;
     cursor: default;
 }
+.refacets-menu-heading {
+    padding: 4px 8px 2px;
+    color: #9b9b9b;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+}
 .refacets-menu-separator {
     height: 1px;
     margin: 4px 2px;

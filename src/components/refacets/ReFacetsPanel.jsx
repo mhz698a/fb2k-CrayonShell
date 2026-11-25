@@ -24,6 +24,8 @@ export default function ReFacetsPanel({ visible = true }) {
         if (visible) setHasBeenVisible(true);
     }, [visible]);
 
+    const [prefs, setPrefs] = useState(readRefacetsPresentation);
+
     const {
         status,
         message,
@@ -45,9 +47,8 @@ export default function ReFacetsPanel({ visible = true }) {
         clearYears,
         clearSubfolders,
         refresh
-    } = useLibraryFacets(hasBeenVisible);
+    } = useLibraryFacets(hasBeenVisible, prefs.playlistAccessMode);
 
-    const [prefs, setPrefs] = useState(readRefacetsPresentation);
     const [menu, setMenu] = useState(null);
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
     const menuRef = useRef(null);
@@ -299,6 +300,36 @@ export default function ReFacetsPanel({ visible = true }) {
                     <button type="button" role="menuitem" onClick={clearColumnSelection}>
                         Limpiar selección de {menu.column === 'year' ? 'Years' : 'Subfolders'}
                     </button>
+                    {menu.column === 'subfolder' && (
+                        <>
+                            <div className="refacets-menu-separator" />
+                            <div className="refacets-menu-heading">Acceso al seleccionar subcarpetas</div>
+                            <button
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={prefs.playlistAccessMode === 'immediate'}
+                                onClick={() => {
+                                    updatePref('playlistAccessMode', 'immediate');
+                                    setMenu(null);
+                                }}
+                            >
+                                {prefs.playlistAccessMode === 'immediate' ? '● ' : '○ '}
+                                Inmediato (método actual)
+                            </button>
+                            <button
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={prefs.playlistAccessMode === 'media-library'}
+                                onClick={() => {
+                                    updatePref('playlistAccessMode', 'media-library');
+                                    setMenu(null);
+                                }}
+                            >
+                                {prefs.playlistAccessMode === 'media-library' ? '● ' : '○ '}
+                                Media Library (índice de foobar2000)
+                            </button>
+                        </>
+                    )}
                     <div className="refacets-menu-separator" />
                     <button type="button" role="menuitem" disabled={isLoading} onClick={() => {
                         refresh();

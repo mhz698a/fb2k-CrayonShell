@@ -94,7 +94,7 @@ const INITIAL_STATE = {
     progress: null
 };
 
-export function useLibraryFacets(enabled = true) {
+export function useLibraryFacets(enabled = true, playlistAccessMode = 'immediate') {
     const [directories, setDirectories] = useState([]);
     const [state, setState] = useState(INITIAL_STATE);
     const [selectedYears, setSelectedYears] = useState(() => readRefacetsSelection().years);
@@ -362,6 +362,7 @@ export function useLibraryFacets(enabled = true) {
 
             try {
                 const result = await syncLibraryViewerSelection(sdk, targetDirectories, {
+                    accessMode: playlistAccessMode,
                     shouldApply: () => generation === sync.generation
                 });
 
@@ -387,7 +388,7 @@ export function useLibraryFacets(enabled = true) {
         return () => {
             if (sync.generation === generation) sync.generation += 1;
         };
-    }, [enabled, matchingDirectories, selectedSubfolders, selectedYears, addDiagnostic]);
+    }, [enabled, matchingDirectories, playlistAccessMode, selectedSubfolders, selectedYears, addDiagnostic]);
 
     const selectYear = useCallback((value, multi = false) => {
         addDiagnostic('info', 'Filtro de año modificado', String(value));
