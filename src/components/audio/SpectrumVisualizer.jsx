@@ -178,7 +178,13 @@ function NumberField({ label, value, min, max, onChange }) {
     );
 }
 
-export default function SpectrumVisualizer() {
+export default function SpectrumVisualizer({ visible = true }) {
+    // Subscribe on first show and preserve the stream across later hide/show cycles.
+    const [hasBeenVisible, setHasBeenVisible] = useState(visible);
+
+    useEffect(() => {
+        if (visible) setHasBeenVisible(true);
+    }, [visible]);
     const canvasRef = useRef(null);
     const dialogRef = useRef(null);
     const menuRef = useRef(null);
@@ -216,6 +222,8 @@ export default function SpectrumVisualizer() {
     }, []);
 
     useEffect(() => {
+        if (!hasBeenVisible) return undefined;
+
         let active = true;
         let unsubscribe = null;
         let animationFrame = 0;
@@ -306,6 +314,7 @@ export default function SpectrumVisualizer() {
             if (typeof unsubscribe === 'function') unsubscribe();
         };
     }, [
+        hasBeenVisible,
         settings.bands,
         settings.fftSize,
         settings.fps,
