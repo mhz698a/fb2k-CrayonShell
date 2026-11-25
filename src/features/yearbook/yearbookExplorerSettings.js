@@ -1,7 +1,7 @@
 import {
     requireSettingsStorage,
     resolveSettingsStorage
-} from '../settings/settingsStorageAccess.js';
+} from '../settings/storageAccess.js';
 
 export const YEARBOOK_EXPLORER_EXPANDED_STORAGE_KEY = 'crayonshell.yearbookExplorer.expanded.v1';
 
