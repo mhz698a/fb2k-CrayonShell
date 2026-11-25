@@ -287,11 +287,18 @@ export function createActionRegistry() {
 
     function getState(id, context = {}) {
         const action = get(id);
-        return action ? evaluateAction(action, context) : null;
+        if (!action) return null;
+        const state = evaluateAction(action, context);
+        const owner = modules.get(action.moduleId)?.metadata;
+        return {
+            ...state,
+            moduleLabel: owner?.label || 'Registro manual',
+            moduleDescription: owner?.description || ''
+        };
     }
 
     function getCatalog(context = {}) {
-        return Array.from(actions.values(), (action) => evaluateAction(action, context));
+        return Array.from(actions.values(), (action) => getState(action.id, context));
     }
 
     function getModules() {
