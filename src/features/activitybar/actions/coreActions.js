@@ -51,6 +51,17 @@ export function registerCoreActivityBarActions(registry) {
     }));
 
     unregister.push(registry.register({
+        id: 'externalTools.configure',
+        label: 'Configurar herramientas externas',
+        category: 'Herramientas externas',
+        description: 'Configura Python y las rutas de los scripts FrameEtude, CatchEtude, AnuarySignature, NumHand, SMB y GalleryAnuary.',
+        defaultIcon: 'wrench',
+        isAvailable: callbackAvailability('openExternalToolsSettings', 'La configuración de herramientas externas'),
+        isActive: (context) => context.externalToolsSettingsOpen === true,
+        execute: (context) => context.openExternalToolsSettings()
+    }));
+
+    unregister.push(registry.register({
         id: 'activitybar.manage',
         label: 'Administrar ActivityBar',
         category: 'ActivityBar',
