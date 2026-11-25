@@ -1,3 +1,8 @@
+import {
+    requireSettingsStorage,
+    resolveSettingsStorage
+} from '../storageAccess.js';
+
 export const SIDEBAR_WIDTH_STORAGE_KEY = 'crayonshell.sidebar.width.v1';
 export const SIDEBAR_COLLAPSED_STORAGE_KEY = 'crayonshell.sidebar.collapsed.v1';
 export const SIDEBAR_VIEW_STORAGE_KEY = 'crayonshell.sidebar.view.v1';
@@ -9,11 +14,6 @@ export const MAX_SIDEBAR_WIDTH = 520;
 export const DEFAULT_REFACETS_HEIGHT = 68;
 export const MIN_REFACETS_HEIGHT = 30;
 export const MAX_REFACETS_HEIGHT = 85;
-
-import {
-    requireSettingsStorage,
-    resolveSettingsStorage
-} from '../storageAccess.js';
 
 function clampNumber(value, minimum, maximum, fallback) {
     if (value === null || value === undefined || value === '') return fallback;
