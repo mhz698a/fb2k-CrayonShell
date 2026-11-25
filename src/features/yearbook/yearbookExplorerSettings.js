@@ -85,6 +85,12 @@ export function readYearbookExpandedPaths(rootPath, storage = window.localStorag
 export function readYearbookExplorerSettings(rootPath, storage = window.localStorage) {
     const saved = parseStoredExpansion(storage);
     const sourceRootPath = normalizeWindowsPath(saved.rootPath || rootPath);
+    const activeRootPath = normalizeWindowsPath(rootPath);
+    if (!sourceRootPath
+        || sourceRootPath.toLocaleLowerCase() !== activeRootPath.toLocaleLowerCase()) {
+        return { expandedRelativePaths: [] };
+    }
+
     const expandedRelativePaths = Array.isArray(saved.paths)
         ? saved.paths
             .map((path) => getRelativePath(sourceRootPath, path))
