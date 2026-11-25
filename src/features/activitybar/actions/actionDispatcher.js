@@ -34,6 +34,21 @@ export function createActionDispatcher(registry, { onError } = {}) {
         }
 
         const state = registry.getState(id, context);
+        if (state?.availabilityError) {
+            const failure = {
+                ok: false,
+                status: 'error',
+                actionId: id,
+                error: normalizeError(new Error(state.availabilityError))
+            };
+            try {
+                onError?.(failure);
+            } catch (reportError) {
+                console.error('[ActivityBar] No se pudo reportar el error de disponibilidad.', reportError);
+            }
+            return failure;
+        }
+
         if (!state?.available) {
             return {
                 ok: false,
