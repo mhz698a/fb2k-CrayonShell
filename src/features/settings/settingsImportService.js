@@ -25,6 +25,12 @@ function isPlainObject(value) {
     return prototype === Object.prototype || prototype === null;
 }
 
+function deepFreeze(value) {
+    if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+    Object.values(value).forEach(deepFreeze);
+    return Object.freeze(value);
+}
+
 function cloneJsonValue(value, path = '$', ancestors = new WeakSet()) {
     if (value === null || typeof value === 'string' || typeof value === 'boolean') {
         return value;
@@ -124,7 +130,7 @@ function parseBackupInput(input) {
         throw new Error('El archivo no es un respaldo de configuración de CrayonShell.');
     }
 
-    const formatVersion = Number(backup.formatVersion);
+    const formatVersion = backup.formatVersion;
     if (!Number.isSafeInteger(formatVersion) || formatVersion < 1) {
         throw new Error('El archivo no declara una versión de formato válida.');
     }
@@ -164,7 +170,7 @@ function normalizeProviderRecord(provider, id, record) {
         throw new TypeError('La entrada del proveedor "' + id + '" debe ser un objeto.');
     }
 
-    const sourceVersion = Number(record.version);
+    const sourceVersion = record.version;
     if (!Number.isSafeInteger(sourceVersion) || sourceVersion < 1) {
         throw new TypeError('El proveedor "' + id + '" no declara una versión válida.');
     }
@@ -338,17 +344,20 @@ export function inspectSettingsBackup(registry, input) {
 
     const yearbookRow = rows.find((row) => row.id === 'yearbook.explorer');
     if (yearbookRow && getEligible(yearbookRow)) {
-        let rootPath = normalizedById.get('external-tools')?.internalBasePath || '';
-        if (!rootPath) {
-            try {
-                rootPath = registry.getProvider('external-tools')
-                    ?.validateSettings(registry.getProvider('external-tools').readSettings())
-                    ?.internalBasePath || '';
-            } catch {
-                rootPath = '';
-            }
+        let localRootPath = '';
+        try {
+            const externalToolsProvider = registry.getProvider('external-tools');
+            localRootPath = externalToolsProvider
+                ?.validateSettings(externalToolsProvider.readSettings())
+                ?.internalBasePath || '';
+        } catch {
+            localRootPath = '';
         }
-        yearbookRow.destinationRoot = rootPath || null;
+        yearbookRow.destinationRoot = localRootPath
+            || normalizedById.get('external-tools')?.internalBasePath
+            || null;
+        yearbookRow.destinationRootIfExternalToolsImported =
+            normalizedById.get('external-tools')?.internalBasePath || null;
     }
 
     const importableCount = rows.filter(getEligible).length;
@@ -358,9 +367,11 @@ export function inspectSettingsBackup(registry, input) {
         format: backup.format,
         formatVersion: backup.formatVersion,
         exportedAt: typeof backup.exportedAt === 'string' ? backup.exportedAt : null,
-        application: isPlainObject(backup.application) ? backup.application : null,
-        providers: Object.freeze(rows.map((row) => Object.freeze(row))),
-        unknownProviders: Object.freeze(unknownProviders.map((row) => Object.freeze(row))),
+        application: deepFreeze(
+            isPlainObject(backup.application) ? backup.application : null
+        ),
+        providers: Object.freeze(rows.map(deepFreeze)),
+        unknownProviders: Object.freeze(unknownProviders.map(deepFreeze)),
         summary: Object.freeze({
             importable: importableCount,
             invalid: rows.filter((row) => row.status === 'invalid').length,
