@@ -56,6 +56,25 @@ export default function ActivityBarManagerDialog({
         )),
         [actionCatalog, pinnedActionIds]
     );
+    const availableActionGroups = useMemo(() => {
+        const groups = new Map();
+        availableActions.forEach((action) => {
+            const category = action.category || 'General';
+            if (!groups.has(category)) groups.set(category, []);
+            groups.get(category).push(action);
+        });
+
+        return Array.from(groups.entries())
+            .sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+            .map(([category, actions]) => ({
+                category,
+                actions: actions.sort((a, b) => a.label.localeCompare(
+                    b.label,
+                    undefined,
+                    { sensitivity: 'base' }
+                ))
+            }));
+    }, [availableActions]);
     const filteredIcons = useMemo(() => {
         const query = iconSearch.trim().toLocaleLowerCase();
         return FA4_ICON_NAMES
@@ -206,7 +225,8 @@ export default function ActivityBarManagerDialog({
                                             >
                                                 {action?.category || 'Acción no registrada'}
                                                 {' · '}
-                                                {button.actionId}
+                                                {action?.moduleLabel || button.actionId}
+                                                {action?.running ? ' · En ejecución' : ''}
                                             </span>
                                         </div>
 
@@ -321,10 +341,14 @@ export default function ActivityBarManagerDialog({
                         >
                             {availableActions.length === 0 ? (
                                 <option value="">No hay más acciones disponibles</option>
-                            ) : availableActions.map((action) => (
-                                <option key={action.id} value={action.id}>
-                                    {action.category} · {action.label}
-                                </option>
+                            ) : availableActionGroups.map((group) => (
+                                <optgroup key={group.category} label={group.category}>
+                                    {group.actions.map((action) => (
+                                        <option key={action.id} value={action.id}>
+                                            {action.label} · {action.moduleLabel}
+                                        </option>
+                                    ))}
+                                </optgroup>
                             ))}
                         </select>
                         <button
