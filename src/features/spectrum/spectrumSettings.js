@@ -23,9 +23,9 @@ export const DEFAULT_SPECTRUM_SETTINGS = Object.freeze({
     barColorEnd: '#79d7e8'
 });
 
-const BAND_OPTIONS = [16, 24, 32, 48, 64, 96, 128, 192, 256];
-const FFT_OPTIONS = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536];
-const FPS_OPTIONS = [15, 24, 30, 45, 60];
+export const SPECTRUM_BAND_OPTIONS = Object.freeze([16, 24, 32, 48, 64, 96, 128, 192, 256]);
+export const SPECTRUM_FFT_OPTIONS = Object.freeze([256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]);
+export const SPECTRUM_FPS_OPTIONS = Object.freeze([15, 24, 30, 45, 60]);
 
 function clampNumber(value, min, max, fallback) {
     const number = Number(value);
@@ -36,10 +36,10 @@ export function normalizeSpectrumSettings(value = {}) {
     const source = value && typeof value === 'object' && !Array.isArray(value)
         ? value
         : {};
-    const fftSize = FFT_OPTIONS.includes(Number(source.fftSize))
+    const fftSize = SPECTRUM_FFT_OPTIONS.includes(Number(source.fftSize))
         ? Number(source.fftSize)
         : DEFAULT_SPECTRUM_SETTINGS.fftSize;
-    const availableBands = BAND_OPTIONS.filter((count) => count <= fftSize / 2);
+    const availableBands = SPECTRUM_BAND_OPTIONS.filter((count) => count <= fftSize / 2);
     const requestedBands = Number(source.bands);
     const bands = availableBands.includes(requestedBands)
         ? requestedBands
@@ -54,7 +54,7 @@ export function normalizeSpectrumSettings(value = {}) {
     return {
         bands,
         fftSize,
-        fps: FPS_OPTIONS.includes(Number(source.fps))
+        fps: SPECTRUM_FPS_OPTIONS.includes(Number(source.fps))
             ? Number(source.fps)
             : DEFAULT_SPECTRUM_SETTINGS.fps,
         minFrequency,
