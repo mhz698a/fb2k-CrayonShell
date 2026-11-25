@@ -11,6 +11,7 @@ export const MIN_REFACETS_HEIGHT = 30;
 export const MAX_REFACETS_HEIGHT = 85;
 
 function clampNumber(value, minimum, maximum, fallback) {
+    if (value === null || value === undefined || value === '') return fallback;
     const number = Number(value);
     return Number.isFinite(number)
         ? Math.max(minimum, Math.min(maximum, number))
