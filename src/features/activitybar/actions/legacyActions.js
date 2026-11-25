@@ -58,7 +58,7 @@ async function spawnConfiguredPythonTool(context, sdk, scriptKey, args = []) {
 
     const result = await sdk.shell.spawn(pythonExecutable, {
         args: [scriptPath, ...args.map((arg) => String(arg))],
-        hidden: true
+        hidden: false // works in false
     });
     return requireSuccessfulResult(result, 'shell.spawn');
 }
