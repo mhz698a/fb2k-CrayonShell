@@ -149,5 +149,5 @@ test('El catálogo principal contiene las cinco acciones iniciales', () => {
         'activitybar.manage'
     ]);
     assert.equal(catalog.find((action) => action.id === 'ui.toggleSidebar').active, true);
-    assert.equal(catalog.find((action) => action.id === 'activitybar.manage').available, false);
+    assert.equal(catalog.find((action) => action.id === 'activitybar.manage').available, true);
 });
