@@ -42,6 +42,97 @@ test('Action Registry notifica altas y bajas para actualizar catálogos en ejecu
     assert.equal(notifications, 2);
 });
 
+test('Action Registry registra módulos atómicamente y expone sus metadatos', () => {
+    const registry = createActionRegistry();
+    let notifications = 0;
+    registry.subscribe(() => { notifications += 1; });
+
+    const removeModule = registry.registerModule({
+        id: 'media',
+        label: 'Media tools',
+        description: 'Acciones del módulo multimedia.',
+        register(scopedRegistry) {
+            scopedRegistry.register({
+                id: 'media.open',
+                label: 'Open media',
+                category: 'Media',
+                execute: () => 'opened'
+            });
+            scopedRegistry.register({
+                id: 'media.search',
+                label: 'Search media',
+                category: 'Media',
+                execute: () => 'searched'
+            });
+        }
+    });
+
+    assert.equal(notifications, 1);
+    assert.deepEqual(registry.getModules(), [{
+        id: 'media',
+        label: 'Media tools',
+        description: 'Acciones del módulo multimedia.',
+        actionIds: ['media.open', 'media.search'],
+        actionCount: 2
+    }]);
+    assert.equal(registry.getState('media.open').moduleId, 'media');
+    assert.equal(registry.getState('media.open').moduleLabel, 'Media tools');
+    assert.equal(removeModule(), true);
+    assert.equal(registry.has('media.open'), false);
+    assert.equal(registry.has('media.search'), false);
+    assert.deepEqual(registry.getModules(), []);
+    assert.equal(notifications, 2);
+    assert.equal(removeModule(), false);
+});
+
+test('Action Registry revierte el módulo completo si una acción entra en conflicto', () => {
+    const registry = createActionRegistry();
+    registry.register({
+        id: 'shared.existing',
+        execute: () => undefined
+    });
+    const revisionBefore = registry.getRevision();
+
+    assert.throws(() => registry.registerModule({
+        id: 'broken-module',
+        label: 'Broken',
+        register(scopedRegistry) {
+            scopedRegistry.register({
+                id: 'broken.first',
+                execute: () => undefined
+            });
+            scopedRegistry.register({
+                id: 'shared.existing',
+                execute: () => undefined
+            });
+        }
+    }), /identificador de acción duplicado/);
+
+    assert.equal(registry.has('broken.first'), false);
+    assert.equal(registry.has('shared.existing'), true);
+    assert.equal(registry.getRevision(), revisionBefore);
+    assert.deepEqual(registry.getModules(), []);
+});
+
+test('Action Registry rechaza módulos duplicados y requiere una función register', () => {
+    const registry = createActionRegistry();
+    registry.registerModule({
+        id: 'duplicate-module',
+        register(scopedRegistry) {
+            scopedRegistry.register({ id: 'module.action', execute: () => undefined });
+        }
+    });
+
+    assert.throws(() => registry.registerModule({
+        id: 'duplicate-module',
+        register: () => undefined
+    }), /módulo de ActivityBar registrado/);
+
+    assert.throws(() => registry.registerModule({
+        id: 'invalid-module'
+    }), /debe proporcionar register/);
+});
+
 test('Action Registry rechaza identificadores duplicados y acciones sin ejecutor', () => {
     const registry = createActionRegistry();
     registry.register({ id: 'test.duplicate', execute: () => undefined });
@@ -128,6 +219,58 @@ test('Action Dispatcher reporta errores al consultar disponibilidad', async () =
     assert.equal(result.status, 'error');
     assert.equal(result.error.message, 'Falló la consulta de disponibilidad');
     assert.equal(reported.length, 1);
+});
+
+test('Action Dispatcher aplica single-execution y publica estado running', async () => {
+    const registry = createActionRegistry();
+    let finishExecution;
+    registry.register({
+        id: 'test.single',
+        executionPolicy: 'single',
+        execute: () => new Promise((resolve) => {
+            finishExecution = resolve;
+        })
+    });
+
+    const dispatcher = createActionDispatcher(registry);
+    let notifications = 0;
+    dispatcher.subscribe(() => { notifications += 1; });
+
+    const firstRun = dispatcher.execute('test.single');
+    assert.equal(dispatcher.getState('test.single').running, true);
+
+    const secondRun = await dispatcher.execute('test.single');
+    assert.equal(secondRun.status, 'busy');
+    assert.equal(dispatcher.getCatalog().find((action) => action.id === 'test.single').running, true);
+
+    finishExecution('finished');
+    const firstResult = await firstRun;
+
+    assert.equal(firstResult.status, 'success');
+    assert.equal(dispatcher.getState('test.single').running, false);
+    assert.equal(notifications, 2);
+});
+
+test('Action Dispatcher conserva ejecución paralela cuando se solicita explícitamente', async () => {
+    const registry = createActionRegistry();
+    let executions = 0;
+    registry.register({
+        id: 'test.parallel',
+        executionPolicy: 'parallel',
+        execute: async () => {
+            executions += 1;
+            return executions;
+        }
+    });
+    const dispatcher = createActionDispatcher(registry);
+
+    const results = await Promise.all([
+        dispatcher.execute('test.parallel'),
+        dispatcher.execute('test.parallel')
+    ]);
+
+    assert.equal(executions, 2);
+    assert.equal(results.every((result) => result.status === 'success'), true);
 });
 
 test('Action Dispatcher captura y reporta errores de ejecución', async () => {
