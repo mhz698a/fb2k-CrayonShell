@@ -206,79 +206,54 @@ export function createActionRegistry() {
             throw error;
         }
 
-        const module = Object.freeze({
+        const moduleRecord = {
             id: moduleId,
             label: String(moduleDefinition.label || moduleId).trim().slice(0, 80),
             description: String(moduleDefinition.description || '').trim().slice(0, 240),
-            actionIds: Object.freeze(stagedActions.map((action) => action.id))
-        });
+            actionIds: new Set(stagedActions.map((action) => action.id)),
+            cleanup: moduleCleanup
+        };
 
         stagedActions.forEach((action) => actions.set(action.id, action));
-        modules.set(moduleId, { metadata: module, cleanup: moduleCleanup });
+        modules.set(moduleId, moduleRecord);
         notify();
 
-        let registered = true;
-        return () => {
-            if (!registered) return false;
-            registered = false;
-
-            const currentModule = modules.get(moduleId);
-            if (!currentModule || currentModule.metadata !== module) return false;
-
-            modules.delete(moduleId);
-            let removedCount = 0;
-            for (const actionId of module.actionIds) {
-                const currentAction = actions.get(actionId);
-                if (currentAction?.moduleId === moduleId) {
-                    actions.delete(actionId);
-                    removedCount += 1;
-                }
-            }
-
-            try {
-                currentModule.cleanup?.();
-            } catch (error) {
-                console.error('[ActivityBar] Error limpiando el módulo ' + moduleId + '.', error);
-            }
-
-            if (removedCount > 0 || currentModule) notify();
-            return true;
-        };
+        return () => removeModule(moduleId, moduleRecord);
     }
 
-    function unregisterModule(moduleId) {
-        const module = modules.get(String(moduleId || ''));
-        if (!module) return false;
-        const actionId = module.metadata.id;
-        const remove = module.cleanup || null;
-        // Use the same idempotent removal path returned by registerModule.
-        const registeredModule = modules.get(actionId);
-        if (!registeredModule) return false;
-        modules.delete(actionId);
+    function removeModule(moduleId, expectedRecord) {
+        const currentModule = modules.get(moduleId);
+        if (!currentModule || (expectedRecord && currentModule !== expectedRecord)) return false;
 
-        let removedCount = 0;
-        for (const id of registeredModule.metadata.actionIds) {
-            const action = actions.get(id);
-            if (action?.moduleId === actionId) {
-                actions.delete(id);
-                removedCount += 1;
-            }
+        modules.delete(moduleId);
+        for (const actionId of currentModule.actionIds) {
+            const currentAction = actions.get(actionId);
+            if (currentAction?.moduleId === moduleId) actions.delete(actionId);
         }
 
         try {
-            remove?.();
+            currentModule.cleanup?.();
         } catch (error) {
-            console.error('[ActivityBar] Error limpiando el módulo ' + actionId + '.', error);
+            console.error('[ActivityBar] Error limpiando el módulo ' + moduleId + '.', error);
         }
 
-        if (removedCount > 0 || registeredModule) notify();
+        notify();
         return true;
     }
 
+    function unregisterModule(moduleId) {
+        return removeModule(String(moduleId || ''));
+    }
+
     function unregister(id) {
-        const removed = actions.delete(String(id || ''));
-        if (removed) notify();
-        return removed;
+        const actionId = String(id || '');
+        const currentAction = actions.get(actionId);
+        if (!currentAction) return false;
+
+        actions.delete(actionId);
+        modules.get(currentAction.moduleId)?.actionIds.delete(actionId);
+        notify();
+        return true;
     }
 
     function get(id) {
@@ -302,9 +277,12 @@ export function createActionRegistry() {
     }
 
     function getModules() {
-        return Array.from(modules.values(), ({ metadata }) => ({
-            ...metadata,
-            actionCount: metadata.actionIds.length
+        return Array.from(modules.values(), (module) => ({
+            id: module.id,
+            label: module.label,
+            description: module.description,
+            actionIds: Array.from(module.actionIds),
+            actionCount: module.actionIds.size
         }));
     }
 
