@@ -16,6 +16,7 @@ export default function ActivityBar({
                 {buttons.map((button) => {
                     const action = actionMap.get(button.actionId);
                     const available = Boolean(action?.available);
+                    const running = Boolean(action?.running);
 
                     return (
                         <button
@@ -24,14 +25,18 @@ export default function ActivityBar({
                             className={
                                 'activitybar-button'
                                 + (action?.active ? ' is-active' : '')
+                                + (running ? ' is-running' : '')
                             }
                             type="button"
                             aria-label={button.label}
                             aria-pressed={Boolean(action?.active)}
-                            title={available
-                                ? button.label
-                                : (action?.unavailableReason || 'La acción ya no está registrada.')}
-                            disabled={!available}
+                            aria-busy={running}
+                            title={running
+                                ? button.label + ' (en ejecución)'
+                                : available
+                                    ? button.label
+                                    : (action?.unavailableReason || 'La acción ya no está registrada.')}
+                            disabled={!available || running}
                             onClick={() => onExecuteAction(button.actionId)}
                         >
                             <FaIcon name={button.icon}/>
