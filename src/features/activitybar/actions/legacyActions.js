@@ -131,6 +131,120 @@ async function openNewgroundsPage(context, sdk) {
     return { url };
 }
 
+
+const INTERNAL_BASE_PATH = 'E:\\_Internal';
+
+function joinWindowsPath(...parts) {
+    return parts
+        .map((part) => String(part || '').replace(/^[\\/]+|[\\/]+$/g, ''))
+        .filter(Boolean)
+        .join('\\\\');
+}
+
+async function listSubdirectories(sdk, path) {
+    const result = requireSuccessfulResult(
+        await sdk.file.list(path),
+        'file.list'
+    );
+    return Array.isArray(result.directories) ? result.directories : [];
+}
+
+async function showYearbookExplorer(sdk) {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = 1999; year <= currentYear; year += 1) {
+        years.push({ id: 'year:' + year, label: String(year) });
+    }
+
+    const selectedYear = await sdk.menu.popup(years, undefined, {
+        windowModel: 'contentSized'
+    });
+    if (!selectedYear || !selectedYear.startsWith('year:')) {
+        return { cancelled: true };
+    }
+
+    const year = Number(selectedYear.slice(5));
+    if (!Number.isInteger(year) || year < 1999 || year > currentYear) {
+        throw new Error('El año seleccionado no es válido.');
+    }
+
+    const yearRoot = joinWindowsPath(INTERNAL_BASE_PATH, String(year));
+    const folders = (await listSubdirectories(sdk, yearRoot))
+        .sort((a, b) => String(a).localeCompare(String(b), undefined, {
+            numeric: true,
+            sensitivity: 'base'
+        }));
+
+    const folderItems = [
+        { id: 'open-year-root', label: '...' },
+        { type: 'separator' },
+        ...(folders.length
+            ? folders.map((folder, index) => ({
+                id: 'folder:' + index,
+                label: folder
+            }))
+            : [{ id: 'no-folders', label: '(sin carpetas)', enabled: false }])
+    ];
+
+    const selectedFolder = await sdk.menu.popup(folderItems, undefined, {
+        windowModel: 'contentSized'
+    });
+    if (!selectedFolder) return { cancelled: true };
+
+    if (selectedFolder === 'open-year-root') {
+        return requireSuccessfulResult(
+            await sdk.shell.showInExplorer(yearRoot),
+            'shell.showInExplorer'
+        );
+    }
+    if (selectedFolder === 'no-folders') return { cancelled: true };
+
+    const folderIndex = Number(selectedFolder.slice('folder:'.length));
+    if (!Number.isInteger(folderIndex) || folderIndex < 0 || folderIndex >= folders.length) {
+        return { cancelled: true };
+    }
+
+    const folderName = folders[folderIndex];
+    const folderPath = joinWindowsPath(yearRoot, folderName);
+    const children = (await listSubdirectories(sdk, folderPath))
+        .sort((a, b) => String(a).localeCompare(String(b), undefined, {
+            numeric: true,
+            sensitivity: 'base'
+        }));
+
+    const childItems = [
+        { id: 'open-parent-folder', label: '...' },
+        { type: 'separator' },
+        ...(children.length
+            ? children.map((folder, index) => ({
+                id: 'child:' + index,
+                label: folder
+            }))
+            : [{ id: 'no-children', label: '(sin subcarpetas)', enabled: false }])
+    ];
+
+    const selectedChild = await sdk.menu.popup(childItems, undefined, {
+        windowModel: 'contentSized'
+    });
+    if (!selectedChild) return { cancelled: true };
+
+    const targetPath = selectedChild === 'open-parent-folder'
+        ? folderPath
+        : selectedChild === 'child:' + Number(selectedChild.slice('child:'.length))
+            && Number.isInteger(Number(selectedChild.slice('child:'.length)))
+            && Number(selectedChild.slice('child:'.length)) >= 0
+            && Number(selectedChild.slice('child:'.length)) < children.length
+            ? joinWindowsPath(folderPath, children[Number(selectedChild.slice('child:'.length))])
+            : '';
+
+    if (!targetPath) return { cancelled: true };
+
+    return requireSuccessfulResult(
+        await sdk.shell.showInExplorer(targetPath),
+        'shell.showInExplorer'
+    );
+}
+
 async function showNumHandExtrasMenu(context, sdk) {
     const items = [
         { id: 'copy-names', label: 'Copy Names' },
@@ -259,6 +373,15 @@ export function createLegacyActivityActions({
             defaultIcon: 'youtube-play',
             isAvailable: nativeAvailability,
             execute: () => runMainMenuCommand(getSdk(), 'View/Youtube Source/Search on Site')
+        },
+        {
+            id: 'legacy.yearbookExplorer',
+            label: 'Yearbook Explorer',
+            category: 'Archivos y selección',
+            description: 'Navega por los años y subcarpetas de E:\\_Internal y abre la carpeta elegida en Explorer.',
+            defaultIcon: 'calendar',
+            isAvailable: nativeAvailability,
+            execute: () => showYearbookExplorer(getSdk())
         },
         {
             id: 'legacy.googleSearcherSongs',
