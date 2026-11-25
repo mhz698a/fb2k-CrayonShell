@@ -235,7 +235,7 @@ test('marks invalid provider data in the preview and refuses to apply it', async
     assert.match(plan.providers[0].error, /Contenido inválido/);
     await assert.rejects(
         applySettingsBackup(registry, backup),
-        /no hay proveedores compatibles seleccionados/
+        /No hay proveedores compatibles seleccionados/
     );
     assert.equal(provider.getValue(), 'local');
 });
@@ -331,4 +331,28 @@ test('reports a rollback failure separately from the original apply failure', as
             return true;
         }
     );
+});
+
+
+test('reports ActivityBar action IDs that are unavailable in the current installation', () => {
+    const storage = createMemoryStorage({
+        'crayonshell.activitybar.config.v1': JSON.stringify({
+            version: 1,
+            buttons: [{
+                id: 'plugin.futureAction',
+                actionId: 'plugin.futureAction',
+                label: 'Acción externa',
+                icon: 'music'
+            }]
+        })
+    });
+    const registry = createSettingsRegistry();
+    registerCoreSettingsProviders(registry, storage);
+
+    const backup = createSettingsBackup(registry);
+    const plan = inspectSettingsBackup(registry, backup);
+    const row = plan.providers.find((entry) => entry.id === 'activitybar');
+
+    assert.ok(row.warnings.some((warning) => warning.includes('plugin.futureAction')));
+    assert.ok(row.warnings.some((warning) => warning.includes('no se ejecutará código desconocido')));
 });
