@@ -18,6 +18,7 @@ const MAX_SIDEBAR_WIDTH = 520;
 const DEFAULT_SIDEBAR_WIDTH = 320;
 const SIDEBAR_WIDTH_STORAGE_KEY = 'crayonshell.sidebar.width.v1';
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'crayonshell.sidebar.collapsed.v1';
+const SIDEBAR_VIEW_STORAGE_KEY = 'crayonshell.sidebar.view.v1';
 
 function readSidebarCollapsed() {
     try {
@@ -25,6 +26,16 @@ function readSidebarCollapsed() {
         return stored === null ? true : stored === 'true';
     } catch {
         return true;
+    }
+}
+
+function readSidebarView() {
+    try {
+        return window.localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY) === 'yearbook'
+            ? 'yearbook'
+            : 'library';
+    } catch {
+        return 'library';
     }
 }
 
@@ -55,6 +66,7 @@ export default function App() {
     const draggingRef = useRef(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
     const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
+    const [sidebarView, setSidebarView] = useState(readSidebarView);
     const [filter, setFilter] = useState('');
     const [contentView, setContentView] = useState('playlist');
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
@@ -73,8 +85,23 @@ export default function App() {
     } = useActivityBarConfig();
 
     const toggleSidebar = useCallback(() => {
-        setSidebarCollapsed((value) => !value);
-    }, []);
+        if (!sidebarCollapsed && sidebarView === 'library') {
+            setSidebarCollapsed(true);
+            return;
+        }
+        setSidebarView('library');
+        setSidebarCollapsed(false);
+    }, [sidebarCollapsed, sidebarView]);
+
+    const selectSidebarView = useCallback((view) => {
+        const nextView = view === 'yearbook' ? 'yearbook' : 'library';
+        if (!sidebarCollapsed && sidebarView === nextView) {
+            setSidebarCollapsed(true);
+            return;
+        }
+        setSidebarView(nextView);
+        setSidebarCollapsed(false);
+    }, [sidebarCollapsed, sidebarView]);
 
     const toggleContentView = useCallback(() => {
         setContentView((value) => value === 'playlist' ? 'video' : 'playlist');
@@ -122,6 +149,14 @@ export default function App() {
         }
     }, [sidebarWidth]);
 
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(SIDEBAR_VIEW_STORAGE_KEY, sidebarView);
+        } catch {
+            // Keep the active Sidebar view for this session when storage is unavailable.
+        }
+    }, [sidebarView]);
+
     const {
         playlists,
         activePlaylistGuid,
@@ -161,6 +196,7 @@ export default function App() {
 
     const activityBarContext = useMemo(() => ({
         sidebarCollapsed,
+        sidebarView,
         contentView,
         activePlaylistGuid,
         isDemoMode,
@@ -175,6 +211,7 @@ export default function App() {
         activityBarManagerOpen
     }), [
         sidebarCollapsed,
+        sidebarView,
         contentView,
         activePlaylistGuid,
         isDemoMode,
@@ -293,7 +330,12 @@ export default function App() {
                 }}
             />
 
-            <Sidebar visible={!sidebarCollapsed} />
+            <Sidebar
+                visible={!sidebarCollapsed}
+                activeView={sidebarView}
+                externalTools={externalToolsConfig}
+                onOpenSettings={openExternalToolsSettings}
+            />
 
             <div
                 className="sidebar-resizer"

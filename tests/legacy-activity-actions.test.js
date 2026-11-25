@@ -248,52 +248,30 @@ test('Propaga los errores devueltos por el host al ejecutar acciones heredadas',
     );
 });
 
-test('Yearbook Explorer navega por carpetas mediante file.list y abre la carpeta final', async () => {
-    const currentYear = new Date().getFullYear();
+test('Yearbook Explorer activa la vista lateral sin abrir menús nativos', async () => {
     const calls = [];
-    const { sdk } = createSdk({
-        menu: {
-            popup: async (items) => {
-                calls.push(['popup', items]);
-                if (items[0]?.id?.startsWith('year:')) return 'year:' + currentYear;
-                if (items.some((item) => item.id === 'folder:0')) return 'folder:0';
-                return 'child:0';
-            }
-        },
-        file: {
-            list: async (path) => {
-                calls.push(['file.list', path]);
-                if (path === 'E:\\_Internal\\' + currentYear) {
-                    return { success: true, directories: ['Album folder'] };
-                }
-                if (path === 'E:\\_Internal\\' + currentYear + '\\Album folder') {
-                    return { success: true, directories: ['Subfolder'] };
-                }
-                return { success: true, directories: [] };
-            }
-        },
-        shell: {
-            showInExplorer: async (path) => {
-                calls.push(['showInExplorer', path]);
-                return { success: true };
-            }
-        }
-    });
     const actions = createLegacyActivityActions({
-        getSdk: () => sdk,
+        getSdk: () => {
+            throw new Error('No debe solicitarse el SDK al seleccionar la vista.');
+        },
         isNativeAvailable: () => true
     });
+    const action = findAction(actions, 'legacy.yearbookExplorer');
+    const yearbookContext = {
+        ...context,
+        sidebarCollapsed: true,
+        sidebarView: 'library',
+        selectSidebarView: (view) => calls.push(['selectSidebarView', view])
+    };
 
-    await findAction(actions, 'legacy.yearbookExplorer').execute(context);
-
-    assert.deepEqual(calls.filter((call) => call[0] === 'file.list'), [
-        ['file.list', 'E:\\_Internal\\' + currentYear],
-        ['file.list', 'E:\\_Internal\\' + currentYear + '\\Album folder']
-    ]);
-    assert.deepEqual(calls.at(-1), [
-        'showInExplorer',
-        'E:\\_Internal\\' + currentYear + '\\Album folder\\Subfolder'
-    ]);
+    assert.equal(action.isActive(yearbookContext), false);
+    await action.execute(yearbookContext);
+    assert.deepEqual(calls, [['selectSidebarView', 'yearbook']]);
+    assert.equal(action.isActive({
+        ...yearbookContext,
+        sidebarCollapsed: false,
+        sidebarView: 'yearbook'
+    }), true);
 });
 
 test('Inicia las herramientas Python con argumentos separados y ventana oculta', async () => {
@@ -331,53 +309,6 @@ test('Inicia las herramientas Python con argumentos separados y ventana oculta',
     ]);
     assert.deepEqual(calls.filter((call) => call[0] === 'file.exists'), [
         ['file.exists', 'C:\\Music\\Track Name (η).mp3']
-    ]);
-});
-
-test('Yearbook Explorer abre con GalleryAnuary la subcarpeta dentro del contenedor .album', async () => {
-    const currentYear = new Date().getFullYear();
-    const calls = [];
-    const { sdk, calls: sdkCalls } = createSdk({
-        menu: {
-            popup: async (items) => {
-                calls.push(['popup', items]);
-                if (items[0]?.id?.startsWith('year:')) return 'year:' + currentYear;
-                if (items.some((item) => item.id === 'folder:0')) return 'folder:0';
-                return 'child:0';
-            }
-        },
-        file: {
-            list: async (path) => {
-                calls.push(['file.list', path]);
-                if (path === 'E:\\_Internal\\' + currentYear) {
-                    return { success: true, directories: ['01. album'] };
-                }
-                if (path === 'E:\\_Internal\\' + currentYear + '\\01. album') {
-                    return { success: true, directories: ['My Album'] };
-                }
-                return { success: true, directories: [] };
-            }
-        }
-    });
-    const actions = createLegacyActivityActions({
-        getSdk: () => sdk,
-        isNativeAvailable: () => true
-    });
-
-    await findAction(actions, 'legacy.yearbookExplorer').execute(context);
-
-    assert.deepEqual(sdkCalls.filter((call) => call[0] === 'spawn'), [
-        [
-            'spawn',
-            'pythonw.exe',
-            {
-                args: [
-                    'C:\\Tools\\GalleryAnuary\\app.py',
-                    'E:\\_Internal\\' + currentYear + '\\01. album\\My Album'
-                ],
-                hidden: false
-            }
-        ]
     ]);
 });
 

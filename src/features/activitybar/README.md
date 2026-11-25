@@ -141,3 +141,10 @@ Automated tests cover atomic registration, duplicate IDs, module metadata, modul
 ## Sidebar lifecycle
 
 ReFacets and Spectrum initialize on first display. Their activation state is sticky: hiding the Sidebar changes presentation only. It does not cancel Media Library subscriptions, repeat Library Viewer Selection synchronization, clear FFT data or stop the Spectrum animation loop. They are cleaned up when their React components are unmounted or when Spectrum settings require a new subscription.
+
+
+## Yearbook Explorer panel
+
+Yearbook Explorer is a persistent Sidebar view, selected from its ActivityBar button. The Biblioteca button switches back to ReFacets and Spectrum. Selecting the already active view collapses the Sidebar; selecting the other view opens it.
+
+The explorer reads year directories from the configured `internalBasePath` using `file.list`, then lazily loads child directories as the tree expands. Expanded nodes are persisted locally. The panel provides direct actions to refresh the root, open the configured root or open the selected folder. A child inside a directory whose name contains `.album` is sent to the configured GalleryAnuary script; other selections open in Windows Explorer. No native popup sequence is used.
