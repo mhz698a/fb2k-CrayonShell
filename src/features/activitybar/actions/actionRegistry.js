@@ -16,7 +16,7 @@ function normalizeAvailability(value) {
     return { available: Boolean(value), reason: '' };
 }
 
-function normalizeAction(definition, moduleId = 'manual') {
+function normalizeAction(definition, moduleId = null) {
     if (!definition || typeof definition !== 'object' || Array.isArray(definition)) {
         throw new TypeError('La definición de una acción debe ser un objeto.');
     }
