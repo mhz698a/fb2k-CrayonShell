@@ -1,7 +1,5 @@
 import { getFooSdk, hasNativeBridge } from '../../../services/fooSdk.js';
 
-const RECYCLE_BIN_PATH = 'E:\\_Exclude\\l_reallydeleted';
-
 function requireSuccessfulResult(result, operation) {
     if (!result) {
         throw new Error(operation + ' no devolvió una respuesta.');
@@ -13,6 +11,44 @@ function requireSuccessfulResult(result, operation) {
         throw error;
     }
     return result;
+}
+
+
+function getExternalToolSettings(context) {
+    return context?.externalTools && typeof context.externalTools === 'object'
+        ? context.externalTools
+        : {};
+}
+
+function getNativeTrackPath(track) {
+    const path = String(track?.absolutePath || track?.path || '').trim();
+    if (!/^(?:[a-z]:[\\\\/]|\\\\\\\\)/i.test(path)) {
+        throw new Error('La pista seleccionada no tiene una ruta local de Windows utilizable.');
+    }
+    return path;
+}
+
+async function getFirstSelectedTrackPath(context, sdk) {
+    const tracks = await getSelectedTracks(context, sdk);
+    return getNativeTrackPath(tracks[0]);
+}
+
+async function spawnConfiguredPythonTool(context, sdk, scriptKey, args = []) {
+    const settings = getExternalToolSettings(context);
+    const pythonExecutable = String(settings.pythonExecutable || 'pythonw.exe').trim();
+    const scriptPath = String(settings[scriptKey] || '').trim();
+    if (!pythonExecutable) {
+        throw new Error('Configura el ejecutable de Python desde "Configurar herramientas externas".');
+    }
+    if (!scriptPath) {
+        throw new Error('Falta configurar la ruta del script en "Configurar herramientas externas".');
+    }
+
+    const result = await sdk.shell.spawn(pythonExecutable, {
+        args: [scriptPath, ...args.map((arg) => String(arg))],
+        hidden: true
+    });
+    return requireSuccessfulResult(result, 'shell.spawn');
 }
 
 function requireActivePlaylist(context) {
@@ -132,8 +168,6 @@ async function openNewgroundsPage(context, sdk) {
 }
 
 
-const INTERNAL_BASE_PATH = 'E:\\_Internal';
-
 function joinWindowsPath(...parts) {
     return parts
         .map((part) => String(part || '').replace(/^[\\/]+|[\\/]+$/g, ''))
@@ -149,7 +183,7 @@ async function listSubdirectories(sdk, path) {
     return Array.isArray(result.directories) ? result.directories : [];
 }
 
-async function showYearbookExplorer(sdk) {
+async function showYearbookExplorer(context, sdk) {
     const currentYear = new Date().getFullYear();
     const years = [];
     for (let year = 1999; year <= currentYear; year += 1) {
@@ -168,7 +202,11 @@ async function showYearbookExplorer(sdk) {
         throw new Error('El año seleccionado no es válido.');
     }
 
-    const yearRoot = joinWindowsPath(INTERNAL_BASE_PATH, String(year));
+    const internalBasePath = String(getExternalToolSettings(context).internalBasePath || '').trim();
+    if (!internalBasePath) {
+        throw new Error('Configura la raíz de Yearbook Explorer en "Configurar herramientas externas".');
+    }
+    const yearRoot = joinWindowsPath(internalBasePath, String(year));
     const folders = (await listSubdirectories(sdk, yearRoot))
         .sort((a, b) => String(a).localeCompare(String(b), undefined, {
             numeric: true,
@@ -206,6 +244,14 @@ async function showYearbookExplorer(sdk) {
 
     const folderName = folders[folderIndex];
     const folderPath = joinWindowsPath(yearRoot, folderName);
+    if (folderName.toLocaleLowerCase().includes('.album')) {
+        return spawnConfiguredPythonTool(
+            context,
+            sdk,
+            'galleryAnuaryScript',
+            [folderPath]
+        );
+    }
     const children = (await listSubdirectories(sdk, folderPath))
         .sort((a, b) => String(a).localeCompare(String(b), undefined, {
             numeric: true,
@@ -250,6 +296,8 @@ async function showNumHandExtrasMenu(context, sdk) {
     const items = [
         { id: 'copy-names', label: 'Copy Names' },
         { id: 'copy-paths', label: 'Copy Paths' },
+        { id: 'numhand', label: 'Open NumHand For This Folder' },
+        { id: 'smb-year', label: 'Connect current year to SMB' },
         { id: 'explore-directory', label: 'Explore folder of current song' },
         { type: 'separator' },
         { id: 'recycle-bin', label: 'Open Recycle Bin' }
@@ -270,16 +318,29 @@ async function showNumHandExtrasMenu(context, sdk) {
             return copySelectedTracks(
                 context,
                 sdk,
-                (track) => String(track.path || track.absolutePath || ''),
+                (track) => String(track.absolutePath || track.path || ''),
                 'rutas'
             );
+        case 'numhand': {
+            const trackPath = await getFirstSelectedTrackPath(context, sdk);
+            return spawnConfiguredPythonTool(context, sdk, 'numHandScript', [trackPath]);
+        }
+        case 'smb-year': {
+            const trackPath = await getFirstSelectedTrackPath(context, sdk);
+            return spawnConfiguredPythonTool(context, sdk, 'smbYearScript', [trackPath]);
+        }
         case 'explore-directory':
             return runContextCommand(sdk, 'Run service/Explore Directory');
-        case 'recycle-bin':
+        case 'recycle-bin': {
+            const recycleBinPath = String(getExternalToolSettings(context).recycleBinPath || '').trim();
+            if (!recycleBinPath) {
+                throw new Error('Configura la carpeta de reciclaje en "Configurar herramientas externas".');
+            }
             return requireSuccessfulResult(
-                await sdk.shell.showInExplorer(RECYCLE_BIN_PATH),
+                await sdk.shell.showInExplorer(recycleBinPath),
                 'shell.showInExplorer'
             );
+        }
         default:
             return { cancelled: true };
     }
@@ -376,13 +437,66 @@ export function createLegacyActivityActions({
             execute: () => runMainMenuCommand(getSdk(), 'View/Youtube Source/Search on Site')
         },
         {
+            id: 'legacy.launchFrameEtude',
+            label: 'Abrir FrameEtude',
+            category: 'Herramientas externas',
+            description: 'Inicia el script configurado de FrameEtude.',
+            defaultIcon: 'film',
+            isAvailable: nativeAvailability,
+            execute: (context) => spawnConfiguredPythonTool(context, getSdk(), 'frameEtudeScript')
+        },
+        {
+            id: 'legacy.launchCatchEtude',
+            label: 'Abrir CatchEtude',
+            category: 'Herramientas externas',
+            description: 'Inicia el script configurado de CatchEtude.',
+            defaultIcon: 'download',
+            isAvailable: nativeAvailability,
+            execute: (context) => spawnConfiguredPythonTool(context, getSdk(), 'catchEtudeScript')
+        },
+        {
+            id: 'legacy.launchAnuarySignature',
+            label: 'Abrir AnuarySignature',
+            category: 'Herramientas externas',
+            description: 'Inicia el script configurado de AnuarySignature.',
+            defaultIcon: 'pencil-square-o',
+            isAvailable: nativeAvailability,
+            execute: (context) => spawnConfiguredPythonTool(context, getSdk(), 'anuarySignatureScript')
+        },
+        {
+            id: 'legacy.launchNumHand',
+            label: 'Abrir NumHand para el archivo seleccionado',
+            category: 'Herramientas externas',
+            description: 'Inicia NumHand pasando la ruta local del primer archivo seleccionado.',
+            defaultIcon: 'sort-numeric-asc',
+            isAvailable: selectionAvailability,
+            execute: async (context) => {
+                const sdk = getSdk();
+                const trackPath = await getFirstSelectedTrackPath(context, sdk);
+                return spawnConfiguredPythonTool(context, sdk, 'numHandScript', [trackPath]);
+            }
+        },
+        {
+            id: 'legacy.connectYearToSmb',
+            label: 'Conectar año a SMB',
+            category: 'Herramientas externas',
+            description: 'Abre el diálogo SMB pasando la ruta local del archivo seleccionado.',
+            defaultIcon: 'folder-open',
+            isAvailable: selectionAvailability,
+            execute: async (context) => {
+                const sdk = getSdk();
+                const trackPath = await getFirstSelectedTrackPath(context, sdk);
+                return spawnConfiguredPythonTool(context, sdk, 'smbYearScript', [trackPath]);
+            }
+        },
+        {
             id: 'legacy.yearbookExplorer',
             label: 'Yearbook Explorer',
             category: 'Archivos y selección',
-            description: 'Navega por los años y subcarpetas de E:\\_Internal y abre la carpeta elegida en Explorer.',
+            description: 'Navega por los años y subcarpetas de la raíz configurable y abre carpetas en Explorer o GalleryAnuary.',
             defaultIcon: 'calendar',
             isAvailable: nativeAvailability,
-            execute: () => showYearbookExplorer(getSdk())
+            execute: (context) => showYearbookExplorer(context, getSdk())
         },
         {
             id: 'legacy.googleSearcherSongs',
