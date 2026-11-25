@@ -121,9 +121,22 @@ Migrated actions:
 - Yearbook Explorer: browse a configurable year root using `file.list`; folders marked `.album` launch GalleryAnuary with the selected child folder.
 - External tool launchers: FrameEtude, CatchEtude and AnuarySignature.
 
-Native menu, clipboard, playlist, file and process operations use the typed SDK. Selected-file launchers pass `absolutePath` as a separate process argument; no command-line string concatenation is used. External scripts run through `shell.spawn` with a hidden window and are not invoked from Chrome/Edge or demo mode. No Spider Monkey Panel globals such as `plman`, `ActiveXObject` or `window.CreatePopupMenu` are used.
+Native menu, clipboard, playlist, file and process operations use the typed SDK. Selected-file launchers pass `absolutePath` as a separate process argument; no command-line string concatenation is used. External scripts run through `shell.spawn` with the current configured window visibility (`hidden: false` in this branch) and are not invoked from Chrome/Edge or demo mode. No Spider Monkey Panel globals such as `plman`, `ActiveXObject` or `window.CreatePopupMenu` are used.
 
 Use the registered `Configurar herramientas externas` action to set the Python executable and the paths for FrameEtude, CatchEtude, AnuarySignature, NumHand, the SMB dialog and GalleryAnuary. The year root and recycle path are editable there too. Script paths start empty: configure them for the current machine instead of inheriting the old hardcoded OneDrive user path. Python defaults to `pythonw.exe`, which must be resolvable through the foobar2000 process PATH or replaced with a valid executable path.
+
+
+## Phase 5 — extension modules and execution lifecycle
+
+Core and legacy actions are now registered as named modules (`core` and `legacy`). New feature modules use the exported `registerActivityBarModule()` API rather than adding actions to the ActivityBar component or editing a central button list.
+
+Module registration is atomic: duplicate IDs or invalid definitions reject the whole module. The registry publishes owner metadata and supports module-level disposal; unloading a module removes only its actions and runs its cleanup. Individual action removal keeps the module's action count in sync.
+
+The manager groups available actions by category and shows the owning module. Registry subscriptions make later module additions and removals visible in React without restarting CrayonShell.
+
+The dispatcher supports `executionPolicy: 'parallel' | 'single'`. Single-flight actions publish a reactive running state, reject overlapping invocations with a structured `busy` result, and disable their ActivityBar buttons until completion. External application launchers and Yearbook Explorer use this policy to avoid accidental duplicate launches.
+
+Automated tests cover atomic registration, duplicate IDs, module metadata, module unload, individual action removal, execution policy, concurrent execution and reactive running state.
 
 ## Sidebar lifecycle
 
