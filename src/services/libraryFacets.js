@@ -1,5 +1,6 @@
 const PLAYLIST_NAME = 'Library Viewer Selection';
 const DIRECTORY_TRACKS_CONCURRENCY = 5;
+const LIBRARY_QUERY_FIELDS = Object.freeze(['handle', 'path', 'absolutePath', 'subsong']);
 const EMPTY_YEAR = '__CRAYONSHELL_EMPTY_YEAR__';
 const EMPTY_SUBFOLDER = '__CRAYONSHELL_EMPTY_SUBFOLDER__';
 
@@ -195,6 +196,79 @@ export async function buildLibraryFacetTree(sdk, options = {}) {
     };
 }
 
+
+function normalizeDirectoryPath(value) {
+    let path = String(value || '');
+    if (/^file:\/\//i.test(path)) {
+        path = path.replace(/^file:\/\//i, '');
+        if (/^\/[a-z]:[\\/]/i.test(path)) path = path.slice(1);
+    }
+    return path.replace(/\//g, '\\').replace(/[\\]+$/, '').toLocaleLowerCase('en-US');
+}
+
+function getTrackDirectoryPath(track) {
+    const path = String(track?.absolutePath || track?.path || '')
+        .replace(/\//g, '\\');
+    const separator = path.lastIndexOf('\\');
+    return separator >= 0 ? path.slice(0, separator) : '';
+}
+
+function buildMediaLibraryPathQuery(directories) {
+    const paths = Array.from(new Set(directories
+        .map((directory) => String(directory.absolutePath || '').replace(/\//g, '\\').replace(/[\\]+$/, ''))
+        .filter(Boolean)));
+
+    if (paths.some((path) => path.includes('"'))) {
+        throw new Error('Una ruta contiene comillas y no se puede expresar de forma segura en la consulta de Media Library.');
+    }
+
+    return paths.map((path) => '(%path% HAS "' + path + '")').join(' OR ');
+}
+
+async function readMediaLibraryTracks(sdk, directories) {
+    if (typeof sdk.library?.query !== 'function') {
+        throw new Error('El SDK no expone fb.library.query(); no se puede usar el modo de índice de Media Library.');
+    }
+
+    const selectedPaths = new Set(directories
+        .map((directory) => normalizeDirectoryPath(directory.absolutePath))
+        .filter(Boolean));
+    if (selectedPaths.size === 0) return [];
+
+    const query = buildMediaLibraryPathQuery(directories);
+    if (!query) return [];
+
+    const expectedTrackCount = directories.reduce(
+        (total, directory) => total + Math.max(0, Number(directory.trackCount) || 0),
+        0
+    );
+    let response = assertSuccess(
+        await sdk.library.query(
+            query,
+            '%path_sort%',
+            Math.max(1, expectedTrackCount),
+            LIBRARY_QUERY_FIELDS
+        ),
+        'library.query'
+    );
+    let tracks = Array.isArray(response.tracks) ? response.tracks : [];
+    const total = Math.max(0, Number(response.total) || tracks.length);
+
+    // HAS can return paths containing the same words in another location.
+    // Read the complete candidate set before filtering to exact parent folders.
+    if (total > tracks.length) {
+        response = assertSuccess(
+            await sdk.library.query(query, '%path_sort%', total, LIBRARY_QUERY_FIELDS),
+            'library.query'
+        );
+        tracks = Array.isArray(response.tracks) ? response.tracks : [];
+    }
+
+    return tracks.filter((track) => (
+        selectedPaths.has(normalizeDirectoryPath(getTrackDirectoryPath(track)))
+    ));
+}
+
 async function readDirectoryTracks(sdk, directory) {
     const response = assertSuccess(
         await sdk.library.browseTree({
@@ -253,12 +327,15 @@ export async function syncLibraryViewerSelection(sdk, directories, options = {})
     const shouldApply = typeof options.shouldApply === 'function'
         ? options.shouldApply
         : () => true;
+    const accessMode = options.accessMode === 'media-library' ? 'media-library' : 'immediate';
 
-    const directoryFiles = await mapWithConcurrency(
-        source,
-        DIRECTORY_TRACKS_CONCURRENCY,
-        (directory) => readDirectoryTracks(sdk, directory)
-    );
+    const directoryFiles = accessMode === 'media-library'
+        ? [await readMediaLibraryTracks(sdk, source)]
+        : await mapWithConcurrency(
+            source,
+            DIRECTORY_TRACKS_CONCURRENCY,
+            (directory) => readDirectoryTracks(sdk, directory)
+        );
 
     if (!shouldApply()) return { stale: true, trackCount: 0 };
 
@@ -272,15 +349,17 @@ export async function syncLibraryViewerSelection(sdk, directories, options = {})
         if (!uniqueTracks.has(key)) {
             uniqueTracks.set(key, {
                 index: Number.isFinite(Number(track.index)) ? Number(track.index) : Number.MAX_SAFE_INTEGER,
-                path,
+                path: String(track?.path || track?.absolutePath || ''),
+                sortPath: String(track?.absolutePath || track?.path || path),
                 subsong
             });
         }
     });
 
     const orderedTracks = Array.from(uniqueTracks.values()).sort((left, right) => (
-        left.path.localeCompare(right.path, 'en', {
-            sensitivity: 'base'
+        left.sortPath.localeCompare(right.sortPath, 'en', {
+            sensitivity: 'base',
+            numeric: true
         }) || left.subsong - right.subsong
     ));
     const handles = orderedTracks.map((track) => (
