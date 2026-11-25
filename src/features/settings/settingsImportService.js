@@ -194,10 +194,25 @@ function normalizeProviderRecord(provider, id, record) {
     }
 
     const normalized = provider.validateSettings(candidate);
+    const safeSettings = cloneJsonValue(
+        normalized,
+        '$.providers.' + id + '.normalizedSettings'
+    );
+    const importWarnings = typeof provider.getImportWarnings === 'function'
+        ? provider.getImportWarnings(safeSettings, {
+            providerId: id,
+            sourceVersion,
+            targetVersion: provider.version
+        })
+        : [];
+
     return {
         status,
         sourceVersion,
-        settings: cloneJsonValue(normalized, '$.providers.' + id + '.normalizedSettings'),
+        settings: safeSettings,
+        warnings: Array.isArray(importWarnings)
+            ? importWarnings.filter((warning) => typeof warning === 'string' && warning.trim())
+            : [],
         error: null
     };
 }
@@ -262,7 +277,10 @@ export function inspectSettingsBackup(registry, input) {
                 settings: result.settings,
                 machineDependent: machineDependentFields.length > 0,
                 machineDependentFields,
-                warnings: warning ? [warning] : [],
+                warnings: [
+                    ...(warning ? [warning] : []),
+                    ...(result.warnings || [])
+                ],
                 error: result.error
             });
         } catch (error) {
