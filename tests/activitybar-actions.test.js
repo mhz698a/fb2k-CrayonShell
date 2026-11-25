@@ -77,6 +77,7 @@ test('Action Registry registra módulos atómicamente y expone sus metadatos', (
     }]);
     assert.equal(registry.getState('media.open').moduleId, 'media');
     assert.equal(registry.getState('media.open').moduleLabel, 'Media tools');
+    assert.equal(registry.getCatalog()[0].moduleDescription, 'Acciones del módulo multimedia.');
     assert.equal(removeModule(), true);
     assert.equal(registry.has('media.open'), false);
     assert.equal(registry.has('media.search'), false);
@@ -174,6 +175,22 @@ test('Action Registry rechaza identificadores duplicados y acciones sin ejecutor
         () => registry.register({ id: 'test.invalid' }),
         /debe proporcionar execute/
     );
+});
+
+test('Action Registry valida la política de ejecución de cada acción', () => {
+    const registry = createActionRegistry();
+
+    assert.throws(() => registry.register({
+        id: 'test.bad-policy',
+        executionPolicy: 'queue',
+        execute: () => undefined
+    }), /executionPolicy no válida/);
+
+    registry.register({
+        id: 'test.default-policy',
+        execute: () => undefined
+    });
+    assert.equal(registry.get('test.default-policy').executionPolicy, 'parallel');
 });
 
 test('Action Registry expone disponibilidad, motivo y estado activo', () => {
