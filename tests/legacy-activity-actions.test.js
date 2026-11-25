@@ -314,7 +314,7 @@ test('Inicia las herramientas Python con argumentos separados y ventana oculta',
                 args: [
                     'C:\\Tools\\FrameEtude\\frame_etude.pyw'
                 ],
-                hidden: true
+                hidden: false
             }
         ],
         [
@@ -325,7 +325,7 @@ test('Inicia las herramientas Python con argumentos separados y ventana oculta',
                     'C:\\Tools\\NumHand\\main.py',
                     'C:\\Music\\Track Name (η).mp3'
                 ],
-                hidden: true
+                hidden: false
             }
         ]
     ]);
@@ -375,7 +375,7 @@ test('Yearbook Explorer abre con GalleryAnuary la subcarpeta dentro del contened
                     'C:\\Tools\\GalleryAnuary\\app.py',
                     'E:\\_Internal\\' + currentYear + '\\01. album\\My Album'
                 ],
-                hidden: true
+                hidden: false
             }
         ]
     ]);
