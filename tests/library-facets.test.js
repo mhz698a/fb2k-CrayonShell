@@ -36,17 +36,17 @@ function createPlaylistSdk(library) {
 }
 
 const directory = {
-    rootId: 'C:\\\\Music',
-    pathId: 'Artist\\\\Album',
-    absolutePath: 'C:\\\\Music\\\\Artist\\\\Album',
+    rootId: 'C:\\Music',
+    pathId: 'Artist\\Album',
+    absolutePath: 'C:\\Music\\Artist\\Album',
     trackCount: 3
 };
 
 test('immediate folder access sorts %path% naturally instead of lexicographically', async () => {
     const files = [
-        { path: 'C:\\\\Music\\\\Artist\\\\Album\\\\10 - Ten.flac', subsong: 0 },
-        { path: 'C:\\\\Music\\\\Artist\\\\Album\\\\2 - Two.flac', subsong: 0 },
-        { path: 'C:\\\\Music\\\\Artist\\\\Album\\\\1 - One.flac', subsong: 0 }
+        { path: 'C:\\Music\\Artist\\Album\\10 - Ten.flac', subsong: 0 },
+        { path: 'C:\\Music\\Artist\\Album\\2 - Two.flac', subsong: 0 },
+        { path: 'C:\\Music\\Artist\\Album\\1 - One.flac', subsong: 0 }
     ];
     const { sdk, captured } = createPlaylistSdk({
         async browseTree() {
@@ -58,9 +58,9 @@ test('immediate folder access sorts %path% naturally instead of lexicographicall
 
     assert.equal(result.trackCount, 3);
     assert.deepEqual(captured.handles, [
-        'C:\\\\Music\\\\Artist\\\\Album\\\\1 - One.flac',
-        'C:\\\\Music\\\\Artist\\\\Album\\\\2 - Two.flac',
-        'C:\\\\Music\\\\Artist\\\\Album\\\\10 - Ten.flac'
+        'C:\\Music\\Artist\\Album\\1 - One.flac',
+        'C:\\Music\\Artist\\Album\\2 - Two.flac',
+        'C:\\Music\\Artist\\Album\\10 - Ten.flac'
     ]);
 });
 
@@ -68,21 +68,21 @@ test('Media Library mode uses native query sorted by %path_sort% and filters exa
     const queryCalls = [];
     const tracks = [
         {
-            handle: 'C:\\\\Music\\\\Artist\\\\Album\\\\1 - One.flac',
-            path: 'C:\\\\Music\\\\Artist\\\\Album\\\\1 - One.flac',
-            absolutePath: 'C:\\\\Music\\\\Artist\\\\Album\\\\1 - One.flac',
+            handle: 'C:\\Music\\Artist\\Album\\1 - One.flac',
+            path: 'C:\\Music\\Artist\\Album\\1 - One.flac',
+            absolutePath: 'C:\\Music\\Artist\\Album\\1 - One.flac',
             subsong: 0
         },
         {
-            handle: 'C:\\\\Music\\\\Artist\\\\Album\\\\2 - Two.flac',
-            path: 'C:\\\\Music\\\\Artist\\\\Album\\\\2 - Two.flac',
-            absolutePath: 'C:\\\\Music\\\\Artist\\\\Album\\\\2 - Two.flac',
+            handle: 'C:\\Music\\Artist\\Album\\2 - Two.flac',
+            path: 'C:\\Music\\Artist\\Album\\2 - Two.flac',
+            absolutePath: 'C:\\Music\\Artist\\Album\\2 - Two.flac',
             subsong: 0
         },
         {
-            handle: 'C:\\\\Music\\\\Artist\\\\Album Extra\\\\Ignored.flac',
-            path: 'C:\\\\Music\\\\Artist\\\\Album Extra\\\\Ignored.flac',
-            absolutePath: 'C:\\\\Music\\\\Artist\\\\Album Extra\\\\Ignored.flac',
+            handle: 'C:\\Music\\Artist\\Album Extra\\Ignored.flac',
+            path: 'C:\\Music\\Artist\\Album Extra\\Ignored.flac',
+            absolutePath: 'C:\\Music\\Artist\\Album Extra\\Ignored.flac',
             subsong: 0
         }
     ];
@@ -106,8 +106,8 @@ test('Media Library mode uses native query sorted by %path_sort% and filters exa
     assert.deepEqual(queryCalls[0][3], ['handle', 'path', 'absolutePath', 'subsong']);
     assert.equal(result.trackCount, 2);
     assert.deepEqual(captured.handles, [
-        'C:\\\\Music\\\\Artist\\\\Album\\\\1 - One.flac',
-        'C:\\\\Music\\\\Artist\\\\Album\\\\2 - Two.flac'
+        'C:\\Music\\Artist\\Album\\1 - One.flac',
+        'C:\\Music\\Artist\\Album\\2 - Two.flac'
     ]);
 });
 

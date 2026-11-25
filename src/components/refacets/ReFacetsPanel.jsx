@@ -24,6 +24,8 @@ export default function ReFacetsPanel({ visible = true }) {
         if (visible) setHasBeenVisible(true);
     }, [visible]);
 
+    const [prefs, setPrefs] = useState(readRefacetsPresentation);
+
     const {
         status,
         message,
@@ -47,7 +49,6 @@ export default function ReFacetsPanel({ visible = true }) {
         refresh
     } = useLibraryFacets(hasBeenVisible, prefs.playlistAccessMode);
 
-    const [prefs, setPrefs] = useState(readRefacetsPresentation);
     const [menu, setMenu] = useState(null);
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
     const menuRef = useRef(null);
