@@ -8,6 +8,7 @@ import {
     normalizeExternalToolsConfig,
     saveExternalToolsConfig
 } from '../../activitybar/config/externalTools.js';
+import { resolveSettingsStorage } from '../storageAccess.js';
 import {
     normalizeCoreUiSettings,
     readCoreUiSettings,
@@ -34,11 +35,7 @@ import {
 } from '../../yearbook/yearbookExplorerSettings.js';
 
 function getStorage(storage) {
-    if (storage) return storage;
-    if (typeof window === 'undefined' || !window.localStorage) {
-        throw new Error('El almacenamiento local de CrayonShell no está disponible.');
-    }
-    return window.localStorage;
+    return resolveSettingsStorage(storage);
 }
 
 export function createCoreSettingsProviders(storageOverride) {
