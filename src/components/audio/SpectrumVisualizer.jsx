@@ -4,7 +4,6 @@ import {
     DEFAULT_SPECTRUM_SETTINGS,
     normalizeSpectrumSettings,
     readSpectrumSettings,
-    SPECTRUM_SETTINGS_STORAGE_KEY,
     writeSpectrumSettings
 } from '../../features/spectrum/spectrumSettings.js';
 
