@@ -21,17 +21,17 @@ import {
     readRefacetsPresentation,
     readRefacetsSelection,
     writeRefacetsSettings
-} from '../../../features/refacets/refacetsSettings.js';
+} from '../../refacets/refacetsSettings.js';
 import {
     normalizeSpectrumSettings,
     readSpectrumSettings,
     writeSpectrumSettings
-} from '../../../features/spectrum/spectrumSettings.js';
+} from '../../spectrum/spectrumSettings.js';
 import {
     normalizeYearbookExplorerSettings,
     readYearbookExplorerSettings,
     writeYearbookExplorerSettings
-} from '../../../features/yearbook/yearbookExplorerSettings.js';
+} from '../../yearbook/yearbookExplorerSettings.js';
 
 function getStorage(storage) {
     if (storage) return storage;
