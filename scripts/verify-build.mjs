@@ -45,10 +45,13 @@ for (const reference of expectedReferences) {
 
 const css = await readFile(join(outputDirectory, 'crayonshell.css'), 'utf8');
 
-if (!/font-family:[^;]*FontAwesome/i.test(css)
-    || !/fontawesome-webfont[^)]*\\.(woff2|woff)/i.test(css)) {
+const hasFontAwesomeFamily = /font-family\\s*:\\s*["']?FontAwesome["']?/i.test(css);
+const hasEmittedFont = /fontawesome-webfont[^)]*\\.(woff2?|ttf|eot)/i.test(css);
+const hasEmbeddedFont = /font-family\\s*:\\s*["']?FontAwesome["']?[^}]*url\\(\\s*data:[^)]*base64,/i.test(css);
+
+if (!hasFontAwesomeFamily || (!hasEmittedFont && !hasEmbeddedFont)) {
     throw new Error(
-        'La compilación no incluye Font Awesome 4 ni la referencia a su fuente local.'
+        'La compilación no incluye Font Awesome 4 con una fuente local emitida o embebida.'
     );
 }
 
