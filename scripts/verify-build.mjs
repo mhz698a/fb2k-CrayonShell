@@ -45,9 +45,9 @@ for (const reference of expectedReferences) {
 
 const css = await readFile(join(outputDirectory, 'crayonshell.css'), 'utf8');
 
-const hasFontAwesomeFamily = /font-family\\s*:\\s*["']?FontAwesome["']?/i.test(css);
-const hasEmittedFont = /fontawesome-webfont[^)]*\\.(woff2?|ttf|eot)/i.test(css);
-const hasEmbeddedFont = /font-family\\s*:\\s*["']?FontAwesome["']?[^}]*url\\(\\s*data:[^)]*base64,/i.test(css);
+const hasFontAwesomeFamily = /font-family\s*:\s*["']?FontAwesome["']?/i.test(css);
+const hasEmittedFont = /fontawesome-webfont[^)]*\.(woff2?|ttf|eot)/i.test(css);
+const hasEmbeddedFont = /font-family\s*:\s*["']?FontAwesome["']?[^}]*url\(\s*data:[^)]*base64,/i.test(css);
 
 if (!hasFontAwesomeFamily || (!hasEmittedFont && !hasEmbeddedFont)) {
     throw new Error(
