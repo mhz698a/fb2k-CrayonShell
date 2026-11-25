@@ -59,6 +59,10 @@ function createSdk(overrides = {}) {
             list: async (path) => {
                 calls.push(['file.list', path]);
                 return { success: true, directories: [] };
+            },
+            exists: async (path) => {
+                calls.push(['file.exists', path]);
+                return { success: true, exists: true, isFile: true, isDirectory: false };
             }
         }
     };
@@ -314,6 +318,10 @@ test('Inicia las herramientas Python con argumentos separados y ventana oculta',
             }
         ],
         [
+            'file.exists',
+            'C:\\Music\\Track Name (η).mp3'
+        ],
+        [
             'spawn',
             'pythonw.exe',
             {
@@ -372,4 +380,58 @@ test('Yearbook Explorer abre con GalleryAnuary la subcarpeta dentro del contened
             }
         ]
     ]);
+});
+
+test('NumHand y SMB rechazan selecciones múltiples o archivos inexistentes', async () => {
+    const { sdk, calls } = createSdk({
+        playlist: {
+            getSelectedTracks: async (playlistGuid) => ({
+                success: true,
+                playlist: playlistGuid,
+                tracks: [
+                    { absolutePath: 'C:\\Music\\One.mp3' },
+                    { absolutePath: 'C:\\Music\\Two.mp3' }
+                ]
+            })
+        }
+    });
+    const actions = createLegacyActivityActions({
+        getSdk: () => sdk,
+        isNativeAvailable: () => true
+    });
+
+    await assert.rejects(
+        () => findAction(actions, 'legacy.launchNumHand').execute(context),
+        /solo acepta UN archivo seleccionado/
+    );
+    await assert.rejects(
+        () => findAction(actions, 'legacy.connectYearToSmb').execute(context),
+        /solo acepta UN archivo seleccionado/
+    );
+    assert.equal(calls.some((call) => call[0] === 'spawn'), false);
+});
+
+test('NumHand y SMB no se ejecutan si el archivo seleccionado no existe', async () => {
+    const { sdk, calls } = createSdk({
+        file: {
+            exists: async (path) => {
+                calls.push(['file.exists', path]);
+                return { success: true, exists: false, isFile: false, isDirectory: false };
+            }
+        }
+    });
+    const actions = createLegacyActivityActions({
+        getSdk: () => sdk,
+        isNativeAvailable: () => true
+    });
+
+    await assert.rejects(
+        () => findAction(actions, 'legacy.launchNumHand').execute(context),
+        /no existe o no es válido/
+    );
+    await assert.rejects(
+        () => findAction(actions, 'legacy.connectYearToSmb').execute(context),
+        /no existe o no es válido/
+    );
+    assert.equal(calls.some((call) => call[0] === 'spawn'), false);
 });
