@@ -21,7 +21,8 @@ export function normalizeExternalToolsConfig(value = {}) {
 
     return Object.fromEntries(CONFIG_FIELDS.map((key) => {
         const raw = source[key];
-        const normalized = typeof raw === 'string' ? raw.trim() : '';
+        const fallback = DEFAULT_EXTERNAL_TOOLS_CONFIG[key];
+        const normalized = typeof raw === 'string' ? raw.trim() : fallback;
         return [key, normalized.slice(0, 2048)];
     }));
 }
