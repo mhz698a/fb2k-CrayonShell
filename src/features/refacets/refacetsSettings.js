@@ -1,3 +1,8 @@
+import {
+    requireSettingsStorage,
+    resolveSettingsStorage
+} from '../settings/storageAccess.js';
+
 export const REFACETS_PRESENTATION_STORAGE_KEY = 'crayonshell.refacets.presentation.v1';
 export const REFACETS_COLUMN_SPLIT_STORAGE_KEY = 'crayonshell.refacets.columnSplit.v1';
 export const REFACETS_SELECTION_STORAGE_KEY = 'crayonshell.refacets.selection.v1';
@@ -62,7 +67,8 @@ export function normalizeRefacetsSelection(value = {}) {
     };
 }
 
-export function readRefacetsPresentation(storage = window.localStorage) {
+export function readRefacetsPresentation(storageOverride) {
+    const storage = resolveSettingsStorage(storageOverride);
     try {
         return normalizeRefacetsPresentation(JSON.parse(
             storage.getItem(REFACETS_PRESENTATION_STORAGE_KEY) || '{}'
@@ -72,7 +78,8 @@ export function readRefacetsPresentation(storage = window.localStorage) {
     }
 }
 
-export function readRefacetsColumnSplit(storage = window.localStorage) {
+export function readRefacetsColumnSplit(storageOverride) {
+    const storage = resolveSettingsStorage(storageOverride);
     try {
         const value = storage.getItem(REFACETS_COLUMN_SPLIT_STORAGE_KEY);
         return value === null
@@ -83,7 +90,8 @@ export function readRefacetsColumnSplit(storage = window.localStorage) {
     }
 }
 
-export function readRefacetsSelection(storage = window.localStorage) {
+export function readRefacetsSelection(storageOverride) {
+    const storage = resolveSettingsStorage(storageOverride);
     try {
         return normalizeRefacetsSelection(JSON.parse(
             storage.getItem(REFACETS_SELECTION_STORAGE_KEY) || '{}'
@@ -93,7 +101,8 @@ export function readRefacetsSelection(storage = window.localStorage) {
     }
 }
 
-export function writeRefacetsSettings(value, storage = window.localStorage) {
+export function writeRefacetsSettings(value, storageOverride) {
+    const storage = requireSettingsStorage(storageOverride);
     const source = getObject(value);
     const settings = {
         presentation: normalizeRefacetsPresentation(source.presentation),
