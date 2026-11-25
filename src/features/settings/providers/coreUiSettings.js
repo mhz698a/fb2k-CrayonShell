@@ -18,6 +18,15 @@ function clampNumber(value, minimum, maximum, fallback) {
         : fallback;
 }
 
+function normalizeSidebarWidth(value) {
+    const number = Number(value);
+    return Number.isFinite(number)
+        && number >= MIN_SIDEBAR_WIDTH
+        && number <= MAX_SIDEBAR_WIDTH
+        ? number
+        : DEFAULT_SIDEBAR_WIDTH;
+}
+
 function readStorageValue(storage, key) {
     try {
         return storage.getItem(key);
@@ -39,12 +48,7 @@ export function normalizeCoreUiSettings(value = {}) {
 
     return {
         sidebar: {
-            width: clampNumber(
-                sidebar.width,
-                MIN_SIDEBAR_WIDTH,
-                MAX_SIDEBAR_WIDTH,
-                DEFAULT_SIDEBAR_WIDTH
-            ),
+            width: normalizeSidebarWidth(sidebar.width),
             collapsed: typeof sidebar.collapsed === 'boolean' ? sidebar.collapsed : true,
             view: sidebar.view === 'yearbook' ? 'yearbook' : 'library'
         },
