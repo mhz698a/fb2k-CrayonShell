@@ -2,6 +2,7 @@ import {
     loadActivityBarConfig,
     saveActivityBarConfig
 } from '../../activitybar/config/storage.js';
+import { activityBarActionRegistry } from '../../activitybar/actions/index.js';
 import { normalizeActivityBarConfig } from '../../activitybar/config/schema.js';
 import {
     loadExternalToolsConfig,
@@ -38,6 +39,23 @@ function getStorage(storage) {
     return resolveSettingsStorage(storage);
 }
 
+function getActivityBarImportWarnings(settings) {
+    const availableActionIds = new Set(
+        activityBarActionRegistry.getModules().flatMap((module) => module.actionIds)
+    );
+    const unavailableActionIds = settings.buttons
+        .map((button) => button.actionId)
+        .filter((actionId) => !availableActionIds.has(actionId));
+
+    return unavailableActionIds.length
+        ? [
+            'La configuración contiene acciones que no están registradas en esta instalación: '
+            + Array.from(new Set(unavailableActionIds)).join(', ')
+            + '. Se conservarán como referencias declarativas y no se ejecutará código desconocido.'
+        ]
+        : [];
+}
+
 export function createCoreSettingsProviders(storageOverride) {
     const storage = getStorage(storageOverride);
 
@@ -60,6 +78,7 @@ export function createCoreSettingsProviders(storageOverride) {
             order: 20,
             readSettings: () => loadActivityBarConfig(storage),
             validateSettings: normalizeActivityBarConfig,
+            getImportWarnings: getActivityBarImportWarnings,
             applySettings: (value) => saveActivityBarConfig(value, storage)
         },
         {
