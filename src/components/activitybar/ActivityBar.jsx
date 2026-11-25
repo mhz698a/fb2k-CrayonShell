@@ -1,4 +1,4 @@
-export default function ActivityBar({ sidebarCollapsed, onToggleSidebar }) {
+export default function ActivityBar({ sidebarCollapsed, sidebarAction, onExecuteAction }) {
     const sidebarLabel = sidebarCollapsed
         ? 'Mostrar panel izquierdo'
         : 'Ocultar panel izquierdo';
@@ -12,9 +12,13 @@ export default function ActivityBar({ sidebarCollapsed, onToggleSidebar }) {
                     type="button"
                     aria-controls="LeftSidebar"
                     aria-expanded={!sidebarCollapsed}
+                    aria-pressed={Boolean(sidebarAction?.active)}
                     aria-label={sidebarLabel}
-                    title={sidebarLabel}
-                    onClick={onToggleSidebar}
+                    title={sidebarAction?.available === false
+                        ? sidebarAction.unavailableReason || sidebarLabel
+                        : sidebarLabel}
+                    disabled={sidebarAction?.available === false}
+                    onClick={() => onExecuteAction('ui.toggleSidebar')}
                 >
                     <svg
                         className="activitybar-button-icon"
