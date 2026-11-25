@@ -111,6 +111,46 @@ select {
     stroke-linejoin: round;
 }
 
+.activitybar-button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.activitybar-action-error {
+    position: fixed;
+    z-index: 1500;
+    left: calc(var(--activitybar-width) + 12px);
+    bottom: 34px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: min(520px, calc(100vw - var(--activitybar-width) - 24px));
+    padding: 9px 11px;
+    color: #f5d7d7;
+    background: #402626;
+    border: 1px solid #9b4b4b;
+    border-radius: 4px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, .4);
+    font-size: 11px;
+}
+
+.activitybar-action-error span {
+    overflow-wrap: anywhere;
+}
+
+.activitybar-action-error button {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
 .sidebar {
     grid-column: 2;
     display: flex;
