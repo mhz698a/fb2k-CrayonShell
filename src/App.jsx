@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ActivityBar from './components/activitybar/ActivityBar.jsx';
 import ActivityBarManagerDialog from './components/activitybar/ActivityBarManagerDialog.jsx';
 import ExternalToolsDialog from './components/activitybar/ExternalToolsDialog.jsx';
+import SettingsBackupDialog from './components/settings/SettingsBackupDialog.jsx';
 import { useExternalToolsConfig } from './features/activitybar/hooks/useExternalToolsConfig.js';
 import { useActivityBarConfig } from './features/activitybar/hooks/useActivityBarConfig.js';
 import { useActivityBarActions } from './features/activitybar/hooks/useActivityBarActions.js';
@@ -50,6 +51,7 @@ export default function App() {
     const [activityActionError, setActivityActionError] = useState('');
     const [activityBarManagerOpen, setActivityBarManagerOpen] = useState(false);
     const [externalToolsSettingsOpen, setExternalToolsSettingsOpen] = useState(false);
+    const [settingsBackupOpen, setSettingsBackupOpen] = useState(false);
     const { config: externalToolsConfig, saveConfig: saveExternalToolsConfig } = useExternalToolsConfig();
     const {
         config: activityBarConfig,
@@ -102,6 +104,14 @@ export default function App() {
 
     const closeExternalToolsSettings = useCallback(() => {
         setExternalToolsSettingsOpen(false);
+    }, []);
+
+    const openSettingsBackup = useCallback(() => {
+        setSettingsBackupOpen(true);
+    }, []);
+
+    const closeSettingsBackup = useCallback(() => {
+        setSettingsBackupOpen(false);
     }, []);
 
     const reportActivityActionError = useCallback((failure) => {
@@ -284,6 +294,7 @@ export default function App() {
                 buttons={activityBarConfig.buttons}
                 actionCatalog={activityBarActionCatalog}
                 onExecuteAction={executeActivityBarAction}
+                onOpenSettingsBackup={openSettingsBackup}
             />
 
             <ExternalToolsDialog
@@ -291,6 +302,10 @@ export default function App() {
                 config={externalToolsConfig}
                 onClose={closeExternalToolsSettings}
                 onSave={saveExternalToolsConfig}
+            />
+            <SettingsBackupDialog
+                open={settingsBackupOpen}
+                onClose={closeSettingsBackup}
             />
             <ActivityBarManagerDialog
                 open={activityBarManagerOpen}
