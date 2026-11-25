@@ -13,6 +13,7 @@ function createSdk(overrides = {}) {
                     tracks: [
                         {
                             path: 'file:///C:/Music/Track%20Name%20(%CE%B7).mp3',
+                            absolutePath: 'C:\\Music\\Track Name (η).mp3',
                             title: 'Track Title (ID: 12345)',
                             artist: 'Artist Name'
                         }
@@ -48,6 +49,10 @@ function createSdk(overrides = {}) {
             showInExplorer: async (path) => {
                 calls.push(['showInExplorer', path]);
                 return { success: true };
+            },
+            spawn: async (executable, options) => {
+                calls.push(['spawn', executable, options]);
+                return { success: true, processId: 1234 };
             }
         },
         file: {
@@ -73,7 +78,18 @@ function findAction(actions, id) {
 
 const context = {
     activePlaylistGuid: '{11111111-1111-1111-1111-111111111111}',
-    isDemoMode: false
+    isDemoMode: false,
+    externalTools: {
+        pythonExecutable: 'pythonw.exe',
+        frameEtudeScript: 'C:\\Tools\\FrameEtude\\frame_etude.pyw',
+        catchEtudeScript: 'C:\\Tools\\CatchEtude\\catchetude.pyw',
+        anuarySignatureScript: 'C:\\Tools\\AnuarySignature\\app.py',
+        numHandScript: 'C:\\Tools\\NumHand\\main.py',
+        smbYearScript: 'C:\\Tools\\smb_year_dialog.pyw',
+        galleryAnuaryScript: 'C:\\Tools\\GalleryAnuary\\app.py',
+        internalBasePath: 'E:\\_Internal',
+        recycleBinPath: 'E:\\_Exclude\\l_reallydeleted'
+    }
 };
 
 test('Registra acciones nativas heredadas para menús, DSP y servicios', () => {
@@ -95,7 +111,12 @@ test('Registra acciones nativas heredadas para menús, DSP y servicios', () => {
         'legacy.googleSearcherSongs',
         'legacy.newgrounds.openPage',
         'legacy.numhand.extrasMenu',
-        'legacy.yearbookExplorer'
+        'legacy.yearbookExplorer',
+        'legacy.launchFrameEtude',
+        'legacy.launchCatchEtude',
+        'legacy.launchAnuarySignature',
+        'legacy.launchNumHand',
+        'legacy.connectYearToSmb'
     ]) {
         assert.ok(ids.includes(id), 'Falta la acción ' + id);
     }
@@ -149,6 +170,8 @@ test('Copia los nombres y rutas de la selección real de foobar2000', async () =
         ['popup', [
             { id: 'copy-names', label: 'Copy Names' },
             { id: 'copy-paths', label: 'Copy Paths' },
+            { id: 'numhand', label: 'Open NumHand For This Folder' },
+            { id: 'smb-year', label: 'Connect current year to SMB' },
             { id: 'explore-directory', label: 'Explore folder of current song' },
             { type: 'separator' },
             { id: 'recycle-bin', label: 'Open Recycle Bin' }
@@ -266,5 +289,81 @@ test('Yearbook Explorer navega por carpetas mediante file.list y abre la carpeta
     assert.deepEqual(calls.at(-1), [
         'showInExplorer',
         'E:\\_Internal\\' + currentYear + '\\Album folder\\Subfolder'
+    ]);
+});
+
+test('Inicia las herramientas Python con argumentos separados y ventana oculta', async () => {
+    const { sdk, calls } = createSdk();
+    const actions = createLegacyActivityActions({
+        getSdk: () => sdk,
+        isNativeAvailable: () => true
+    });
+
+    await findAction(actions, 'legacy.launchFrameEtude').execute(context);
+    await findAction(actions, 'legacy.launchNumHand').execute(context);
+
+    assert.deepEqual(calls.filter((call) => call[0] === 'spawn'), [
+        [
+            'spawn',
+            'pythonw.exe',
+            {
+                args: [
+                    'C:\\Tools\\FrameEtude\\frame_etude.pyw'
+                ],
+                hidden: true
+            }
+        ],
+        [
+            'spawn',
+            'pythonw.exe',
+            {
+                args: [
+                    'C:\\Tools\\NumHand\\main.py',
+                    'C:\\Music\\Track Name (η).mp3'
+                ],
+                hidden: true
+            }
+        ]
+    ]);
+});
+
+test('Yearbook Explorer abre una carpeta .album con GalleryAnuary', async () => {
+    const currentYear = new Date().getFullYear();
+    const calls = [];
+    const { sdk } = createSdk({
+        menu: {
+            popup: async (items) => {
+                calls.push(['popup', items]);
+                return items[0]?.id?.startsWith('year:')
+                    ? 'year:' + currentYear
+                    : 'folder:0';
+            }
+        },
+        file: {
+            list: async (path) => {
+                calls.push(['file.list', path]);
+                return { success: true, directories: ['My Album.album'] };
+            }
+        }
+    });
+    const actions = createLegacyActivityActions({
+        getSdk: () => sdk,
+        isNativeAvailable: () => true
+    });
+
+    await findAction(actions, 'legacy.yearbookExplorer').execute(context);
+
+    assert.deepEqual(calls.filter((call) => call[0] === 'spawn'), [
+        [
+            'spawn',
+            'pythonw.exe',
+            {
+                args: [
+                    'C:\\Tools\\GalleryAnuary\\app.py',
+                    'E:\\_Internal\\' + currentYear + '\\My Album.album'
+                ],
+                hidden: true
+            }
+        ]
     ]);
 });
