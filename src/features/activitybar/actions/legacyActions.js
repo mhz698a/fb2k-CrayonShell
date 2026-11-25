@@ -37,7 +37,7 @@ async function getSelectedTracks(context, sdk) {
 }
 
 function getFileName(path, includeExtension = true) {
-    const value = String(path || '').replace(/\\|subsong:\\d+$/i, '');
+    const value = String(path || '').replace(/\|subsong:\d+$/i, '');
     const decoded = (() => {
         try {
             return decodeURIComponent(value);
@@ -45,7 +45,7 @@ function getFileName(path, includeExtension = true) {
             return value;
         }
     })();
-    const name = decoded.replace(/\\\\/g, '/').split('/').pop() || '';
+    const name = decoded.replace(/\\/g, '/').split('/').pop() || '';
     if (includeExtension) return name;
     const extensionIndex = name.lastIndexOf('.');
     return extensionIndex > 0 ? name.slice(0, extensionIndex) : name;
@@ -53,7 +53,7 @@ function getFileName(path, includeExtension = true) {
 
 async function copySelectedTracks(context, sdk, getValue, label) {
     const tracks = await getSelectedTracks(context, sdk);
-    const value = tracks.map(getValue).filter((item) => item !== '').join('\\r\\n');
+    const value = tracks.map(getValue).filter((item) => item !== '').join('\r\n');
     if (!value) throw new Error('La selección no contiene valores para copiar.');
     requireSuccessfulResult(await sdk.clipboard.write(value), 'clipboard.write');
     return { count: tracks.length, label };
@@ -114,12 +114,12 @@ async function openNewgroundsPage(context, sdk) {
     const tracks = await getSelectedTracks(context, sdk);
     const track = tracks[0];
     const fileName = getFileName(track.path || track.absolutePath, false);
-    if (!/\\s\\(\\u03b7\\)$/i.test(fileName)) {
+    if (!/\s\(\u03b7\)$/i.test(fileName)) {
         throw new Error('El nombre del archivo debe terminar con " (η)".');
     }
 
     const title = String(track.title || '').trim();
-    const match = title.match(/\\(ID:\\s*(\\d+)\\)$/i);
+    const match = title.match(/\(ID:\s*(\d+)\)$/i);
     if (!match) {
         throw new Error('El título de la pista debe terminar con "(ID: XXXXX)".');
     }
