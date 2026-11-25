@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getFooSdk } from '../../services/fooSdk.js';
 import {
     DEFAULT_SPECTRUM_SETTINGS,
+    SPECTRUM_BAND_OPTIONS as BAND_OPTIONS,
+    SPECTRUM_FFT_OPTIONS as FFT_OPTIONS,
+    SPECTRUM_FPS_OPTIONS as FPS_OPTIONS,
     normalizeSpectrumSettings,
     readSpectrumSettings,
     writeSpectrumSettings
