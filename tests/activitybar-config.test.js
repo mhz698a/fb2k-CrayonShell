@@ -45,7 +45,7 @@ test('La normalización elimina botones duplicados y nombres inválidos', () => 
             { id: 'one', actionId: 'playlist.refresh', label: 'Actualizar', icon: 'refresh' },
             { id: 'two', actionId: 'playlist.refresh', label: 'Duplicado', icon: 'trash' },
             { id: 'one', actionId: 'diagnostics.open', label: 'Diagnóstico', icon: 'bug' },
-            { id: 'three', actionId: 'diagnostics.open', label: 'Diagnóstico', icon: 'not-a-real-icon' }
+            { id: 'three', actionId: 'playlist.refresh', label: 'Duplicado', icon: 'not-a-real-icon' }
         ]
     });
 
