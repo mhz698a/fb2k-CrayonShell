@@ -4,24 +4,13 @@ import {
     buildLibraryFacetTree,
     syncLibraryViewerSelection
 } from '../services/libraryFacets.js';
+import {
+    REFACETS_SELECTION_STORAGE_KEY,
+    readRefacetsSelection,
+    normalizeRefacetsSelection
+} from '../features/refacets/refacetsSettings.js';
 
 const SYNC_DEBOUNCE_MS = 350;
-const FACET_SELECTION_STORAGE_KEY = 'crayonshell.refacets.selection.v1';
-
-function readSavedSelection() {
-    try {
-        const saved = JSON.parse(window.localStorage.getItem(FACET_SELECTION_STORAGE_KEY) || '{}');
-        return {
-            years: Array.isArray(saved.years) ? saved.years.filter((value) => typeof value === 'string') : [],
-            subfolders: Array.isArray(saved.subfolders)
-                ? saved.subfolders.filter((value) => typeof value === 'string')
-                : []
-        };
-    } catch {
-        return { years: [], subfolders: [] };
-    }
-}
-
 function updateSelection(current, value, multi) {
     if (!multi) {
         return current.length === 1 && current[0] === value ? [] : [value];
@@ -108,8 +97,8 @@ const INITIAL_STATE = {
 export function useLibraryFacets(enabled = true) {
     const [directories, setDirectories] = useState([]);
     const [state, setState] = useState(INITIAL_STATE);
-    const [selectedYears, setSelectedYears] = useState(() => readSavedSelection().years);
-    const [selectedSubfolders, setSelectedSubfolders] = useState(() => readSavedSelection().subfolders);
+    const [selectedYears, setSelectedYears] = useState(() => readRefacetsSelection().years);
+    const [selectedSubfolders, setSelectedSubfolders] = useState(() => readRefacetsSelection().subfolders);
     const [playlistSyncStatus, setPlaylistSyncStatus] = useState('idle');
     const [playlistSyncMessage, setPlaylistSyncMessage] = useState('');
     const [diagnostics, setDiagnostics] = useState([]);
@@ -127,10 +116,9 @@ export function useLibraryFacets(enabled = true) {
 
     useEffect(() => {
         try {
-            window.localStorage.setItem(FACET_SELECTION_STORAGE_KEY, JSON.stringify({
-                years: selectedYears,
-                subfolders: selectedSubfolders
-            }));
+            window.localStorage.setItem(REFACETS_SELECTION_STORAGE_KEY, JSON.stringify(
+                normalizeRefacetsSelection({ years: selectedYears, subfolders: selectedSubfolders })
+            ));
         } catch {
             // Keep the current filters active for this session if storage is unavailable.
         }
