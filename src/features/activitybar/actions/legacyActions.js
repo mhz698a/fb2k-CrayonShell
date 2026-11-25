@@ -244,14 +244,7 @@ async function showYearbookExplorer(context, sdk) {
 
     const folderName = folders[folderIndex];
     const folderPath = joinWindowsPath(yearRoot, folderName);
-    if (folderName.toLocaleLowerCase().includes('.album')) {
-        return spawnConfiguredPythonTool(
-            context,
-            sdk,
-            'galleryAnuaryScript',
-            [folderPath]
-        );
-    }
+    const isAlbumContainer = /\\.\\s*album/i.test(folderName);
     const children = (await listSubdirectories(sdk, folderPath))
         .sort((a, b) => String(a).localeCompare(String(b), undefined, {
             numeric: true,
@@ -285,6 +278,15 @@ async function showYearbookExplorer(context, sdk) {
     }
 
     if (!targetPath) return { cancelled: true };
+
+    if (isAlbumContainer) {
+        return spawnConfiguredPythonTool(
+            context,
+            sdk,
+            'galleryAnuaryScript',
+            [targetPath]
+        );
+    }
 
     return requireSuccessfulResult(
         await sdk.shell.showInExplorer(targetPath),
