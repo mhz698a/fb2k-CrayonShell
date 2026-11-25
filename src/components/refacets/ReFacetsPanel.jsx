@@ -42,6 +42,13 @@ function formatProgress(progress) {
 }
 
 export default function ReFacetsPanel({ visible = true }) {
+    // Start the library service on first show, then keep it alive while hidden.
+    const [hasBeenVisible, setHasBeenVisible] = useState(visible);
+
+    useEffect(() => {
+        if (visible) setHasBeenVisible(true);
+    }, [visible]);
+
     const {
         status,
         message,
@@ -63,7 +70,7 @@ export default function ReFacetsPanel({ visible = true }) {
         clearYears,
         clearSubfolders,
         refresh
-    } = useLibraryFacets(visible);
+    } = useLibraryFacets(hasBeenVisible);
 
     const [prefs, setPrefs] = useState(readPrefs);
     const [menu, setMenu] = useState(null);

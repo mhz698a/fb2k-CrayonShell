@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import ActivityBar from './components/activitybar/ActivityBar.jsx';
+import ActivityBarManagerDialog from './components/activitybar/ActivityBarManagerDialog.jsx';
+import ExternalToolsDialog from './components/activitybar/ExternalToolsDialog.jsx';
+import { useExternalToolsConfig } from './features/activitybar/hooks/useExternalToolsConfig.js';
+import { useActivityBarConfig } from './features/activitybar/hooks/useActivityBarConfig.js';
+import { useActivityBarActions } from './features/activitybar/hooks/useActivityBarActions.js';
 import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
@@ -52,6 +58,53 @@ export default function App() {
     const [filter, setFilter] = useState('');
     const [contentView, setContentView] = useState('playlist');
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+    const [activityActionError, setActivityActionError] = useState('');
+    const [activityBarManagerOpen, setActivityBarManagerOpen] = useState(false);
+    const [externalToolsSettingsOpen, setExternalToolsSettingsOpen] = useState(false);
+    const { config: externalToolsConfig, saveConfig: saveExternalToolsConfig } = useExternalToolsConfig();
+    const {
+        config: activityBarConfig,
+        addButton: addActivityBarButton,
+        removeButton: removeActivityBarButton,
+        updateButton: updateActivityBarButton,
+        moveButton: moveActivityBarButton,
+        restoreDefaults: restoreActivityBarDefaults,
+        replaceConfig: replaceActivityBarConfig
+    } = useActivityBarConfig();
+
+    const toggleSidebar = useCallback(() => {
+        setSidebarCollapsed((value) => !value);
+    }, []);
+
+    const toggleContentView = useCallback(() => {
+        setContentView((value) => value === 'playlist' ? 'video' : 'playlist');
+    }, []);
+
+    const openDiagnostics = useCallback(() => {
+        setDiagnosticsOpen(true);
+    }, []);
+
+    const openActivityBarManager = useCallback(() => {
+        setActivityBarManagerOpen(true);
+    }, []);
+
+    const closeActivityBarManager = useCallback(() => {
+        setActivityBarManagerOpen(false);
+    }, []);
+
+    const openExternalToolsSettings = useCallback(() => {
+        setExternalToolsSettingsOpen(true);
+    }, []);
+
+    const closeExternalToolsSettings = useCallback(() => {
+        setExternalToolsSettingsOpen(false);
+    }, []);
+
+    const reportActivityActionError = useCallback((failure) => {
+        const message = failure.error?.message || 'Error desconocido al ejecutar la acción.';
+        console.error('[ActivityBar] ' + failure.actionId + ': ' + message, failure.error?.cause);
+        setActivityActionError(failure.actionId + ': ' + message);
+    }, []);
 
     useEffect(() => {
         try {
@@ -106,6 +159,49 @@ export default function App() {
             ? items.length + ' pistas'
             : visibleItems.length + ' / ' + items.length + ' pistas';
 
+    const activityBarContext = useMemo(() => ({
+        sidebarCollapsed,
+        contentView,
+        activePlaylistGuid,
+        isDemoMode,
+        externalTools: externalToolsConfig,
+        externalToolsSettingsOpen,
+        openExternalToolsSettings,
+        toggleSidebar,
+        toggleContentView,
+        refreshPlaylist,
+        openDiagnostics,
+        openActivityBarManager,
+        activityBarManagerOpen
+    }), [
+        sidebarCollapsed,
+        contentView,
+        activePlaylistGuid,
+        isDemoMode,
+        externalToolsConfig,
+        externalToolsSettingsOpen,
+        openExternalToolsSettings,
+        toggleSidebar,
+        toggleContentView,
+        refreshPlaylist,
+        openDiagnostics,
+        openActivityBarManager,
+        activityBarManagerOpen
+    ]);
+
+    const {
+        dispatch: dispatchActivityBarAction,
+        getActionState,
+        getCatalog
+    } = useActivityBarActions(activityBarContext, reportActivityActionError);
+
+    const activityBarActionCatalog = getCatalog();
+
+    const executeActivityBarAction = useCallback((actionId, payload) => {
+        setActivityActionError('');
+        return dispatchActivityBarAction(actionId, payload);
+    }, [dispatchActivityBarAction]);
+
     function handlePointerDown(event) {
         if (sidebarCollapsed || event.button !== 0) return;
 
@@ -118,9 +214,16 @@ export default function App() {
     function handlePointerMove(event) {
         if (!draggingRef.current || !containerRef.current) return;
 
-        const bounds = containerRef.current.getBoundingClientRect();
+        const containerBounds = containerRef.current.getBoundingClientRect();
+        const sidebar = containerRef.current.querySelector('.sidebar');
+        if (!sidebar) return;
+
+        const sidebarBounds = sidebar.getBoundingClientRect();
         setSidebarWidth(
-            clampSidebarWidth(event.clientX - bounds.left, bounds.width)
+            clampSidebarWidth(
+                event.clientX - sidebarBounds.left,
+                containerBounds.width
+            )
         );
     }
 
@@ -161,6 +264,35 @@ export default function App() {
             className={'cui-container' + (sidebarCollapsed ? ' sidebar-collapsed' : '')}
             style={{ '--sidebar-width': sidebarWidth + 'px' }}
         >
+            <ActivityBar
+                buttons={activityBarConfig.buttons}
+                actionCatalog={activityBarActionCatalog}
+                onExecuteAction={executeActivityBarAction}
+            />
+
+            <ExternalToolsDialog
+                open={externalToolsSettingsOpen}
+                config={externalToolsConfig}
+                onClose={closeExternalToolsSettings}
+                onSave={saveExternalToolsConfig}
+            />
+            <ActivityBarManagerDialog
+                open={activityBarManagerOpen}
+                buttons={activityBarConfig.buttons}
+                actionCatalog={activityBarActionCatalog}
+                onClose={closeActivityBarManager}
+                onAddButton={addActivityBarButton}
+                onRemoveButton={removeActivityBarButton}
+                onUpdateButton={updateActivityBarButton}
+                onMoveButton={moveActivityBarButton}
+                onRestoreDefaults={restoreActivityBarDefaults}
+                onExportConfig={() => JSON.stringify(activityBarConfig, null, 2)}
+                onImportConfig={(json) => {
+                    replaceActivityBarConfig(json);
+                    setActivityActionError('');
+                }}
+            />
+
             <Sidebar visible={!sidebarCollapsed} />
 
             <div
@@ -185,6 +317,19 @@ export default function App() {
                 onDoubleClick={handleResizerDoubleClick}
             />
 
+            {activityActionError && (
+                <div className="activitybar-action-error" role="alert">
+                    <span>{activityActionError}</span>
+                    <button
+                        type="button"
+                        aria-label="Cerrar aviso de error"
+                        onClick={() => setActivityActionError('')}
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
+
             <main className="main-playlist">
                 <section id="PlaylistPanel" aria-label="Playlist">
                     <PlaylistToolbar
@@ -194,14 +339,8 @@ export default function App() {
                         summary={summary}
                         onFilterChange={setFilter}
                         onPlaylistChange={changePlaylist}
-                        onRefresh={refreshPlaylist}
-                        sidebarCollapsed={sidebarCollapsed}
-                        onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
                         contentView={contentView}
-                        onToggleContentView={() => setContentView((value) => (
-                            value === 'playlist' ? 'video' : 'playlist'
-                        ))}
-                        onOpenDiagnostics={() => setDiagnosticsOpen(true)}
+                        onExecuteAction={executeActivityBarAction}
                     />
 
                     {isDemoMode && (

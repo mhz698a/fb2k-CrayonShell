@@ -5,28 +5,11 @@ export default function PlaylistToolbar({
     summary,
     onFilterChange,
     onPlaylistChange,
-    onRefresh,
-    sidebarCollapsed,
-    onToggleSidebar,
     contentView,
-    onToggleContentView,
-    onOpenDiagnostics
+    onExecuteAction
 }) {
     return (
         <header className="playlist-toolbar">
-            <button
-                id="SidebarToggle"
-                className="sidebar-toggle"
-                type="button"
-                aria-controls="LeftSidebar"
-                aria-expanded={!sidebarCollapsed}
-                aria-label={sidebarCollapsed ? 'Mostrar panel lateral' : 'Ocultar panel lateral'}
-                title={sidebarCollapsed ? 'Mostrar panel lateral' : 'Ocultar panel lateral'}
-                onClick={onToggleSidebar}
-            >
-                ☰
-            </button>
-
             <div className="playlist-heading">
                 <strong>Playlist</strong>
                 <span id="PlaylistSummary">{summary}</span>
@@ -39,7 +22,7 @@ export default function PlaylistToolbar({
                 aria-label={contentView === 'playlist' ? 'Mostrar visor de video' : 'Mostrar playlist'}
                 aria-pressed={contentView === 'video'}
                 title={contentView === 'playlist' ? 'Mostrar visor de video' : 'Mostrar playlist'}
-                onClick={onToggleContentView}
+                onClick={() => onExecuteAction('ui.toggleContentView')}
             >
                 {contentView === 'playlist' ? 'Video' : 'Playlist'}
             </button>
@@ -72,7 +55,7 @@ export default function PlaylistToolbar({
                 type="button"
                 title="Actualizar playlist"
                 aria-label="Actualizar playlist"
-                onClick={onRefresh}
+                onClick={() => onExecuteAction('playlist.refresh')}
             >
                 ↻
             </button>
@@ -83,7 +66,7 @@ export default function PlaylistToolbar({
                 type="button"
                 title="Abrir diagnóstico multimedia"
                 aria-label="Abrir diagnóstico multimedia"
-                onClick={onOpenDiagnostics}
+                onClick={() => onExecuteAction('diagnostics.open')}
             >
                 Diagnóstico
             </button>

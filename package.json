@@ -9,9 +9,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && node scripts/verify-build.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test"
   },
   "dependencies": {
+    "font-awesome": "^4.7.0",
     "foo-webview-sdk": "^2.2.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

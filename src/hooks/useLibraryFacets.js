@@ -105,7 +105,7 @@ const INITIAL_STATE = {
     progress: null
 };
 
-export function useLibraryFacets(enabled) {
+export function useLibraryFacets(enabled = true) {
     const [directories, setDirectories] = useState([]);
     const [state, setState] = useState(INITIAL_STATE);
     const [selectedYears, setSelectedYears] = useState(() => readSavedSelection().years);
