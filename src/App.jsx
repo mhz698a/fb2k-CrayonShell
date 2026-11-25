@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ActivityBar from './components/activitybar/ActivityBar.jsx';
+import ActivityBarManagerDialog from './components/activitybar/ActivityBarManagerDialog.jsx';
+import { useActivityBarConfig } from './features/activitybar/hooks/useActivityBarConfig.js';
 import { useActivityBarActions } from './features/activitybar/hooks/useActivityBarActions.js';
 import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
@@ -55,6 +57,16 @@ export default function App() {
     const [contentView, setContentView] = useState('playlist');
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
     const [activityActionError, setActivityActionError] = useState('');
+    const [activityBarManagerOpen, setActivityBarManagerOpen] = useState(false);
+    const {
+        config: activityBarConfig,
+        addButton: addActivityBarButton,
+        removeButton: removeActivityBarButton,
+        updateButton: updateActivityBarButton,
+        moveButton: moveActivityBarButton,
+        restoreDefaults: restoreActivityBarDefaults,
+        replaceConfig: replaceActivityBarConfig
+    } = useActivityBarConfig();
 
     const toggleSidebar = useCallback(() => {
         setSidebarCollapsed((value) => !value);
@@ -66,6 +78,14 @@ export default function App() {
 
     const openDiagnostics = useCallback(() => {
         setDiagnosticsOpen(true);
+    }, []);
+
+    const openActivityBarManager = useCallback(() => {
+        setActivityBarManagerOpen(true);
+    }, []);
+
+    const closeActivityBarManager = useCallback(() => {
+        setActivityBarManagerOpen(false);
     }, []);
 
     const reportActivityActionError = useCallback((failure) => {
@@ -133,22 +153,27 @@ export default function App() {
         toggleSidebar,
         toggleContentView,
         refreshPlaylist,
-        openDiagnostics
+        openDiagnostics,
+        openActivityBarManager,
+        activityBarManagerOpen
     }), [
         sidebarCollapsed,
         contentView,
         toggleSidebar,
         toggleContentView,
         refreshPlaylist,
-        openDiagnostics
+        openDiagnostics,
+        openActivityBarManager,
+        activityBarManagerOpen
     ]);
 
     const {
         dispatch: dispatchActivityBarAction,
-        getActionState
+        getActionState,
+        getCatalog
     } = useActivityBarActions(activityBarContext, reportActivityActionError);
 
-    const sidebarActionState = getActionState('ui.toggleSidebar');
+    const activityBarActionCatalog = getCatalog();
 
     const executeActivityBarAction = useCallback((actionId, payload) => {
         setActivityActionError('');
@@ -218,9 +243,26 @@ export default function App() {
             style={{ '--sidebar-width': sidebarWidth + 'px' }}
         >
             <ActivityBar
-                sidebarCollapsed={sidebarCollapsed}
-                sidebarAction={sidebarActionState}
+                buttons={activityBarConfig.buttons}
+                actionCatalog={activityBarActionCatalog}
                 onExecuteAction={executeActivityBarAction}
+            />
+
+            <ActivityBarManagerDialog
+                open={activityBarManagerOpen}
+                buttons={activityBarConfig.buttons}
+                actionCatalog={activityBarActionCatalog}
+                onClose={closeActivityBarManager}
+                onAddButton={addActivityBarButton}
+                onRemoveButton={removeActivityBarButton}
+                onUpdateButton={updateActivityBarButton}
+                onMoveButton={moveActivityBarButton}
+                onRestoreDefaults={restoreActivityBarDefaults}
+                onExportConfig={() => JSON.stringify(activityBarConfig, null, 2)}
+                onImportConfig={(json) => {
+                    replaceActivityBarConfig(json);
+                    setActivityActionError('');
+                }}
             />
 
             <Sidebar visible={!sidebarCollapsed} />
