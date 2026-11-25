@@ -13,27 +13,68 @@ export function createActionDispatcher(registry, { onError } = {}) {
         throw new TypeError('ActionDispatcher necesita un Action Registry válido.');
     }
 
+    const listeners = new Set();
+    const activeExecutions = new Map();
+    let revision = 0;
+
+    function notify() {
+        revision += 1;
+        for (const listener of listeners) {
+            try {
+                listener();
+            } catch (error) {
+                console.error('[ActivityBar] Error notificando el estado del dispatcher.', error);
+            }
+        }
+    }
+
+    function subscribe(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+    }
+
+    function getState(actionId, context = {}) {
+        const state = registry.getState(actionId, context);
+        if (!state) return null;
+        return {
+            ...state,
+            running: (activeExecutions.get(state.id) || 0) > 0
+        };
+    }
+
+    function getCatalog(context = {}) {
+        return registry.getCatalog(context).map((state) => ({
+            ...state,
+            running: (activeExecutions.get(state.id) || 0) > 0
+        }));
+    }
+
+    function reportFailure(failure) {
+        try {
+            onError?.(failure);
+        } catch (reportError) {
+            console.error('[ActivityBar] No se pudo reportar el error de acción.', reportError);
+        }
+    }
+
     async function execute(actionId, context = {}, payload) {
         const id = String(actionId || '').trim();
         const action = registry.get(id);
 
         if (!action) {
-            const error = new Error('No existe una acción registrada con el identificador: ' + id);
             const failure = {
                 ok: false,
                 status: 'error',
                 actionId: id,
-                error: normalizeError(error)
+                error: normalizeError(
+                    new Error('No existe una acción registrada con el identificador: ' + id)
+                )
             };
-            try {
-                onError?.(failure);
-            } catch (reportError) {
-                console.error('[ActivityBar] No se pudo reportar el error de acción.', reportError);
-            }
+            reportFailure(failure);
             return failure;
         }
 
-        const state = registry.getState(id, context);
+        const state = getState(id, context);
         if (state?.availabilityError) {
             const failure = {
                 ok: false,
@@ -41,11 +82,7 @@ export function createActionDispatcher(registry, { onError } = {}) {
                 actionId: id,
                 error: normalizeError(new Error(state.availabilityError))
             };
-            try {
-                onError?.(failure);
-            } catch (reportError) {
-                console.error('[ActivityBar] No se pudo reportar el error de disponibilidad.', reportError);
-            }
+            reportFailure(failure);
             return failure;
         }
 
@@ -58,6 +95,18 @@ export function createActionDispatcher(registry, { onError } = {}) {
                     || 'La acción no está disponible en este contexto.'
             };
         }
+
+        if (action.executionPolicy === 'single' && state.running) {
+            return {
+                ok: false,
+                status: 'busy',
+                actionId: id,
+                reason: 'La acción ya se está ejecutando.'
+            };
+        }
+
+        activeExecutions.set(id, (activeExecutions.get(id) || 0) + 1);
+        notify();
 
         try {
             const result = await action.execute(context, payload);
@@ -74,20 +123,21 @@ export function createActionDispatcher(registry, { onError } = {}) {
                 actionId: id,
                 error: normalizeError(error)
             };
-
-            try {
-                onError?.(failure);
-            } catch (reportError) {
-                console.error('[ActivityBar] No se pudo reportar el error de acción.', reportError);
-            }
-
+            reportFailure(failure);
             return failure;
+        } finally {
+            const remaining = (activeExecutions.get(id) || 1) - 1;
+            if (remaining > 0) activeExecutions.set(id, remaining);
+            else activeExecutions.delete(id);
+            notify();
         }
     }
 
     return Object.freeze({
         execute,
-        getState: (actionId, context = {}) => registry.getState(actionId, context),
-        getCatalog: (context = {}) => registry.getCatalog(context)
+        getState,
+        getCatalog,
+        subscribe,
+        getRevision: () => revision
     });
 }
