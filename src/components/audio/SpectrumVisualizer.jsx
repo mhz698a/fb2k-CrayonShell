@@ -1,74 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getFooSdk } from '../../services/fooSdk.js';
+import {
+    DEFAULT_SPECTRUM_SETTINGS,
+    normalizeSpectrumSettings,
+    readSpectrumSettings,
+    SPECTRUM_SETTINGS_STORAGE_KEY,
+    writeSpectrumSettings
+} from '../../features/spectrum/spectrumSettings.js';
 
-const SETTINGS_KEY = 'crayonshell.spectrum.settings.v1';
-const DEFAULTS = Object.freeze({
-    bands: 64,
-    fftSize: 2048,
-    fps: 30,
-    minFrequency: 20,
-    maxFrequency: 16000,
-    output: 'bands',
-    scale: 'weighted',
-    channels: 'mix',
-    backgroundThrottle: true,
-    sensitivity: 1.5,
-    decay: 0.88,
-    backgroundColor: '#101418',
-    barColorStart: '#1477b8',
-    barColorMid: '#29a9d8',
-    barColorEnd: '#79d7e8'
-});
-const BAND_OPTIONS = [16, 24, 32, 48, 64, 96, 128, 192, 256];
-const FFT_OPTIONS = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536];
-const FPS_OPTIONS = [15, 24, 30, 45, 60];
-
-function clampNumber(value, min, max, fallback) {
-    const number = Number(value);
-    return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
-}
-
-function normalizeSettings(value = {}) {
-    const fftSize = FFT_OPTIONS.includes(Number(value.fftSize))
-        ? Number(value.fftSize)
-        : DEFAULTS.fftSize;
-    const availableBands = BAND_OPTIONS.filter((count) => count <= fftSize / 2);
-    const requestedBands = Number(value.bands);
-    const bands = availableBands.includes(requestedBands)
-        ? requestedBands
-        : (availableBands[availableBands.length - 1] || DEFAULTS.bands);
-    const minFrequency = Math.round(clampNumber(value.minFrequency, 1, 95999, DEFAULTS.minFrequency));
-    const maxFrequency = Math.round(clampNumber(
-        value.maxFrequency, minFrequency + 1, 96000, DEFAULTS.maxFrequency
-    ));
-
-    return {
-        bands,
-        fftSize,
-        fps: FPS_OPTIONS.includes(Number(value.fps)) ? Number(value.fps) : DEFAULTS.fps,
-        minFrequency,
-        maxFrequency: Math.max(minFrequency + 1, maxFrequency),
-        output: value.output === 'bins' ? 'bins' : 'bands',
-        scale: value.scale === 'db' ? 'db' : 'weighted',
-        channels: value.channels === 'stereo' ? 'stereo' : 'mix',
-        backgroundThrottle: value.backgroundThrottle !== false,
-        sensitivity: clampNumber(value.sensitivity, 0.5, 3, DEFAULTS.sensitivity),
-        decay: clampNumber(value.decay, 0.75, 0.98, DEFAULTS.decay),
-        backgroundColor: /^#[0-9a-f]{6}$/i.test(value.backgroundColor) ? value.backgroundColor : DEFAULTS.backgroundColor,
-        barColorStart: /^#[0-9a-f]{6}$/i.test(value.barColorStart) ? value.barColorStart : DEFAULTS.barColorStart,
-        barColorMid: /^#[0-9a-f]{6}$/i.test(value.barColorMid) ? value.barColorMid : DEFAULTS.barColorMid,
-        barColorEnd: /^#[0-9a-f]{6}$/i.test(value.barColorEnd) ? value.barColorEnd : DEFAULTS.barColorEnd
-    };
-}
-
-function readSettings() {
-    try {
-        const saved = window.localStorage.getItem(SETTINGS_KEY);
-        return saved ? normalizeSettings(JSON.parse(saved)) : { ...DEFAULTS };
-    } catch {
-        return { ...DEFAULTS };
-    }
-}
 
 function normalizeValues(values, settings, decibels) {
     if (!Array.isArray(values)) return [];
@@ -115,7 +54,7 @@ function drawSeries(context, values, x, y, width, height) {
     });
 }
 
-function drawBars(canvas, frame, settings = DEFAULTS) {
+function drawBars(canvas, frame, settings = DEFAULT_SPECTRUM_SETTINGS) {
     if (!canvas) return;
     const bounds = canvas.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) return;
@@ -194,7 +133,7 @@ export default function SpectrumVisualizer({ visible = true }) {
     const receivedRef = useRef(false);
     const fallbackMessageRef = useRef('');
 
-    const [settings, setSettings] = useState(readSettings);
+    const [settings, setSettings] = useState(readSpectrumSettings);
     const [draft, setDraft] = useState(settings);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [menu, setMenu] = useState(null);
@@ -203,11 +142,11 @@ export default function SpectrumVisualizer({ visible = true }) {
     settingsRef.current = settings;
 
     const redraw = useCallback(() => {
-        drawBars(canvasRef.current, currentRef.current, settingsRef.current || DEFAULTS);
+        drawBars(canvasRef.current, currentRef.current, settingsRef.current || DEFAULT_SPECTRUM_SETTINGS);
     }, []);
 
     const receiveFrame = useCallback((frame) => {
-        const currentSettings = settingsRef.current || DEFAULTS;
+        const currentSettings = settingsRef.current || DEFAULT_SPECTRUM_SETTINGS;
         const isDb = currentSettings.output === 'bins' || currentSettings.scale === 'db';
         if (currentSettings.output === 'bins'
             && currentSettings.channels === 'stereo'
@@ -234,7 +173,7 @@ export default function SpectrumVisualizer({ visible = true }) {
         redraw();
 
         function animate() {
-            const currentSettings = settingsRef.current || DEFAULTS;
+            const currentSettings = settingsRef.current || DEFAULT_SPECTRUM_SETTINGS;
             currentRef.current = smoothFrame(
                 targetRef.current,
                 currentRef.current,
@@ -286,10 +225,10 @@ export default function SpectrumVisualizer({ visible = true }) {
 
                 if (settings.output === 'bins' && outcome.output !== 'bins') {
                     fallbackMessageRef.current = 'Este host no admite bins FFT; se usarán bandas logarítmicas.';
-                    const supported = normalizeSettings({ ...settings, output: 'bands' });
+                    const supported = normalizeSpectrumSettings({ ...settings, output: 'bands' });
                     setSettings(supported);
                     try {
-                        window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(supported));
+                        writeSpectrumSettings(supported);
                     } catch {
                         // Keep the supported setting for this session.
                     }
@@ -380,10 +319,10 @@ export default function SpectrumVisualizer({ visible = true }) {
     }
 
     function saveSettings() {
-        const next = normalizeSettings(draft);
+        const next = normalizeSpectrumSettings(draft);
         setSettings(next);
         try {
-            window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+            writeSpectrumSettings(next);
         } catch {
             // Settings remain active for this session.
         }
@@ -597,7 +536,7 @@ export default function SpectrumVisualizer({ visible = true }) {
                         <button
                             type="button"
                             className="spectrum-secondary-button"
-                            onClick={() => setDraft({ ...DEFAULTS })}
+                            onClick={() => setDraft({ ...DEFAULT_SPECTRUM_SETTINGS })}
                         >
                             Restablecer valores
                         </button>
