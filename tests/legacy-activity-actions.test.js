@@ -318,10 +318,6 @@ test('Inicia las herramientas Python con argumentos separados y ventana oculta',
             }
         ],
         [
-            'file.exists',
-            'C:\\Music\\Track Name (η).mp3'
-        ],
-        [
             'spawn',
             'pythonw.exe',
             {
@@ -332,6 +328,9 @@ test('Inicia las herramientas Python con argumentos separados y ventana oculta',
                 hidden: true
             }
         ]
+    ]);
+    assert.deepEqual(calls.filter((call) => call[0] === 'file.exists'), [
+        ['file.exists', 'C:\\Music\\Track Name (η).mp3']
     ]);
 });
 
