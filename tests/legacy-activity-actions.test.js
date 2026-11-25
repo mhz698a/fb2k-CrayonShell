@@ -330,7 +330,7 @@ test('Inicia las herramientas Python con argumentos separados y ventana oculta',
 test('Yearbook Explorer abre con GalleryAnuary la subcarpeta dentro del contenedor .album', async () => {
     const currentYear = new Date().getFullYear();
     const calls = [];
-    const { sdk } = createSdk({
+    const { sdk, calls: sdkCalls } = createSdk({
         menu: {
             popup: async (items) => {
                 calls.push(['popup', items]);
@@ -359,7 +359,7 @@ test('Yearbook Explorer abre con GalleryAnuary la subcarpeta dentro del contened
 
     await findAction(actions, 'legacy.yearbookExplorer').execute(context);
 
-    assert.deepEqual(calls.filter((call) => call[0] === 'spawn'), [
+    assert.deepEqual(sdkCalls.filter((call) => call[0] === 'spawn'), [
         [
             'spawn',
             'pythonw.exe',
