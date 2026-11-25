@@ -3,6 +3,9 @@ import SpectrumVisualizer from './audio/SpectrumVisualizer.jsx';
 import ReFacetsPanel from './refacets/ReFacetsPanel.jsx';
 import YearbookExplorerPanel from './yearbook/YearbookExplorerPanel.jsx';
 import {
+    DEFAULT_REFACETS_HEIGHT as DEFAULT_FACET_HEIGHT,
+    MAX_REFACETS_HEIGHT as MAX_FACET_HEIGHT,
+    MIN_REFACETS_HEIGHT as MIN_FACET_HEIGHT,
     REFACETS_HEIGHT_STORAGE_KEY,
     readRefacetsHeight
 } from '../features/settings/providers/coreUiSettings.js';
