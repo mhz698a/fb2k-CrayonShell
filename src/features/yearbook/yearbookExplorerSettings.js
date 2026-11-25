@@ -1,3 +1,8 @@
+import {
+    requireSettingsStorage,
+    resolveSettingsStorage
+} from '../settings/settingsStorageAccess.js';
+
 export const YEARBOOK_EXPLORER_EXPANDED_STORAGE_KEY = 'crayonshell.yearbookExplorer.expanded.v1';
 
 const MAX_EXPANDED_PATHS = 500;
@@ -66,7 +71,8 @@ export function normalizeYearbookExplorerSettings(value = {}) {
     return { expandedRelativePaths };
 }
 
-export function readYearbookExpandedPaths(rootPath, storage = window.localStorage) {
+export function readYearbookExpandedPaths(rootPath, storageOverride) {
+    const storage = resolveSettingsStorage(storageOverride);
     const saved = parseStoredExpansion(storage);
     const storedRootPath = normalizeWindowsPath(saved.rootPath || rootPath);
     const activeRootPath = normalizeWindowsPath(rootPath);
@@ -82,7 +88,8 @@ export function readYearbookExpandedPaths(rootPath, storage = window.localStorag
         .map((path) => joinRootAndRelativePath(activeRootPath, path)));
 }
 
-export function readYearbookExplorerSettings(rootPath, storage = window.localStorage) {
+export function readYearbookExplorerSettings(rootPath, storageOverride) {
+    const storage = resolveSettingsStorage(storageOverride);
     const saved = parseStoredExpansion(storage);
     const sourceRootPath = normalizeWindowsPath(saved.rootPath || rootPath);
     const activeRootPath = normalizeWindowsPath(rootPath);
@@ -100,7 +107,8 @@ export function readYearbookExplorerSettings(rootPath, storage = window.localSto
     return normalizeYearbookExplorerSettings({ expandedRelativePaths });
 }
 
-export function writeYearbookExplorerSettings(value, rootPath, storage = window.localStorage) {
+export function writeYearbookExplorerSettings(value, rootPath, storageOverride) {
+    const storage = requireSettingsStorage(storageOverride);
     const settings = normalizeYearbookExplorerSettings(value);
     const root = normalizeWindowsPath(rootPath);
     const paths = settings.expandedRelativePaths
