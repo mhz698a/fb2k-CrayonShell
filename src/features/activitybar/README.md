@@ -132,7 +132,7 @@ Core and legacy actions are now registered as named modules (`core` and `legacy`
 
 Module registration is atomic: duplicate IDs or invalid definitions reject the whole module. The registry publishes owner metadata and supports module-level disposal; unloading a module removes only its actions and runs its cleanup. Individual action removal keeps the module's action count in sync.
 
-The manager groups available actions by category and shows the owning module. Registry subscriptions make later module additions and removals visible in React without restarting CrayonShell.
+The manager groups available actions by category and shows the owning module. Registry subscriptions make later module additions and removals visible in React without restarting CrayonShell. If an action's availability depends on an external state change that does not otherwise cause a React render, the module can call `activityBarActionRegistry.refresh()` to re-evaluate catalog availability.
 
 The dispatcher supports `executionPolicy: 'parallel' | 'single'`. Single-flight actions publish a reactive running state, reject overlapping invocations with a structured `busy` result, and disable their ActivityBar buttons until completion. External application launchers and Yearbook Explorer use this policy to avoid accidental duplicate launches.
 
