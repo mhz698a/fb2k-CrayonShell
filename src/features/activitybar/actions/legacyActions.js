@@ -481,7 +481,7 @@ export function createLegacyActivityActions({
             id: 'legacy.launchNumHand',
             label: 'Abrir NumHand para el archivo seleccionado',
             category: 'Herramientas externas',
-            description: 'Inicia NumHand pasando la ruta local del primer archivo seleccionado.',
+            description: 'Inicia NumHand pasando la ruta local del único archivo seleccionado.',
             defaultIcon: 'sort-numeric-asc',
             isAvailable: selectionAvailability,
             execute: async (context) => {
@@ -494,7 +494,7 @@ export function createLegacyActivityActions({
             id: 'legacy.connectYearToSmb',
             label: 'Conectar año a SMB',
             category: 'Herramientas externas',
-            description: 'Abre el diálogo SMB pasando la ruta local del archivo seleccionado.',
+            description: 'Abre el diálogo SMB pasando la ruta local del único archivo seleccionado.',
             defaultIcon: 'folder-open',
             isAvailable: selectionAvailability,
             execute: async (context) => {
@@ -534,7 +534,7 @@ export function createLegacyActivityActions({
             id: 'legacy.numhand.extrasMenu',
             label: 'NumHand: herramientas de selección',
             category: 'Archivos y selección',
-            description: 'Menú de copiar nombres/rutas, explorar la carpeta de la pista y abrir la carpeta de reciclaje.',
+            description: 'Menú para copiar nombres/rutas, iniciar NumHand o SMB con un archivo, explorar la carpeta y abrir el reciclaje.',
             defaultIcon: 'files-o',
             isAvailable: nativeAvailability,
             execute: (context) => showNumHandExtrasMenu(context, getSdk())
