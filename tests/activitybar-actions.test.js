@@ -21,6 +21,27 @@ test('Action Registry registra, consulta y elimina acciones', () => {
     assert.equal(registry.has('test.example'), false);
 });
 
+test('Action Registry notifica altas y bajas para actualizar catálogos en ejecución', () => {
+    const registry = createActionRegistry();
+    let notifications = 0;
+    const unsubscribe = registry.subscribe(() => { notifications += 1; });
+
+    const remove = registry.register({
+        id: 'test.observable',
+        execute: () => undefined
+    });
+    assert.equal(registry.getRevision(), 1);
+    assert.equal(notifications, 1);
+
+    remove();
+    assert.equal(registry.getRevision(), 2);
+    assert.equal(notifications, 2);
+
+    unsubscribe();
+    registry.register({ id: 'test.after-unsubscribe', execute: () => undefined });
+    assert.equal(notifications, 2);
+});
+
 test('Action Registry rechaza identificadores duplicados y acciones sin ejecutor', () => {
     const registry = createActionRegistry();
     registry.register({ id: 'test.duplicate', execute: () => undefined });
