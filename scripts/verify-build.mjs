@@ -43,6 +43,17 @@ for (const reference of expectedReferences) {
     console.log('OK  index.html referencia ' + reference);
 }
 
+const css = await readFile(join(outputDirectory, 'crayonshell.css'), 'utf8');
+
+if (!/font-family:[^;]*FontAwesome/i.test(css)
+    || !/fontawesome-webfont[^)]*\\.(woff2|woff)/i.test(css)) {
+    throw new Error(
+        'La compilación no incluye Font Awesome 4 ni la referencia a su fuente local.'
+    );
+}
+
+console.log('OK  Font Awesome 4 y su fuente local están incluidos en el CSS');
+
 const bundle = await readFile(join(outputDirectory, 'crayonshell.iife.js'), 'utf8');
 
 if (/\bprocess\.env\.NODE_ENV\b/.test(bundle)) {
