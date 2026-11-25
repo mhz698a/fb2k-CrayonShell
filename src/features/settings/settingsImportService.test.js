@@ -265,23 +265,23 @@ test('rolls back every attempted provider when one provider fails during applica
     const registry = createSettingsRegistry();
     const first = createSimpleProvider('first', 1, 'old-first');
     let failIncomingValue = true;
+    let secondValue = 'old-second';
     const second = createSimpleProvider('second', 1, 'old-second', {
         applySettings(settings) {
-            this.value = settings.value;
+            secondValue = settings.value;
             if (settings.value === 'new-second' && failIncomingValue) {
+                secondValue = 'partially-written';
                 failIncomingValue = false;
                 throw new Error('Fallo de escritura simulado');
             }
         },
         readSettings() {
-            return { value: this.value };
+            return { value: secondValue };
         },
         getValue() {
-            return this.value;
+            return secondValue;
         }
     });
-    first.value = 'old-first';
-    second.value = 'old-second';
     registry.registerMany([first, second]);
 
     const backup = createContainer({
