@@ -8,7 +8,7 @@ import {
     openYearbookDirectory
 } from '../../features/yearbook/yearbookService.js';
 import {
-    YEARBOOK_EXPLORER_EXPANDED_STORAGE_KEY,
+    YEARBOOK_EXPLORER_YEARBOOK_EXPLORER_EXPANDED_STORAGE_KEY,
     readYearbookExpandedPaths
 } from '../../features/yearbook/yearbookExplorerSettings.js';
 
@@ -105,7 +105,7 @@ export default function YearbookExplorerPanel({
 
     useEffect(() => {
         try {
-            window.localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify({
+            window.localStorage.setItem(YEARBOOK_EXPLORER_EXPANDED_STORAGE_KEY, JSON.stringify({
                 rootPath,
                 paths: [...expandedPaths].slice(0, 500)
             }));
