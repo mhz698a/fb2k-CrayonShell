@@ -22,7 +22,7 @@ function getExternalToolSettings(context) {
 
 function getNativeTrackPath(track) {
     const path = String(track?.absolutePath || track?.path || '').trim();
-    if (!/^(?:[a-z]:[\\\\/]|\\\\\\\\)/i.test(path)) {
+    if (!(/^[a-z]:[\\/]/i.test(path) || /^\\\\/.test(path))) {
         throw new Error('La pista seleccionada no tiene una ruta local de Windows utilizable.');
     }
     return path;
