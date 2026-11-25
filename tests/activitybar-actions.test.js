@@ -114,6 +114,35 @@ test('Action Registry revierte el módulo completo si una acción entra en confl
     assert.deepEqual(registry.getModules(), []);
 });
 
+test('Action Registry permite descargar un módulo por ID y retirar acciones individuales', () => {
+    const registry = createActionRegistry();
+    let cleanupCalls = 0;
+
+    registry.registerModule({
+        id: 'tools',
+        register(scopedRegistry) {
+            scopedRegistry.register({
+                id: 'tools.one',
+                execute: () => undefined
+            });
+            scopedRegistry.register({
+                id: 'tools.two',
+                execute: () => undefined
+            });
+            return () => { cleanupCalls += 1; };
+        }
+    });
+
+    assert.equal(registry.unregister('tools.one'), true);
+    assert.deepEqual(registry.getModules()[0].actionIds, ['tools.two']);
+    assert.equal(registry.getModules()[0].actionCount, 1);
+
+    assert.equal(registry.unregisterModule('tools'), true);
+    assert.equal(registry.unregisterModule('tools'), false);
+    assert.equal(registry.has('tools.two'), false);
+    assert.equal(cleanupCalls, 1);
+});
+
 test('Action Registry rechaza módulos duplicados y requiere una función register', () => {
     const registry = createActionRegistry();
     registry.registerModule({
@@ -290,7 +319,7 @@ test('Action Dispatcher captura y reporta errores de ejecución', async () => {
     assert.equal(reported.length, 1);
 });
 
-test('El catálogo principal contiene las cinco acciones iniciales', () => {
+test('El catálogo principal registra las acciones de interfaz y herramientas', () => {
     const registry = createActionRegistry();
     registerCoreActivityBarActions(registry);
 
