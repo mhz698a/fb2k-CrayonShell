@@ -105,7 +105,7 @@ const INITIAL_STATE = {
     progress: null
 };
 
-export function useLibraryFacets() {
+export function useLibraryFacets(enabled = true) {
     const [directories, setDirectories] = useState([]);
     const [state, setState] = useState(INITIAL_STATE);
     const [selectedYears, setSelectedYears] = useState(() => readSavedSelection().years);
@@ -145,6 +145,8 @@ export function useLibraryFacets() {
     });
 
     useEffect(() => {
+        if (!enabled) return undefined;
+
         let active = true;
         let syncTimer = null;
         let syncRunning = false;
@@ -328,7 +330,7 @@ export function useLibraryFacets() {
             if (sdkRef.current === sdk) sdkRef.current = null;
             refreshRef.current = () => {};
         };
-    }, [addDiagnostic]);
+    }, [enabled, addDiagnostic]);
 
     const facetData = useMemo(
         () => buildFacetData(directories, selectedYears, selectedSubfolders),
@@ -349,6 +351,11 @@ export function useLibraryFacets() {
 
     useEffect(() => {
         const sync = playlistSyncRef.current;
+
+        if (!enabled) {
+            sync.generation += 1;
+            return undefined;
+        }
 
         const hasSubfolderSelection = selectedSubfolders.length > 0;
         if (!hasSubfolderSelection && !sync.hadSelection) return undefined;
@@ -392,7 +399,7 @@ export function useLibraryFacets() {
         return () => {
             if (sync.generation === generation) sync.generation += 1;
         };
-    }, [matchingDirectories, selectedSubfolders, selectedYears, addDiagnostic]);
+    }, [enabled, matchingDirectories, selectedSubfolders, selectedYears, addDiagnostic]);
 
     const selectYear = useCallback((value, multi = false) => {
         addDiagnostic('info', 'Filtro de año modificado', String(value));
