@@ -52,7 +52,9 @@ function evaluateAction(action, context) {
         available: availability.available,
         unavailableReason: availability.reason,
         active,
-        availabilityError
+        availabilityError: availabilityError
+            ? (availabilityError.message || String(availabilityError))
+            : ''
     };
 }
 
