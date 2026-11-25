@@ -264,7 +264,7 @@ export function createActionRegistry() {
         const action = get(id);
         if (!action) return null;
         const state = evaluateAction(action, context);
-        const owner = modules.get(action.moduleId)?.metadata;
+        const owner = modules.get(action.moduleId);
         return {
             ...state,
             moduleLabel: owner?.label || 'Registro manual',
