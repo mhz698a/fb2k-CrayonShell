@@ -85,6 +85,24 @@ Initial actions:
 - `diagnostics.open`
 - `activitybar.manage`
 
+
+## Phase 4 — native adapters for the legacy ActivityBar
+
+Legacy actions are registered independently from the ActivityBar UI and use the typed `foo-webview-sdk` facade. They appear in the ActivityBar manager catalog and can be pinned, renamed, assigned a Font Awesome 4 icon, reordered or removed without changing their implementation.
+
+Migrated actions:
+
+- Foobar2000 context commands: Shazam, Edit Folder with mp3Tag and Explore Directory.
+- Main-menu commands: Playback Rate, Tempo, IIR Filter and YouTube Source / Search on Site.
+- Context service: Download with Omniget.
+- Google Song Searcher: selection-aware popup with filename, title/artist, lyrics and release-date queries.
+- Newgrounds: opens the selected track's page only when the filename ends in `(η)` and its title ends in `(ID: number)`.
+- NumHand utilities menu: copy selected filenames, copy selected paths, explore the current track's folder and open the configured legacy recycle location.
+
+These adapters use `menu.runContextCommand`, `menu.runMainMenuCommand`, `menu.popup`, `playlist.getSelectedTracks`, `clipboard.write` and `shell` methods from the SDK. They do not use Spider Monkey Panel globals such as `plman`, `ActiveXObject` or `window.CreatePopupMenu`. Native actions are unavailable in an external Chrome/Edge session without the foobar2000 bridge.
+
+The following original buttons are not migrated in this increment: FrameEtude, CatchEtude, AnuarySignature, NumHand's Python launcher, the SMB year dialog, the Yearbook Explorer and GalleryAnuary's album-folder launcher. Their original implementations depend on Python/OneDrive paths hardcoded in the Spider Monkey Panel project, ActiveX process creation and filesystem enumeration. They need a separate configurable external-tool/path adapter; the legacy absolute paths are deliberately not copied into the React bundle.
+
 ## Sidebar lifecycle
 
 ReFacets and Spectrum initialize on first display. Their activation state is sticky: hiding the Sidebar changes presentation only. It does not cancel Media Library subscriptions, repeat Library Viewer Selection synchronization, clear FFT data or stop the Spectrum animation loop. They are cleaned up when their React components are unmounted or when Spectrum settings require a new subscription.
