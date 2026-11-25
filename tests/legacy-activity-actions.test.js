@@ -327,22 +327,28 @@ test('Inicia las herramientas Python con argumentos separados y ventana oculta',
     ]);
 });
 
-test('Yearbook Explorer abre una carpeta .album con GalleryAnuary', async () => {
+test('Yearbook Explorer abre con GalleryAnuary la subcarpeta dentro del contenedor .album', async () => {
     const currentYear = new Date().getFullYear();
     const calls = [];
     const { sdk } = createSdk({
         menu: {
             popup: async (items) => {
                 calls.push(['popup', items]);
-                return items[0]?.id?.startsWith('year:')
-                    ? 'year:' + currentYear
-                    : 'folder:0';
+                if (items[0]?.id?.startsWith('year:')) return 'year:' + currentYear;
+                if (items.some((item) => item.id === 'folder:0')) return 'folder:0';
+                return 'child:0';
             }
         },
         file: {
             list: async (path) => {
                 calls.push(['file.list', path]);
-                return { success: true, directories: ['My Album.album'] };
+                if (path === 'E:\\_Internal\\' + currentYear) {
+                    return { success: true, directories: ['01. album'] };
+                }
+                if (path === 'E:\\_Internal\\' + currentYear + '\\01. album') {
+                    return { success: true, directories: ['My Album'] };
+                }
+                return { success: true, directories: [] };
             }
         }
     });
@@ -360,7 +366,7 @@ test('Yearbook Explorer abre una carpeta .album con GalleryAnuary', async () => 
             {
                 args: [
                     'C:\\Tools\\GalleryAnuary\\app.py',
-                    'E:\\_Internal\\' + currentYear + '\\My Album.album'
+                    'E:\\_Internal\\' + currentYear + '\\01. album\\My Album'
                 ],
                 hidden: true
             }
