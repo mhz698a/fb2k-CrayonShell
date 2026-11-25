@@ -97,11 +97,13 @@ Migrated actions:
 - Context service: Download with Omniget.
 - Google Song Searcher: selection-aware popup with filename, title/artist, lyrics and release-date queries.
 - Newgrounds: opens the selected track's page only when the filename ends in `(η)` and its title ends in `(ID: number)`.
-- NumHand utilities menu: copy selected filenames, copy selected paths, explore the current track's folder and open the configured legacy recycle location.
+- NumHand utilities menu: copy selected filenames, copy selected paths, launch NumHand or the SMB year dialog with the selected file path, explore the current track's folder and open the configured recycle location.
+- Yearbook Explorer: browse a configurable year root using `file.list`; folders marked `.album` launch GalleryAnuary with the selected child folder.
+- External tool launchers: FrameEtude, CatchEtude and AnuarySignature.
 
-These adapters use `menu.runContextCommand`, `menu.runMainMenuCommand`, `menu.popup`, `playlist.getSelectedTracks`, `clipboard.write` and `shell` methods from the SDK. They do not use Spider Monkey Panel globals such as `plman`, `ActiveXObject` or `window.CreatePopupMenu`. Native actions are unavailable in an external Chrome/Edge session without the foobar2000 bridge.
+Native menu, clipboard, playlist, file and process operations use the typed SDK. Selected-file launchers pass `absolutePath` as a separate process argument; no command-line string concatenation is used. External scripts run through `shell.spawn` with a hidden window and are not invoked from Chrome/Edge or demo mode. No Spider Monkey Panel globals such as `plman`, `ActiveXObject` or `window.CreatePopupMenu` are used.
 
-The following original buttons are not migrated in this increment: FrameEtude, CatchEtude, AnuarySignature, NumHand's Python launcher, the SMB year dialog, the Yearbook Explorer and GalleryAnuary's album-folder launcher. Their original implementations depend on Python/OneDrive paths hardcoded in the Spider Monkey Panel project, ActiveX process creation and filesystem enumeration. They need a separate configurable external-tool/path adapter; the legacy absolute paths are deliberately not copied into the React bundle.
+Use the registered `Configurar herramientas externas` action to set the Python executable and the paths for FrameEtude, CatchEtude, AnuarySignature, NumHand, the SMB dialog and GalleryAnuary. The year root and recycle path are editable there too. Script paths start empty: configure them for the current machine instead of inheriting the old hardcoded OneDrive user path. Python defaults to `pythonw.exe`, which must be resolvable through the foobar2000 process PATH or replaced with a valid executable path.
 
 ## Sidebar lifecycle
 
