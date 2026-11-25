@@ -24,6 +24,12 @@ export {
 } from './settingsBackupService.js';
 
 export {
+    inspectSettingsBackup,
+    applySettingsBackup,
+    SettingsImportRollbackError
+} from './settingsImportService.js';
+
+export {
     createCoreSettingsProviders,
     registerCoreSettingsProviders
 } from './providers/coreSettingsProviders.js';
