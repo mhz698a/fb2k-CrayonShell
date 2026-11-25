@@ -45,13 +45,15 @@ test('La normalización elimina botones duplicados y nombres inválidos', () => 
             { id: 'one', actionId: 'playlist.refresh', label: 'Actualizar', icon: 'refresh' },
             { id: 'two', actionId: 'playlist.refresh', label: 'Duplicado', icon: 'trash' },
             { id: 'one', actionId: 'diagnostics.open', label: 'Diagnóstico', icon: 'bug' },
-            { id: 'three', actionId: 'playlist.refresh', label: 'Duplicado', icon: 'not-a-real-icon' }
+            { id: 'three', actionId: 'diagnostics.open', label: 'Diagnóstico', icon: 'not-a-real-icon' }
         ]
     });
 
-    assert.equal(config.buttons.length, 1);
+    assert.equal(config.buttons.length, 2);
     assert.equal(config.buttons[0].actionId, 'playlist.refresh');
     assert.equal(config.buttons[0].icon, 'refresh');
+    assert.equal(config.buttons[1].actionId, 'diagnostics.open');
+    assert.equal(config.buttons[1].icon, 'question-circle');
 });
 
 test('La importación valida JSON y configura iconos de Font Awesome 4', () => {
