@@ -49,6 +49,12 @@ function createSdk(overrides = {}) {
                 calls.push(['showInExplorer', path]);
                 return { success: true };
             }
+        },
+        file: {
+            list: async (path) => {
+                calls.push(['file.list', path]);
+                return { success: true, directories: [] };
+            }
         }
     };
 
@@ -88,7 +94,8 @@ test('Registra acciones nativas heredadas para menús, DSP y servicios', () => {
         'legacy.youtube.searcher',
         'legacy.googleSearcherSongs',
         'legacy.newgrounds.openPage',
-        'legacy.numhand.extrasMenu'
+        'legacy.numhand.extrasMenu',
+        'legacy.yearbookExplorer'
     ]) {
         assert.ok(ids.includes(id), 'Falta la acción ' + id);
     }
@@ -212,4 +219,52 @@ test('Propaga los errores devueltos por el host al ejecutar acciones heredadas',
         (error) => error.code === 'MENU_COMMAND_NOT_FOUND'
             && /No se encontró el servicio/.test(error.message)
     );
+});
+
+test('Yearbook Explorer navega por carpetas mediante file.list y abre la carpeta final', async () => {
+    const currentYear = new Date().getFullYear();
+    const calls = [];
+    const { sdk } = createSdk({
+        menu: {
+            popup: async (items) => {
+                calls.push(['popup', items]);
+                if (items[0]?.id?.startsWith('year:')) return 'year:' + currentYear;
+                if (items.some((item) => item.id === 'folder:0')) return 'folder:0';
+                return 'child:0';
+            }
+        },
+        file: {
+            list: async (path) => {
+                calls.push(['file.list', path]);
+                if (path === 'E:\\_Internal\\' + currentYear) {
+                    return { success: true, directories: ['Album folder'] };
+                }
+                if (path === 'E:\\_Internal\\' + currentYear + '\\Album folder') {
+                    return { success: true, directories: ['Subfolder'] };
+                }
+                return { success: true, directories: [] };
+            }
+        },
+        shell: {
+            showInExplorer: async (path) => {
+                calls.push(['showInExplorer', path]);
+                return { success: true };
+            }
+        }
+    });
+    const actions = createLegacyActivityActions({
+        getSdk: () => sdk,
+        isNativeAvailable: () => true
+    });
+
+    await findAction(actions, 'legacy.yearbookExplorer').execute(context);
+
+    assert.deepEqual(calls.filter((call) => call[0] === 'file.list'), [
+        ['file.list', 'E:\\_Internal\\' + currentYear],
+        ['file.list', 'E:\\_Internal\\' + currentYear + '\\Album folder']
+    ]);
+    assert.deepEqual(calls.at(-1), [
+        'showInExplorer',
+        'E:\\_Internal\\' + currentYear + '\\Album folder\\Subfolder'
+    ]);
 });
