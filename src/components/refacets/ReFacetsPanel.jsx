@@ -63,7 +63,7 @@ export default function ReFacetsPanel({ visible = true }) {
         clearYears,
         clearSubfolders,
         refresh
-    } = useLibraryFacets(visible);
+    } = useLibraryFacets();
 
     const [prefs, setPrefs] = useState(readPrefs);
     const [menu, setMenu] = useState(null);
