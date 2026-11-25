@@ -150,6 +150,7 @@ export default function App() {
     const activityBarContext = useMemo(() => ({
         sidebarCollapsed,
         contentView,
+        activePlaylistGuid,
         toggleSidebar,
         toggleContentView,
         refreshPlaylist,
@@ -159,6 +160,7 @@ export default function App() {
     }), [
         sidebarCollapsed,
         contentView,
+        activePlaylistGuid,
         toggleSidebar,
         toggleContentView,
         refreshPlaylist,
