@@ -45,6 +45,9 @@ export function normalizeRefacetsPresentation(value = {}) {
 }
 
 export function normalizeRefacetsColumnSplit(value) {
+    if (value === null || value === undefined || value === '') {
+        return DEFAULT_REFACETS_COLUMN_SPLIT;
+    }
     const number = Number(value);
     return Number.isFinite(number)
         ? Math.round(Math.max(MIN_REFACETS_COLUMN_SPLIT, Math.min(MAX_REFACETS_COLUMN_SPLIT, number)))
