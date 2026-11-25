@@ -18,7 +18,10 @@ import {
 import {
     normalizeSpectrumSettings,
     readSpectrumSettings,
-    writeSpectrumSettings
+    writeSpectrumSettings,
+    SPECTRUM_BAND_OPTIONS,
+    SPECTRUM_FFT_OPTIONS,
+    SPECTRUM_FPS_OPTIONS
 } from '../spectrum/spectrumSettings.js';
 
 function createMemoryStorage(initial = {}) {
@@ -131,4 +134,13 @@ test('Spectrum helper preserves configured values and writes normalized settings
     assert.equal(settings.bands, 96);
     assert.equal(readSpectrumSettings(storage).backgroundColor, '#123456');
     assert.equal(normalizeSpectrumSettings({ fftSize: 256, bands: 256 }).bands, 128);
+});
+
+test('Spectrum exposes immutable option lists shared by its normalizer and settings form', () => {
+    assert.deepEqual(SPECTRUM_BAND_OPTIONS, [16, 24, 32, 48, 64, 96, 128, 192, 256]);
+    assert.deepEqual(SPECTRUM_FFT_OPTIONS, [256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]);
+    assert.deepEqual(SPECTRUM_FPS_OPTIONS, [15, 24, 30, 45, 60]);
+    assert.equal(Object.isFrozen(SPECTRUM_BAND_OPTIONS), true);
+    assert.equal(Object.isFrozen(SPECTRUM_FFT_OPTIONS), true);
+    assert.equal(Object.isFrozen(SPECTRUM_FPS_OPTIONS), true);
 });
