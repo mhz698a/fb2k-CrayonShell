@@ -40,6 +40,12 @@ function normalizeProvider(definition) {
             'El proveedor "' + id + '" debe implementar migrateSettings() como función.'
         );
     }
+    if (definition.getImportWarnings !== undefined
+        && typeof definition.getImportWarnings !== 'function') {
+        throw new TypeError(
+            'El proveedor "' + id + '" debe implementar getImportWarnings() como función.'
+        );
+    }
 
     const order = Number(definition.order);
     return Object.freeze({
@@ -53,7 +59,8 @@ function normalizeProvider(definition) {
         readSettings: definition.readSettings,
         validateSettings: definition.validateSettings,
         applySettings: definition.applySettings,
-        migrateSettings: definition.migrateSettings || null
+        migrateSettings: definition.migrateSettings || null,
+        getImportWarnings: definition.getImportWarnings || null
     });
 }
 
