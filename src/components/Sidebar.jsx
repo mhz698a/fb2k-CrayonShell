@@ -119,7 +119,7 @@ export default function Sidebar({ visible = true }) {
                     onDoubleClick={() => setFacetHeight(DEFAULT_FACET_HEIGHT)}
                 />
 
-                <SpectrumVisualizer visible={visible} />
+                <SpectrumVisualizer />
             </div>
         </aside>
     );
