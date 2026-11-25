@@ -51,27 +51,47 @@ The application pins `font-awesome@4.7.0` as a local npm dependency. Its stylesh
 - `actions/index.js`: shared registry instance.
 - `hooks/useActivityBarActions.js`: subscribes React to runtime registration changes and exposes the dispatcher.
 
-Feature modules can register actions without modifying the ActivityBar component:
+## Feature modules and extension lifecycle
+
+Each feature registers one module with a stable module ID, display label, optional description and a synchronous `register(scopedRegistry)` callback. The module registration is atomic: either all action definitions are accepted or none are published. Action IDs must be unique across all modules.
 
 ```js
-import { activityBarActionRegistry } from './actions/index.js';
+import { registerActivityBarModule } from './actions/index.js';
 
-const unregister = activityBarActionRegistry.register({
-    id: 'files.openManager',
-    label: 'Administrador de archivos',
-    category: 'Herramientas',
-    description: 'Abre el administrador de archivos.',
-    defaultIcon: 'folder-open',
-    isAvailable: (context) => ({
-        available: typeof context.openFileManager === 'function',
-        reason: 'El administrador de archivos no está disponible.'
-    }),
-    isActive: (context) => context.activeTool === 'files',
-    execute: (context, payload) => context.openFileManager(payload)
+const unregisterMediaModule = registerActivityBarModule({
+    id: 'media-tools',
+    label: 'Media tools',
+    description: 'Acciones del módulo multimedia.',
+    register(actions) {
+        actions.register({
+            id: 'media.openManager',
+            label: 'Administrador multimedia',
+            category: 'Media',
+            description: 'Abre el administrador multimedia.',
+            defaultIcon: 'folder-open',
+            executionPolicy: 'single',
+            isAvailable: (context) => ({
+                available: typeof context.openMediaManager === 'function',
+                reason: 'El administrador multimedia no está disponible.'
+            }),
+            isActive: (context) => context.activeTool === 'media',
+            execute: (context, payload) => context.openMediaManager(payload)
+        });
+    }
 });
 ```
 
-The returned function unregisters the action. IDs must be unique. Registry changes notify React so an action registered after startup appears in the manager catalog without editing ActivityBar.
+The returned disposer unregisters every action owned by that module and invokes its cleanup. Alternatively, call `activityBarActionRegistry.unregisterModule('media-tools')`. Modules do not import or modify ActivityBar components, the manager dialog or the persisted button configuration.
+
+The registry exposes module metadata through `getModules()`; each catalog entry includes `moduleId` and `moduleLabel`. The manager groups available actions by category and shows their owning module. New module registrations and removals notify React, so the catalog updates without restarting CrayonShell.
+
+Action definitions support:
+- `isAvailable(context)`: whether the action can execute in the current host and application state.
+- `isActive(context)`: whether a toggle/view action is currently active.
+- `executionPolicy: 'parallel' | 'single'`: whether overlapping executions are allowed. `single` returns a `busy` result to a second invocation and exposes a running state to the UI.
+- `execute(context, payload)`: performs the operation through feature services or the host bridge.
+
+The dispatcher publishes running-state changes and returns structured `success`, `unavailable`, `busy` or `error` results. The ActivityBar disables a `single` action while it is running.
 
 ## Runtime context and initial actions
 
