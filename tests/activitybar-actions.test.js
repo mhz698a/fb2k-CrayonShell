@@ -167,6 +167,7 @@ test('El catálogo principal contiene las cinco acciones iniciales', () => {
         'ui.toggleContentView',
         'playlist.refresh',
         'diagnostics.open',
+        'externalTools.configure',
         'activitybar.manage'
     ]);
     assert.equal(catalog.find((action) => action.id === 'ui.toggleSidebar').active, true);
