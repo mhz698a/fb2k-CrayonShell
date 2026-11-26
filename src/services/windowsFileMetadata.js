@@ -1,7 +1,8 @@
 import { invoke } from './foobarApi.js';
 import {
     buildServiceDescriptorPath,
-    parseServiceDescriptor
+    parseServiceDescriptor,
+    formatWindowsFileMetadataError
 } from './windowsFileMetadataFormat.js';
 
 const DESCRIPTOR_READ_ATTEMPTS = 5;
@@ -152,8 +153,7 @@ async function requestFileMetadata(playlistIndex, itemIndex, signal, retryUnauth
     }
 
     if (!response.ok || payload?.success !== true || !payload.data) {
-        const message = payload?.error?.message
-            || ('El servicio local respondió HTTP ' + response.status + '.');
+        const message = formatWindowsFileMetadataError(payload, response.status);
         const error = new Error(message);
         error.code = payload?.error?.code || 'HTTP_' + response.status;
         throw error;
