@@ -91,7 +91,7 @@ test('PCM copies are independent of SDK read-only views', () => {
     const pcm = makePcm([new Float32Array([0.2, 0.8])]);
     const copies = copyPcmChannels(pcm);
     copies[0][0] = 0.9;
-    assert.equal(pcm.getChannelView(0)[0], 0.2);
+    assert.ok(Math.abs(pcm.getChannelView(0)[0] - 0.2) < 1e-6);
 });
 
 test('binary probe codec round-trips validated waveform data', () => {
