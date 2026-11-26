@@ -16,6 +16,28 @@ function assertSuccess(response, operation) {
     return response;
 }
 
+async function ensurePcmRuntime(sdk) {
+    if (typeof sdk.audio?.getPcmDebugState !== 'function') return null;
+    const state = assertSuccess(
+        await sdk.audio.getPcmDebugState(),
+        'No se pudo consultar la compatibilidad PCM de WebView2'
+    );
+    const runtime = state?.runtime || {};
+    if (runtime.environment12 !== true || runtime.webview17 !== true) {
+        const error = new Error(
+            'Este WebView2 no admite los buffers compartidos requeridos por audio.decodePcm().'
+        );
+        error.code = 'PCM_SHARED_BUFFER_UNAVAILABLE';
+        error.diagnostics = {
+            version: runtime.version || '',
+            environment12: runtime.environment12 === true,
+            webview17: runtime.webview17 === true
+        };
+        throw error;
+    }
+    return runtime;
+}
+
 async function describeTrackForWaveform(sdk, track) {
     if (!track || typeof track !== 'object') {
         throw new TypeError('No se recibió una pista válida para el waveform.');
@@ -67,6 +89,7 @@ export class WaveformEngine {
         this.onError = options.onError || (() => undefined);
 
         this.requestGeneration = 0;
+        this.runtimePromise = null;
         this.currentTrack = null;
         this.cache = null;
         this.disposed = false;
@@ -97,6 +120,15 @@ export class WaveformEngine {
         this.cache = null;
 
         const descriptor = await describeTrackForWaveform(this.sdk, track);
+        if (requestGeneration !== this.requestGeneration || this.disposed) return { cancelled: true };
+
+        if (!this.runtimePromise) {
+            this.runtimePromise = ensurePcmRuntime(this.sdk).catch(error => {
+                this.runtimePromise = null;
+                throw error;
+            });
+        }
+        await this.runtimePromise;
         if (requestGeneration !== this.requestGeneration || this.disposed) return { cancelled: true };
 
         const segmentSeconds = chooseWaveformSegmentDuration(
