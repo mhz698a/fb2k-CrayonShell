@@ -109,7 +109,7 @@ export default function PropertiesPanel({
                         <dl>
                             {[
                                 ['Creación', 'creationTime'],
-                                ['Último acceso', 'lastAccessTime'],
+                                ['Último acceso (atime)', 'lastAccessTime'],
                                 ['Última modificación (mtime)', 'lastWriteTime'],
                                 ['Cambio NTFS (ctime)', 'changeTime']
                             ].map(([label, key]) => {

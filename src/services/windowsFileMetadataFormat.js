@@ -145,7 +145,7 @@ export function formatWindowsFileMetadataError(payload, status) {
         : message;
 }
 
-export function formatWindowsTimestamp(value) {
+export function formatWindowsTimestamp_Basic(value) {
     if (!value || value.readable !== true
         || !Number.isSafeInteger(value.unixMilliseconds)
         || value.unixMilliseconds < 0) {
@@ -161,3 +161,24 @@ export function formatWindowsTimestamp(value) {
     }).format(date);
 }
 
+export function formatWindowsTimestamp(value) {
+    if (!value || value.readable !== true
+        || !Number.isSafeInteger(value.unixMilliseconds)
+        || value.unixMilliseconds < 0) {
+        return 'No disponible';
+    }
+
+    const date = new Date(value.unixMilliseconds);
+    if (Number.isNaN(date.getTime())) return 'No disponible';
+
+    const pad = (number) => String(number).padStart(2, '0');
+
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const seconds = pad(date.getSeconds());
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
