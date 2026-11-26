@@ -6,28 +6,50 @@ export function validateBridgeBootstrap(value) {
         : null;
 
     if (!payload || typeof payload !== 'object') {
-        throw new Error('foo_ui_webview2 devolvió un bootstrap vacío.');
+        throw new Error('foo_ui_webview2 devolvió un descriptor vacío.');
     }
 
-    const port = Number(payload.port);
-    const bearerToken = typeof payload.bearerToken === 'string'
-        ? payload.bearerToken
-        : '';
+    const baseUrl = typeof payload.baseUrl === 'string' ? payload.baseUrl : '';
+    const token = typeof payload.token === 'string' ? payload.token : '';
+    const instanceId = typeof payload.instanceId === 'string' ? payload.instanceId : '';
+    const expiresAt = Number(payload.expiresAt);
+    let parsedUrl = null;
 
-    if (payload.protocolVersion !== 1
-        || !Number.isInteger(port)
-        || port < 1
-        || port > 65535
-        || !BOOTSTRAP_TOKEN_PATTERN.test(bearerToken)) {
-        throw new Error('El bootstrap de foo_crayonshell_bridge no es compatible o está incompleto.');
+    try {
+        parsedUrl = new URL(baseUrl);
+    } catch {
+        // Rejected below.
+    }
+
+    const validBaseUrl = parsedUrl
+        && parsedUrl.protocol === 'http:'
+        && parsedUrl.hostname === '127.0.0.1'
+        && Number.isInteger(Number(parsedUrl.port))
+        && Number(parsedUrl.port) >= 1
+        && Number(parsedUrl.port) <= 65535
+        && (parsedUrl.pathname === '/' || parsedUrl.pathname === '')
+        && !parsedUrl.username
+        && !parsedUrl.password
+        && !parsedUrl.search
+        && !parsedUrl.hash;
+
+    if (payload.success !== true
+        || payload.service !== 'crayonshell'
+        || payload.protocolVersion !== 1
+        || !validBaseUrl
+        || !BOOTSTRAP_TOKEN_PATTERN.test(token)
+        || !instanceId
+        || !Number.isSafeInteger(expiresAt)
+        || expiresAt <= Date.now()) {
+        throw new Error('El descriptor local de CrayonShell no es compatible, está incompleto o expiró.');
     }
 
     return Object.freeze({
         protocolVersion: 1,
-        componentVersion: String(payload.componentVersion || ''),
-        port,
-        bearerToken,
-        baseUrl: 'http://127.0.0.1:' + port
+        baseUrl: 'http://127.0.0.1:' + Number(parsedUrl.port),
+        token,
+        instanceId,
+        expiresAt
     });
 }
 
