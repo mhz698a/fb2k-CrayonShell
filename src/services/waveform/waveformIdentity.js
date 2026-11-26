@@ -71,7 +71,7 @@ export function buildWaveformTrackIdentity(track, fileInfo = null) {
 
 export function chooseWaveformSegmentDuration(track, options = {}) {
     const targetBytes = Number(options.targetPcmBytes ?? 12 * 1024 * 1024);
-    const minimumSeconds = Number(options.minimumSeconds ?? 1);
+    const minimumSeconds = Number(options.minimumSeconds ?? 0.25);
     const maximumSeconds = Number(options.maximumSeconds ?? 10);
     const sampleRate = Number(track?.sampleRate) || 48000;
     const channels = Number(track?.channels) || 2;
