@@ -82,6 +82,18 @@ Al finalizar, npm run build comprueba explícitamente que existan index.html, cr
 
 Cada vez que cambies el código y quieras comprobarlo dentro de foobar2000, vuelve a ejecutar npm run build y recarga la página en el panel.
 
+
+
+### Panel derecho de propiedades y sesión de playlist
+
+El panel **Propiedades** se muestra a la derecha de la playlist. Su divisor permite ajustar el ancho con el mouse o el teclado; el doble clic restaura el ancho inicial. El botón Propiedades de la barra superior oculta o muestra el panel. Su ancho y visibilidad se guardan en los ajustes globales de interfaz y participan en el respaldo/restauración de configuraciones.
+
+El inspector consulta los datos ampliados únicamente para la fila enfocada mediante una petición de una sola pista a `playlist.getTracks`. Presenta etiquetas, información técnica de audio y ubicación del archivo; no vuelve a recorrer la playlist completa. La sección de fechas del sistema de archivos permanece marcada como pendiente mientras se completa el bootstrap autenticado entre `foo_crayonshell_bridge` y el documento WebView2. No realiza lecturas ni escrituras de fechas simuladas.
+
+CrayonShell guarda el GUID estable de la playlist activa y la identidad de la pista enfocada (handle y ruta, con índice como respaldo) en el almacenamiento local del origen WebView2. Al iniciar, reactiva la playlist anterior cuando todavía existe y restaura selección y foco; si la pista cambió de posición, primero intenta localizarla por su handle estable y después por su ruta.
+
+La continuidad del audio y de la posición temporal se delega a foobar2000. Activa **File → Preferences → Playback → Save playback state when closing foobar2000 and resume on next startup**. Esa preferencia nativa conserva la pista que estaba sonando y su posición. CrayonShell no fuerza una nueva reproducción al cargar la interfaz, para no interferir con una restauración nativa ni reproducir una pista si el usuario había detenido el reproductor.
+
 ### Visor de video y diagnóstico
 
 CrayonShell integra un visor sincronizado con la reproducción de foobar2000. El audio continúa bajo el control de foobar2000; el elemento HTML de video se reproduce silenciado y sigue el reloj del reproductor mediante `MediaElementFollower`. No reemplaza ni desactiva `foo_mpv` o Artwork View.

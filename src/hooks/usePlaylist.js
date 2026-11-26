@@ -6,6 +6,12 @@ import {
     subscribe
 } from '../services/foobarApi.js';
 import { PLAYLIST_FORMATS } from '../services/playlistFormats.js';
+import {
+    buildPlaylistSession,
+    readPlaylistSession,
+    resolveSavedFocusIndex,
+    writePlaylistSession
+} from '../services/playlistSession.js';
 
 const PAGE_SIZE = 200;
 
@@ -39,6 +45,7 @@ export function usePlaylist() {
     const [playbackState, setPlaybackState] = useState('stopped');
     const [status, setStatus] = useState('Esperando WebView2…');
     const [scrollRequest, setScrollRequest] = useState({ version: 0, target: 'playing' });
+    const [sessionReady, setSessionReady] = useState(false);
 
     const mountedRef = useRef(true);
     const refreshControlRef = useRef({ running: false, queued: false, waiters: [] });
@@ -46,6 +53,8 @@ export function usePlaylist() {
     const scrollRequestVersionRef = useRef(0);
     const pendingScrollTargetRef = useRef(null);
     const selectionQueueRef = useRef(Promise.resolve());
+    const sessionRestoreAttemptedRef = useRef(false);
+    const sessionSnapshotRef = useRef(null);
     const activePlaylistGuidRef = useRef(activePlaylistGuid);
     activePlaylistGuidRef.current = activePlaylistGuid;
 
@@ -72,6 +81,7 @@ export function usePlaylist() {
                 const formats = track.formats || {};
                 nextItems.push({
                     index: Number(track.index),
+                    handle: track.handle ? String(track.handle) : '',
                     path: track.path ? String(track.path) : '',
                     duration: formats.duration ? String(formats.duration) : '',
                     title: formats.title ? String(formats.title) : '',
@@ -94,19 +104,44 @@ export function usePlaylist() {
 
         if (!mountedRef.current) return;
 
-        setPlaylists(nextPlaylists);
+        let savedSession = null;
+        if (!sessionRestoreAttemptedRef.current) {
+            sessionRestoreAttemptedRef.current = true;
+            savedSession = readPlaylistSession();
+        }
 
-        const active = nextPlaylists.find((playlist) => playlist.isActive);
+        let active = nextPlaylists.find((playlist) => playlist.isActive);
+        const savedPlaylist = savedSession
+            ? nextPlaylists.find((playlist) => playlist.guid === savedSession.playlistGuid)
+            : null;
+
+        if (savedPlaylist && active?.guid !== savedPlaylist.guid) {
+            try {
+                await invoke('playlist.setActive', { playlistGuid: savedPlaylist.guid });
+                active = savedPlaylist;
+            } catch (error) {
+                setStatusMessage('No se pudo restaurar la playlist anterior', error);
+            }
+        } else if (savedPlaylist) {
+            active = savedPlaylist;
+        }
 
         if (!active) {
+            setPlaylists(nextPlaylists);
             setActivePlaylistGuid('');
             setItems([]);
             setFocusedItem(-1);
             setPlayingItemIndex(-1);
             setPlaybackState('stopped');
+            setSessionReady(true);
             setStatusMessage('No hay playlist activa');
             return;
         }
+
+        setPlaylists(nextPlaylists.map((playlist) => ({
+            ...playlist,
+            isActive: playlist.guid === active.guid
+        })));
 
         const [nextItems, focus, playingTrack, playback] = await Promise.all([
             readPlaylistItems(active),
@@ -117,9 +152,37 @@ export function usePlaylist() {
 
         if (!mountedRef.current) return;
 
+        let nextFocusedIndex = Number.isInteger(focus.index) ? focus.index : -1;
+        if (savedSession?.playlistGuid === active.guid) {
+            const restoredIndex = resolveSavedFocusIndex(
+                savedSession,
+                active.guid,
+                nextItems
+            );
+
+            if (restoredIndex >= 0) {
+                try {
+                    await invoke('playlist.setSelection', {
+                        playlistGuid: active.guid,
+                        indices: [restoredIndex],
+                        clearOthers: true
+                    });
+                    await invoke('playlist.setFocusedTrack', {
+                        playlistGuid: active.guid,
+                        index: restoredIndex
+                    });
+                    nextFocusedIndex = restoredIndex;
+                } catch (error) {
+                    setStatusMessage('No se pudo restaurar el elemento seleccionado', error);
+                }
+            }
+        }
+
+        if (!mountedRef.current) return;
+
         setActivePlaylistGuid(active.guid);
         setItems(nextItems);
-        setFocusedItem(Number.isInteger(focus.index) ? focus.index : -1);
+        setFocusedItem(nextFocusedIndex);
         setPlaybackState(playback.state || 'stopped');
         setPlayingItemIndex(
             playingTrack.found
@@ -128,6 +191,7 @@ export function usePlaylist() {
                 ? Number(playingTrack.index)
                 : -1
         );
+        setSessionReady(true);
         setStatusMessage('Playlist: ' + active.name);
     }, [readPlaylistItems, setStatusMessage]);
 
@@ -190,6 +254,31 @@ export function usePlaylist() {
         return () => {
             mountedRef.current = false;
             window.clearTimeout(refreshTimerRef.current);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!sessionReady || !activePlaylistGuid) return;
+
+        const snapshot = buildPlaylistSession(activePlaylistGuid, focusedItem, items);
+        if (!snapshot) return;
+
+        sessionSnapshotRef.current = snapshot;
+        writePlaylistSession(snapshot);
+    }, [sessionReady, activePlaylistGuid, focusedItem, items]);
+
+    useEffect(() => {
+        const persistSession = () => {
+            if (sessionSnapshotRef.current) {
+                writePlaylistSession(sessionSnapshotRef.current);
+            }
+        };
+
+        window.addEventListener('pagehide', persistSession);
+        window.addEventListener('beforeunload', persistSession);
+        return () => {
+            window.removeEventListener('pagehide', persistSession);
+            window.removeEventListener('beforeunload', persistSession);
         };
     }, []);
 

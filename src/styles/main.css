@@ -42,7 +42,9 @@ select {
         var(--activitybar-width)
         minmax(0, var(--sidebar-width))
         6px
-        minmax(0, 1fr);
+        minmax(0, 1fr)
+        6px
+        minmax(0, var(--properties-width, 340px));
     height: 100vh;
     min-height: 0;
 }
@@ -712,7 +714,9 @@ select {
 }
 
 .cui-container.sidebar-collapsed {
-    grid-template-columns: var(--activitybar-width) 0 0 minmax(0, 1fr);
+    grid-template-columns:
+        var(--activitybar-width) 0 0 minmax(0, 1fr)
+        6px minmax(0, var(--properties-width, 340px));
 }
 
 .cui-container.sidebar-collapsed .sidebar,
@@ -2623,4 +2627,236 @@ button.play-btn {
         flex-direction: column;
     }
     .settings-backup-footer > div { width: 100%; }
+}
+
+
+/* Right-hand track inspector. */
+.properties-resizer {
+    grid-column: 5;
+    position: relative;
+    z-index: 2;
+    cursor: col-resize;
+    touch-action: none;
+    outline: none;
+    background: transparent;
+}
+.properties-resizer::after {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    width: 2px;
+    background: transparent;
+    content: '';
+}
+.properties-resizer:hover::after,
+.properties-resizer:focus-visible::after,
+.cui-container.resizing-properties .properties-resizer::after {
+    background: var(--accent-color);
+}
+.properties-panel {
+    grid-column: 6;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    color: #dedede;
+    background: #252526;
+    border-left: 1px solid rgba(128,128,128,.25);
+}
+.properties-panel-heading {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 31px;
+    padding: 0 10px;
+    background: #2b2b2d;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+}
+.properties-panel-heading > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.properties-panel-heading strong {
+    color: #cfcfcf;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .07em;
+}
+.properties-panel-heading span {
+    color: #858585;
+    font-size: 8px;
+}
+.properties-panel-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px 9px 12px;
+    scrollbar-color: #505050 #202020;
+    scrollbar-width: thin;
+}
+.properties-track-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 8px 8px 10px;
+    margin-bottom: 8px;
+    background: #1e1e1e;
+    border: 1px solid #39393c;
+    border-radius: 3px;
+}
+.properties-track-heading strong {
+    color: #f0f0f0;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.properties-track-heading span {
+    color: #9b9b9b;
+    font-size: 10px;
+    overflow-wrap: anywhere;
+}
+.properties-section {
+    margin-top: 9px;
+}
+.properties-section h3 {
+    margin: 0;
+    padding: 4px 1px 5px;
+    color: #a9a9a9;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+.properties-section dl {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 4px 0 0;
+}
+.properties-row {
+    display: grid;
+    grid-template-columns: minmax(92px, 38%) minmax(0, 1fr);
+    align-items: baseline;
+    gap: 7px;
+    min-width: 0;
+    padding: 4px 3px;
+    border-bottom: 1px solid rgba(255,255,255,.035);
+}
+.properties-row dt {
+    color: #909090;
+    font-size: 9px;
+}
+.properties-row dd {
+    min-width: 0;
+    margin: 0;
+    color: #d6d6d6;
+    font-size: 9px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.properties-row-stacked {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+}
+.properties-row-stacked dd {
+    color: #bcbcbc;
+}
+.properties-loading,
+.properties-empty {
+    padding: 12px 8px;
+    color: #929292;
+    font-size: 10px;
+    line-height: 1.45;
+}
+.properties-empty {
+    margin: 10px;
+    padding: 16px 12px;
+    text-align: center;
+    border: 1px dashed #464649;
+}
+.properties-error {
+    margin: 5px 0;
+    padding: 6px 7px;
+    color: #e6b0a9;
+    background: rgba(170,74,58,.1);
+    border-left: 2px solid #b75b50;
+    font-size: 9px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.properties-pending {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 6px;
+    padding: 8px;
+    color: #b9b9b9;
+    background: #1e1e1e;
+    border: 1px solid #3f3f42;
+    border-radius: 3px;
+}
+.properties-pending strong {
+    color: #d7c38d;
+    font-size: 9px;
+    font-weight: 600;
+}
+.properties-pending span {
+    color: #999;
+    font-size: 9px;
+    line-height: 1.45;
+}
+.properties-collapsed {
+    grid-template-columns:
+        var(--activitybar-width)
+        minmax(0, var(--sidebar-width))
+        6px minmax(0, 1fr)
+        0 0;
+}
+.sidebar-collapsed.properties-collapsed {
+    grid-template-columns: var(--activitybar-width) 0 0 minmax(0, 1fr) 0 0;
+}
+.properties-collapsed .properties-resizer,
+.properties-collapsed .properties-panel {
+    display: none;
+}
+.properties-toolbar-action.is-active {
+    color: #ffffff;
+    background: #37373d;
+    border-color: #5a5a5e;
+}
+.cui-container.resizing-properties,
+.cui-container.resizing-properties * {
+    cursor: col-resize !important;
+    user-select: none !important;
+}
+@media (max-width: 980px) {
+    .cui-container:not(.properties-collapsed) {
+        grid-template-columns:
+            var(--activitybar-width)
+            minmax(0, var(--sidebar-width))
+            6px minmax(0, 1fr)
+            6px minmax(0, min(300px, 32vw));
+    }
+}
+@media (max-width: 760px) {
+    .cui-container:not(.properties-collapsed) {
+        grid-template-columns:
+            var(--activitybar-width)
+            minmax(0, var(--sidebar-width))
+            6px minmax(0, 1fr)
+            0 0;
+    }
+    .cui-container:not(.properties-collapsed) .properties-resizer,
+    .cui-container:not(.properties-collapsed) .properties-panel {
+        display: none;
+    }
 }

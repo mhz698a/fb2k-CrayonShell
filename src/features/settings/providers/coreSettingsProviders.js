@@ -63,7 +63,7 @@ export function createCoreSettingsProviders(storageOverride) {
         {
             id: 'core.ui',
             label: 'Interfaz general',
-            description: 'Estado persistente del Sidebar y proporción de ReFacets.',
+            description: 'Estado persistente del Sidebar, panel de propiedades y proporción de ReFacets.',
             version: 1,
             order: 10,
             readSettings: () => readCoreUiSettings(storage),
