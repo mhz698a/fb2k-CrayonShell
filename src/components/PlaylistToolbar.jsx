@@ -6,6 +6,8 @@ export default function PlaylistToolbar({
     onFilterChange,
     onPlaylistChange,
     contentView,
+    propertiesVisible,
+    onToggleProperties,
     onExecuteAction
 }) {
     return (
@@ -58,6 +60,19 @@ export default function PlaylistToolbar({
                 onClick={() => onExecuteAction('playlist.refresh')}
             >
                 ↻
+            </button>
+
+            <button
+                id="PropertiesToggle"
+                className={'toolbar-action properties-toolbar-action'
+                    + (propertiesVisible ? ' is-active' : '')}
+                type="button"
+                aria-label={propertiesVisible ? 'Ocultar propiedades' : 'Mostrar propiedades'}
+                aria-pressed={propertiesVisible}
+                title={propertiesVisible ? 'Ocultar propiedades' : 'Mostrar propiedades'}
+                onClick={onToggleProperties}
+            >
+                Propiedades
             </button>
 
             <button

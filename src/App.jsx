@@ -11,14 +11,25 @@ import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
 import PlaylistStatus from './components/PlaylistStatus.jsx';
 import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
+import PropertiesPanel from './components/PropertiesPanel.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
+import { useTrackProperties } from './hooks/useTrackProperties.js';
+import { useWindowsFileMetadata } from './hooks/useWindowsFileMetadata.js';
 import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
 import {
     SIDEBAR_COLLAPSED_STORAGE_KEY,
     SIDEBAR_VIEW_STORAGE_KEY,
     SIDEBAR_WIDTH_STORAGE_KEY,
+    DEFAULT_SIDEBAR_WIDTH,
+    PROPERTIES_COLLAPSED_STORAGE_KEY,
+    PROPERTIES_WIDTH_STORAGE_KEY,
+    DEFAULT_PROPERTIES_WIDTH,
+    MAX_PROPERTIES_WIDTH,
+    MIN_PROPERTIES_WIDTH,
     MAX_SIDEBAR_WIDTH,
     MIN_SIDEBAR_WIDTH,
+    readPropertiesCollapsed,
+    readPropertiesWidth,
     readSidebarCollapsed,
     readSidebarView,
     readSidebarWidth
@@ -39,12 +50,26 @@ function clampSidebarWidth(width, containerWidth) {
     );
 }
 
+function clampPropertiesWidth(width, containerWidth) {
+    const availableMaximum = Math.max(
+        MIN_PROPERTIES_WIDTH,
+        Math.min(MAX_PROPERTIES_WIDTH, containerWidth * 0.45)
+    );
+
+    return Math.round(
+        Math.min(availableMaximum, Math.max(MIN_PROPERTIES_WIDTH, width))
+    );
+}
+
 export default function App() {
     const containerRef = useRef(null);
     const draggingRef = useRef(false);
+    const propertiesDraggingRef = useRef(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
     const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
     const [sidebarView, setSidebarView] = useState(readSidebarView);
+    const [propertiesCollapsed, setPropertiesCollapsed] = useState(readPropertiesCollapsed);
+    const [propertiesWidth, setPropertiesWidth] = useState(readPropertiesWidth);
     const [filter, setFilter] = useState('');
     const [contentView, setContentView] = useState('playlist');
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
@@ -144,6 +169,22 @@ export default function App() {
         }
     }, [sidebarView]);
 
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(PROPERTIES_COLLAPSED_STORAGE_KEY, String(propertiesCollapsed));
+        } catch {
+            // Keep the panel visibility for this session when storage is unavailable.
+        }
+    }, [propertiesCollapsed]);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(PROPERTIES_WIDTH_STORAGE_KEY, String(propertiesWidth));
+        } catch {
+            // Keep the panel width for this session when storage is unavailable.
+        }
+    }, [propertiesWidth]);
+
     const {
         playlists,
         activePlaylistGuid,
@@ -163,6 +204,22 @@ export default function App() {
 
     const activePlaylist = playlists.find(
         (playlist) => playlist.guid === activePlaylistGuid
+    );
+    const selectedItemIndex = focusedItem >= 0 ? focusedItem : playingItemIndex;
+    const selectedItem = items.find((item) => item.index === selectedItemIndex) || null;
+    const {
+        properties: trackProperties,
+        loading: propertiesLoading,
+        error: propertiesError
+    } = useTrackProperties(activePlaylistGuid, selectedItemIndex, !propertiesCollapsed);
+    const {
+        metadata: windowsFileMetadata,
+        loading: windowsFileMetadataLoading,
+        error: windowsFileMetadataError
+    } = useWindowsFileMetadata(
+        activePlaylist?.index,
+        selectedItemIndex,
+        !propertiesCollapsed && Boolean(selectedItem)
     );
 
     const normalizedFilter = filter.trim().toLocaleLowerCase();
@@ -284,11 +341,65 @@ export default function App() {
         setSidebarWidth(clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH, width));
     }
 
+    function handlePropertiesPointerDown(event) {
+        if (propertiesCollapsed || event.button !== 0) return;
+
+        propertiesDraggingRef.current = true;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        containerRef.current?.classList.add('resizing-properties');
+        event.preventDefault();
+    }
+
+    function handlePropertiesPointerMove(event) {
+        if (!propertiesDraggingRef.current || !containerRef.current) return;
+
+        const bounds = containerRef.current.getBoundingClientRect();
+        setPropertiesWidth(
+            clampPropertiesWidth(bounds.right - event.clientX, bounds.width)
+        );
+    }
+
+    function stopPropertiesDragging(event) {
+        if (!propertiesDraggingRef.current) return;
+        if (event && event.pointerId !== undefined
+            && event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+
+        propertiesDraggingRef.current = false;
+        containerRef.current?.classList.remove('resizing-properties');
+    }
+
+    function handlePropertiesResizerKeyDown(event) {
+        const step = event.shiftKey ? 40 : 10;
+        let nextWidth = propertiesWidth;
+
+        if (event.key === 'ArrowLeft') nextWidth += step;
+        else if (event.key === 'ArrowRight') nextWidth -= step;
+        else if (event.key === 'Home') nextWidth = MIN_PROPERTIES_WIDTH;
+        else if (event.key === 'End') nextWidth = MAX_PROPERTIES_WIDTH;
+        else return;
+
+        event.preventDefault();
+        const width = containerRef.current?.clientWidth || window.innerWidth;
+        setPropertiesWidth(clampPropertiesWidth(nextWidth, width));
+    }
+
+    function handlePropertiesResizerDoubleClick() {
+        const width = containerRef.current?.clientWidth || window.innerWidth;
+        setPropertiesWidth(clampPropertiesWidth(DEFAULT_PROPERTIES_WIDTH, width));
+    }
+
     return (
         <div
             ref={containerRef}
-            className={'cui-container' + (sidebarCollapsed ? ' sidebar-collapsed' : '')}
-            style={{ '--sidebar-width': sidebarWidth + 'px' }}
+            className={'cui-container'
+                + (sidebarCollapsed ? ' sidebar-collapsed' : '')
+                + (propertiesCollapsed ? ' properties-collapsed' : '')}
+            style={{
+                '--sidebar-width': sidebarWidth + 'px',
+                '--properties-width': propertiesWidth + 'px'
+            }}
         >
             <ActivityBar
                 buttons={activityBarConfig.buttons}
@@ -376,6 +487,8 @@ export default function App() {
                         onFilterChange={setFilter}
                         onPlaylistChange={changePlaylist}
                         contentView={contentView}
+                        propertiesVisible={!propertiesCollapsed}
+                        onToggleProperties={() => setPropertiesCollapsed((value) => !value)}
                         onExecuteAction={executeActivityBarAction}
                     />
 
@@ -413,6 +526,38 @@ export default function App() {
                     <PlaylistStatus message={status} />
                 </section>
             </main>
+
+            <div
+                className="properties-resizer"
+                role="separator"
+                aria-label="Cambiar ancho del panel de propiedades"
+                aria-orientation="vertical"
+                aria-valuemin={MIN_PROPERTIES_WIDTH}
+                aria-valuemax={MAX_PROPERTIES_WIDTH}
+                aria-valuenow={propertiesWidth}
+                tabIndex={propertiesCollapsed ? -1 : 0}
+                title="Arrastrar para cambiar el ancho"
+                onPointerDown={handlePropertiesPointerDown}
+                onPointerMove={handlePropertiesPointerMove}
+                onPointerUp={stopPropertiesDragging}
+                onPointerCancel={stopPropertiesDragging}
+                onLostPointerCapture={() => {
+                    propertiesDraggingRef.current = false;
+                    containerRef.current?.classList.remove('resizing-properties');
+                }}
+                onKeyDown={handlePropertiesResizerKeyDown}
+                onDoubleClick={handlePropertiesResizerDoubleClick}
+            />
+
+            <PropertiesPanel
+                selectedItem={selectedItem}
+                properties={trackProperties}
+                loading={propertiesLoading}
+                error={propertiesError}
+                fileMetadata={windowsFileMetadata}
+                fileMetadataLoading={windowsFileMetadataLoading}
+                fileMetadataError={windowsFileMetadataError}
+            />
         </div>
     );
 }

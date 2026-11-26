@@ -4,7 +4,15 @@ const demoTracks = [
     {
         index: 0,
         path: 'D:\\Music\\Demo Artist\\First Track.flac',
-        formats: { duration: '00:03:42', title: 'First Track', artist: 'Demo Artist', details: 'Demo Artist - First Track' }
+        formats: {
+            duration: '00:03:42', title: 'First Track', artist: 'Demo Artist',
+            album: 'CrayonShell Demo', albumArtist: 'Demo Artist', date: '2026',
+            genre: 'Demo', trackNumber: '01', discNumber: '1', composer: 'Demo Composer',
+            label: 'Demo Label', codec: 'FLAC', bitrate: '920 kbps',
+            sampleRate: '44100 Hz', channels: '2', bitDepth: '16',
+            extension: 'flac', subsong: '0',
+            details: 'Demo Artist - First Track'
+        }
     },
     {
         index: 1,
