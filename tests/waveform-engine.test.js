@@ -16,6 +16,7 @@ function makeMemorySdk(profilePath = 'C:\\\\Users\\\\Test\\\\foobar2000-v2') {
     return {
         files,
         sdk: {
+            audio: {},
             misc: {
                 async getProfilePath() {
                     return { success: true, path: profilePath };
