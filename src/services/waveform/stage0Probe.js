@@ -30,7 +30,7 @@ function profileFilePath(profilePath) {
 async function currentTrackPath(sdk, requestedPath) {
     if (typeof requestedPath === 'string' && requestedPath.trim()) return requestedPath.trim();
     const result = success(await sdk.player.getCurrentTrack(), 'No se pudo consultar la pista actual');
-    const path = result?.track?.path || result?.track?.handle || '';
+    const path = result?.track?.handle || result?.track?.absolutePath || result?.track?.path || '';
     if (!result?.found || !path) {
         throw new Error('No hay una pista con ruta local en reproducción. Pasa options.path explícitamente.');
     }
