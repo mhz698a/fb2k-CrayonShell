@@ -100,9 +100,7 @@ export class WaveformScheduler {
             ? Math.ceil(this.track.duration / this.segmentSeconds)
             : 0;
         return {
-            status: !this.track ? 'idle'
-                : this.completed.size >= totalSegments ? 'complete'
-                    : this.pumping ? 'loading' : 'idle',
+            status: this._status(totalSegments),
             duration: this.track?.duration || 0,
             segmentSeconds: this.segmentSeconds,
             totalSegments,
@@ -112,6 +110,15 @@ export class WaveformScheduler {
             loadedIndexes: Array.from(this.completed).sort((a, b) => a - b),
             failedIndexes: Array.from(this.failed.keys()).sort((a, b) => a - b)
         };
+    }
+
+    _status(totalSegments = this.track
+        ? Math.ceil(this.track.duration / this.segmentSeconds)
+        : 0) {
+        if (!this.track) return 'idle';
+        if (this.completed.size >= totalSegments) return 'complete';
+        if (this.completed.size + this.failed.size >= totalSegments) return 'partial';
+        return this.pumping ? 'loading' : 'idle';
     }
 
     _currentIndex() {
@@ -191,15 +198,13 @@ export class WaveformScheduler {
                 } finally {
                     if (this.active === active) this.active = null;
                     if (generation === this.generation) {
-                        this._emitState(this._nextIndex() === null ? 'complete' : 'loading');
+                        this._emitState(this._status());
                     }
                 }
             }
         } finally {
             this.pumping = false;
-            this._emitState(this._nextIndex() === null
-                ? (this.track ? 'complete' : 'idle')
-                : 'idle');
+            this._emitState(this._status());
             // A track can be replaced while an asynchronous cache read is settling.
             if (this.track && !this.disposed && this._nextIndex() !== null) {
                 void this._pump();
