@@ -1,6 +1,6 @@
 # Waveform — etapa 0: validación del runtime
 
-Esta prueba técnica valida las capacidades reales de foo_ui_webview2 antes de implementar el scheduler progresivo y la caché definitiva.
+Esta prueba técnica validó las capacidades reales de foo_ui_webview2. La persistencia del archivo de diagnóstico después de cerrar y volver a abrir foobar2000 ya fue comprobada manualmente.
 
 ## Qué verifica
 
@@ -86,7 +86,7 @@ Elimina solamente el archivo de diagnóstico de etapa 0. No modifica minibar.db 
 ## Límites de esta etapa
 
 - pcm-decode-probe.wfc es una muestra técnica, no el formato definitivo de caché.
-- Cada ejecución analiza un solo rango. El scheduler de segmentos, la cola prioritaria y la caché multi-segmento se implementarán después.
+- Esta prueba analiza un solo rango. El motor progresivo, la cola prioritaria y la caché multi-segmento están implementados en la etapa 1; consulta docs/waveform-stage1.md.
 - La prueba no cambia el estado de reproducción ni incorpora controles a la interfaz.
 - Los diagnósticos se importan únicamente durante desarrollo; no deben formar parte del bundle de producción.
 - decodePcm y shared buffers son APIs experimentales. Su compatibilidad requiere validación en la versión instalada de foobar2000/WebView2.
