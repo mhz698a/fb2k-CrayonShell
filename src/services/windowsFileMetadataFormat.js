@@ -1,4 +1,56 @@
 const BOOTSTRAP_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const WINDOWS_DRIVE_PATH = /^[A-Za-z]:\\/;
+const WINDOWS_UNC_PATH = /^\\\\[^\\]+\\[^\\]+/;
+
+export function buildServiceDescriptorPath(profilePath) {
+    if (typeof profilePath !== 'string' || !profilePath.trim()) {
+        throw new Error('foobar2000 devolvió una ruta de perfil vacía.');
+    }
+
+    let normalized = profilePath.trim();
+
+    // misc.getProfilePath normally returns a native path. Accept the file://
+    // spelling as well because foobar2000 SDK paths can use that prefix.
+    if (/^file:\/\//i.test(normalized)) {
+        normalized = normalized.replace(/^file:\/\//i, '');
+        normalized = normalized.replace(/^\\(?=[A-Za-z]:[\\/])/i, '');
+    }
+
+    normalized = normalized.replace(/\//g, '\\\\');
+
+    const isDriveRoot = /^[A-Za-z]:\\\\+$/i.test(normalized);
+    if (!isDriveRoot) normalized = normalized.replace(/\\\\+$/, '');
+
+    const validAbsolutePath = WINDOWS_DRIVE_PATH.test(normalized)
+        || WINDOWS_UNC_PATH.test(normalized);
+    const segments = normalized.split('\\\\');
+
+    if (!validAbsolutePath
+        || segments.some(segment => segment === '.' || segment === '..')
+        || normalized.includes('\0')
+        || normalized.includes('?')
+        || normalized.includes('#')) {
+        throw new Error('La ruta de perfil de foobar2000 no es una ruta local absoluta válida.');
+    }
+
+    const separator = normalized.endsWith('\\\\') ? '' : '\\\\';
+    return normalized + separator + 'foo_crayonshell_bridge\\\\service.json';
+}
+
+export function parseServiceDescriptor(content) {
+    if (typeof content !== 'string' || !content.trim()) {
+        throw new Error('El descriptor local de CrayonShell está vacío.');
+    }
+
+    let payload;
+    try {
+        payload = JSON.parse(content);
+    } catch {
+        throw new Error('El descriptor local de CrayonShell no contiene JSON válido.');
+    }
+
+    return validateBridgeBootstrap(payload);
+}
 
 export function validateBridgeBootstrap(value) {
     const payload = value && typeof value === 'object'
@@ -12,6 +64,7 @@ export function validateBridgeBootstrap(value) {
     const baseUrl = typeof payload.baseUrl === 'string' ? payload.baseUrl : '';
     const token = typeof payload.token === 'string' ? payload.token : '';
     const instanceId = typeof payload.instanceId === 'string' ? payload.instanceId : '';
+    const pid = Number(payload.pid);
     const expiresAt = Number(payload.expiresAt);
     let parsedUrl = null;
 
@@ -38,7 +91,9 @@ export function validateBridgeBootstrap(value) {
         || payload.protocolVersion !== 1
         || !validBaseUrl
         || !BOOTSTRAP_TOKEN_PATTERN.test(token)
-        || !instanceId
+        || !BOOTSTRAP_TOKEN_PATTERN.test(instanceId)
+        || !Number.isSafeInteger(pid)
+        || pid <= 0
         || !Number.isSafeInteger(expiresAt)
         || expiresAt <= Date.now()) {
         throw new Error('El descriptor local de CrayonShell no es compatible, está incompleto o expiró.');
@@ -49,6 +104,7 @@ export function validateBridgeBootstrap(value) {
         baseUrl: 'http://127.0.0.1:' + Number(parsedUrl.port),
         token,
         instanceId,
+        pid,
         expiresAt
     });
 }
