@@ -8,6 +8,7 @@ import {
 } from '../src/services/waveform/waveformIdentity.js';
 import { WaveformCache } from '../src/services/waveform/waveformCache.js';
 import { WaveformScheduler } from '../src/services/waveform/waveformScheduler.js';
+import { WaveformEngine } from '../src/services/waveform/waveformEngine.js';
 import { decodeWaveformSegment } from '../src/services/waveform/waveformDecoder.js';
 
 function makeMemorySdk(profilePath = 'C:\\\\Users\\\\Test\\\\foobar2000-v2') {
@@ -442,4 +443,83 @@ test('adaptive segmentation drops below one second for very high-rate multichann
     assert.equal(chooseWaveformSegmentDuration({
         sampleRate: 768000, channels: 8
     }, { targetPcmBytes: 12 * 1024 * 1024, maximumSeconds: 10 }), 0.25);
+});
+
+
+test('engine fails fast when the WebView2 runtime cannot receive shared PCM buffers', async () => {
+    const storage = makeMemorySdk();
+    storage.sdk.audio.getPcmDebugState = async () => ({
+        success: true,
+        runtime: { environment12: true, webview17: false, version: 'test' },
+        decode: { active: 0, queued: 0, openBufferBytes: 0 }
+    });
+    let decodeCalled = false;
+    storage.sdk.audio.decodePcm = async () => {
+        decodeCalled = true;
+        throw new Error('decodePcm must not run');
+    };
+    const engine = new WaveformEngine({ sdk: storage.sdk });
+
+    await assert.rejects(
+        engine.setTrack({
+            absolutePath: 'D:\\\\Audio\\\\Unsupported.flac',
+            handle: 'D:\\\\Audio\\\\Unsupported.flac',
+            duration: 4,
+            fileSize: 4096,
+            sampleRate: 48000,
+            channels: 2,
+            subsong: 0
+        }),
+        error => error.code === 'PCM_SHARED_BUFFER_UNAVAILABLE'
+            && error.diagnostics.webview17 === false
+    );
+    assert.equal(decodeCalled, false);
+    engine.dispose();
+});
+
+test('WaveformEngine decodes, persists and publishes sequential segments', async () => {
+    const storage = makeMemorySdk();
+    storage.sdk.audio.getPcmDebugState = async () => ({
+        success: true,
+        runtime: { environment12: true, webview17: true, version: 'test' },
+        decode: { active: 0, queued: 0, openBufferBytes: 0 }
+    });
+    storage.sdk.audio.decodePcm = async (_path, options) => makePcm([
+        new Float32Array([0.1, -0.4, 0.2, -0.8]),
+        new Float32Array([0.2, 0.3, -0.1, 0.7])
+    ], {
+        start: options.start,
+        duration: options.end - options.start,
+        sampleRate: 48000
+    });
+
+    const published = [];
+    const engine = new WaveformEngine({
+        sdk: storage.sdk,
+        resolution: 64,
+        segmentDurationOptions: {
+            minimumSeconds: 1,
+            maximumSeconds: 1,
+            targetPcmBytes: 1
+        },
+        workerFactory: makeWorkerFactory(),
+        onSegment: segment => published.push(segment)
+    });
+
+    const result = await engine.setTrack({
+        absolutePath: 'D:\\\\Audio\\\\Engine.flac',
+        handle: 'D:\\\\Audio\\\\Engine.flac',
+        duration: 2,
+        fileSize: 4096,
+        sampleRate: 48000,
+        channels: 2,
+        subsong: 0
+    }, 0);
+
+    assert.equal(result.totalSegments, 2);
+    await waitFor(() => engine.getSnapshot().status === 'complete');
+    assert.deepEqual(published.map(segment => segment.index), [0, 1]);
+    assert.ok(Array.from(storage.files.keys()).some(path => path.endsWith('.000000.wfs')));
+    assert.ok(Array.from(storage.files.keys()).some(path => path.endsWith('.000001.wfs')));
+    engine.dispose();
 });
