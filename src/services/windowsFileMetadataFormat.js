@@ -127,6 +127,16 @@ export function formatFileSize(bytes) {
     }) + ' ' + units[unitIndex];
 }
 
+export function formatWindowsFileMetadataError(payload, status) {
+    const message = payload?.error?.message
+        || ('El servicio local respondió HTTP ' + status + '.');
+    const win32Error = payload?.error?.win32Error;
+
+    return Number.isInteger(win32Error) && win32Error > 0
+        ? message + ' (Código Win32: ' + win32Error + ').'
+        : message;
+}
+
 export function formatWindowsTimestamp(value) {
     if (!value || value.readable !== true
         || !Number.isSafeInteger(value.unixMilliseconds)
