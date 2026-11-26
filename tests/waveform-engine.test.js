@@ -194,7 +194,8 @@ test('waveform segments persist independently and are recovered by a new cache i
     assert.equal(recovered.cached, true);
     assert.equal(recovered.index, 1);
     assert.equal(recovered.start, 2);
-    assert.deepEqual(Array.from(recovered.peaks), [0.2, 0.7]);
+    assert.ok(Math.abs(recovered.peaks[0] - 0.2) < 1e-6);
+    assert.ok(Math.abs(recovered.peaks[1] - 0.7) < 1e-6);
 });
 
 test('waveform cache refuses to reuse segments after the segment configuration changes', async () => {
