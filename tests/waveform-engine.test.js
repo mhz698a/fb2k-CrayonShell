@@ -436,3 +436,10 @@ test('scheduler reports partial completion and retries failed segments explicitl
     assert.equal(scheduler.getSnapshot().completedSegments, 2);
     scheduler.dispose();
 });
+
+
+test('adaptive segmentation drops below one second for very high-rate multichannel PCM', () => {
+    assert.equal(chooseWaveformSegmentDuration({
+        sampleRate: 768000, channels: 8
+    }, { targetPcmBytes: 12 * 1024 * 1024, maximumSeconds: 10 }), 0.25);
+});
