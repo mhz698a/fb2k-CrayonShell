@@ -8,7 +8,8 @@ let connection = null;
 export { formatFileSize, formatWindowsTimestamp } from './windowsFileMetadataFormat.js';
 
 async function getConnection(forceRefresh = false) {
-    if (!forceRefresh && connection) return connection;
+    if (!forceRefresh && connection && connection.expiresAt > Date.now()) return connection;
+    if (connection && connection.expiresAt <= Date.now()) connection = null;
     if (!forceRefresh && connectionPromise) return connectionPromise;
 
     connectionPromise = (async () => {
@@ -25,10 +26,10 @@ async function getConnection(forceRefresh = false) {
     }
 }
 
-async function requestFileMetadata(port, itemIndex, signal, retryUnauthorized) {
+async function requestFileMetadata(playlistIndex, itemIndex, signal, retryUnauthorized) {
     const current = await getConnection();
     const url = current.baseUrl
-        + '/api/v1/playlists/' + port
+        + '/api/v1/playlists/' + playlistIndex
         + '/items/' + itemIndex
         + '/timestamps';
 
@@ -46,6 +47,11 @@ async function requestFileMetadata(port, itemIndex, signal, retryUnauthorized) {
         });
     } catch (failure) {
         if (failure?.name === 'AbortError') throw failure;
+        if (retryUnauthorized && !signal?.aborted) {
+            connection = null;
+            await getConnection(true);
+            return requestFileMetadata(playlistIndex, itemIndex, signal, false);
+        }
         throw new Error(
             'No se pudo conectar con el servicio local de CrayonShell. '
             + 'Comprueba que foo_crayonshell_bridge esté iniciado y que el origen WebView2 esté permitido.'
@@ -55,7 +61,7 @@ async function requestFileMetadata(port, itemIndex, signal, retryUnauthorized) {
     if (response.status === 401 && retryUnauthorized) {
         connection = null;
         await getConnection(true);
-        return requestFileMetadata(port, itemIndex, signal, false);
+        return requestFileMetadata(playlistIndex, itemIndex, signal, false);
     }
 
     let payload;
