@@ -128,6 +128,14 @@ export function formatFileSize(bytes) {
 }
 
 export function formatWindowsFileMetadataError(payload, status) {
+    const errorCode = payload?.error?.code;
+
+    if (errorCode === 'ITEM_HAS_NO_NATIVE_PATH') {
+        return 'El elemento seleccionado no tiene una ruta de archivo nativa de Windows. '
+            + 'El panel no puede leer atributos del sistema de archivos para streams '
+            + 'o ubicaciones virtuales.';
+    }
+
     const message = payload?.error?.message
         || ('El servicio local respondió HTTP ' + status + '.');
     const win32Error = payload?.error?.win32Error;
