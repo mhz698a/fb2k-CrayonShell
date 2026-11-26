@@ -8,34 +8,35 @@ import {
 
 test('accepts only a local-loopback bootstrap with a versioned 256-bit bearer token', () => {
     const result = validateBridgeBootstrap({
+        success: true,
+        service: 'crayonshell',
         protocolVersion: 1,
-        componentVersion: '0.1.0',
-        port: 43210,
-        bearerToken: 'A'.repeat(43)
+        baseUrl: 'http://127.0.0.1:43210',
+        token: 'A'.repeat(43),
+        instanceId: 'instance-1',
+        expiresAt: Date.now() + 60_000
     });
 
     assert.equal(result.baseUrl, 'http://127.0.0.1:43210');
-    assert.equal(result.port, 43210);
-    assert.equal(result.bearerToken, 'A'.repeat(43));
+    assert.equal(result.token, 'A'.repeat(43));
+    assert.equal(result.instanceId, 'instance-1');
 });
 
 test('rejects malformed bootstrap values and arbitrary remote endpoints', () => {
-    assert.throws(() => validateBridgeBootstrap({
+    const valid = {
+        success: true,
+        service: 'crayonshell',
         protocolVersion: 1,
-        port: 43210,
-        bearerToken: 'short',
-        baseUrl: 'https://example.com'
-    }));
-    assert.throws(() => validateBridgeBootstrap({
-        protocolVersion: 2,
-        port: 43210,
-        bearerToken: 'A'.repeat(43)
-    }));
-    assert.throws(() => validateBridgeBootstrap({
-        protocolVersion: 1,
-        port: 70000,
-        bearerToken: 'A'.repeat(43)
-    }));
+        baseUrl: 'http://127.0.0.1:43210',
+        token: 'A'.repeat(43),
+        instanceId: 'instance-1',
+        expiresAt: Date.now() + 60_000
+    };
+    assert.throws(() => validateBridgeBootstrap({ ...valid, token: 'short' }));
+    assert.throws(() => validateBridgeBootstrap({ ...valid, protocolVersion: 2 }));
+    assert.throws(() => validateBridgeBootstrap({ ...valid, baseUrl: 'https://example.com' }));
+    assert.throws(() => validateBridgeBootstrap({ ...valid, baseUrl: 'http://127.0.0.1:70000' }));
+    assert.throws(() => validateBridgeBootstrap({ ...valid, expiresAt: Date.now() - 1 }));
 });
 
 test('formats file size using the byte count returned by Windows', () => {

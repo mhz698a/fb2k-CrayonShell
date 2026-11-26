@@ -99,7 +99,7 @@ La continuidad del audio y de la posición temporal se delega a foobar2000. Acti
 
 El inspector ya no utiliza `$filesize()` para determinar el tamaño. Muestra `fileSizeBytes`, obtenido del handle de Windows mediante `FileStandardInfo`. Las fechas se muestran en la zona horaria local del equipo: `LastWriteTime` como mtime y `ChangeTime` como cambio de metadatos NTFS (ctime). `ChangeTime` es de solo lectura y no equivale a `CreationTime`.
 
-La lectura desde CrayonShell requiere que `foo_ui_webview2` exponga el método de bootstrap de confianza `crayonshell_bridge.getBootstrap`. El cliente no persiste el puerto ni el bearer token: los mantiene solo en memoria y construye por sí mismo la dirección loopback a partir del puerto validado.
+La lectura desde CrayonShell requiere que `foo_ui_webview2` exponga el método de bootstrap de confianza `system.getLocalServiceDescriptor({ service: 'crayonshell' })`. El cliente no persiste el puerto ni el bearer token: los mantiene solo en memoria y construye por sí mismo la dirección loopback a partir del puerto validado.
 
 ### Visor de video y diagnóstico
 

@@ -1,7 +1,7 @@
 import { invoke } from './foobarApi.js';
 import { validateBridgeBootstrap } from './windowsFileMetadataFormat.js';
 
-const BOOTSTRAP_METHOD = 'crayonshell_bridge.getBootstrap';
+const BOOTSTRAP_METHOD = 'system.getLocalServiceDescriptor';
 let connectionPromise = null;
 let connection = null;
 
@@ -12,7 +12,7 @@ async function getConnection(forceRefresh = false) {
     if (!forceRefresh && connectionPromise) return connectionPromise;
 
     connectionPromise = (async () => {
-        const bootstrap = await invoke(BOOTSTRAP_METHOD);
+        const bootstrap = await invoke(BOOTSTRAP_METHOD, { service: 'crayonshell' });
         const nextConnection = validateBridgeBootstrap(bootstrap);
         connection = nextConnection;
         return nextConnection;
@@ -37,7 +37,7 @@ async function requestFileMetadata(port, itemIndex, signal, retryUnauthorized) {
         response = await fetch(url, {
             method: 'GET',
             headers: {
-                Authorization: 'Bearer ' + current.bearerToken
+                Authorization: 'Bearer ' + current.token
             },
             cache: 'no-store',
             credentials: 'omit',
