@@ -88,7 +88,7 @@ Cada vez que cambies el código y quieras comprobarlo dentro de foobar2000, vuel
 
 El panel **Propiedades** se muestra a la derecha de la playlist. Su divisor permite ajustar el ancho con el mouse o el teclado; el doble clic restaura el ancho inicial. El botón Propiedades de la barra superior oculta o muestra el panel. Su ancho y visibilidad se guardan en los ajustes globales de interfaz y participan en el respaldo/restauración de configuraciones.
 
-El inspector consulta los datos ampliados únicamente para la fila enfocada mediante una petición de una sola pista a `playlist.getTracks`. Presenta etiquetas, información técnica de audio y ubicación del archivo; no vuelve a recorrer la playlist completa. La sección de fechas del sistema de archivos permanece marcada como pendiente mientras se completa el bootstrap autenticado entre `foo_crayonshell_bridge` y el documento WebView2. No realiza lecturas ni escrituras de fechas simuladas.
+El inspector consulta los datos ampliados únicamente para la fila enfocada mediante una petición de una sola pista a `playlist.getTracks`. Presenta etiquetas, información técnica de audio, tamaño real y fechas del sistema de archivos. El bootstrap lee el descriptor autenticado desde el perfil mediante las APIs existentes `misc.getProfilePath` y `file.read`; no requiere cambios en el host. En esta etapa las fechas son de solo lectura.
 
 CrayonShell guarda el GUID estable de la playlist activa y la identidad de la pista enfocada (handle y ruta, con índice como respaldo) en el almacenamiento local del origen WebView2. Al iniciar, reactiva la playlist anterior cuando todavía existe y restaura selección y foco; si la pista cambió de posición, primero intenta localizarla por su handle estable y después por su ruta.
 
@@ -99,7 +99,7 @@ La continuidad del audio y de la posición temporal se delega a foobar2000. Acti
 
 El inspector ya no utiliza `$filesize()` para determinar el tamaño. Muestra `fileSizeBytes`, obtenido del handle de Windows mediante `FileStandardInfo`. Las fechas se muestran en la zona horaria local del equipo: `LastWriteTime` como mtime y `ChangeTime` como cambio de metadatos NTFS (ctime). `ChangeTime` es de solo lectura y no equivale a `CreationTime`.
 
-La lectura desde CrayonShell requiere que `foo_ui_webview2` exponga el método de bootstrap de confianza `system.getLocalServiceDescriptor({ service: 'crayonshell' })`. El cliente no persiste el puerto ni el bearer token: los mantiene solo en memoria y construye por sí mismo la dirección loopback a partir del puerto validado.
+El cliente obtiene la ruta del perfil mediante `misc.getProfilePath` y lee `<perfil>\\foo_crayonshell_bridge\\service.json` mediante `file.read`, sujeto a la política de lectura del host. Valida el PID, el protocolo, el token, el identificador de instancia, la fecha de expiración y el destino loopback. El puerto y el bearer token se mantienen únicamente en memoria.
 
 ### Visor de video y diagnóstico
 
