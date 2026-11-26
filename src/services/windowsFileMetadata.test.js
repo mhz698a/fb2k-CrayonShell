@@ -4,7 +4,7 @@ import {
     formatFileSize,
     formatWindowsTimestamp,
     validateBridgeBootstrap
-} from './windowsFileMetadata.js';
+} from './windowsFileMetadataFormat.js';
 
 test('accepts only a local-loopback bootstrap with a versioned 256-bit bearer token', () => {
     const result = validateBridgeBootstrap({
