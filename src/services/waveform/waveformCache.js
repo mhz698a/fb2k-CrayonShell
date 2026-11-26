@@ -26,12 +26,15 @@ function joinWindowsPath(base, child) {
     return result;
 }
 
-function isValidManifest(value, identity) {
+function isValidManifest(value, identity, configuration) {
     return Boolean(value
         && value.format === FORMAT
         && value.version === VERSION
         && value.key === identity.key
         && value.identity === identity.serialized
+        && Math.abs(Number(value.duration) - configuration.duration) < 0.001
+        && Number(value.segmentSeconds) === configuration.segmentSeconds
+        && Number(value.resolution) === configuration.resolution
         && Array.isArray(value.segments)
         && value.segments.every(index => Number.isInteger(index) && index >= 0));
 }
@@ -107,8 +110,12 @@ export class WaveformCache {
 
             const bytes = await this.sdk.file.readBinary(path);
             const segment = decodeWaveformSegment(bytes);
-            if (segment.trackKey !== this.identity.key || segment.index !== index) {
-                throw new Error('La identidad o el índice del segmento no coincide con la caché.');
+            const expectedStart = index * this.segmentSeconds;
+            const expectedEnd = Math.min(this.duration, expectedStart + this.segmentSeconds);
+            if (segment.trackKey !== this.identity.key || segment.index !== index
+                || Math.abs(segment.start - expectedStart) > 0.001
+                || Math.abs(segment.end - expectedEnd) > 0.001) {
+                throw new Error('La identidad o el rango del segmento no coincide con la caché.');
             }
             return { ...segment, cached: true };
         } catch {
@@ -119,8 +126,15 @@ export class WaveformCache {
     }
 
     async saveSegment(segment) {
-        if (!segment || segment.index < 0 || segment.index >= Math.ceil(this.duration / this.segmentSeconds)) {
+        if (!segment || !Number.isInteger(segment.index)
+            || segment.index < 0 || segment.index >= Math.ceil(this.duration / this.segmentSeconds)) {
             throw new RangeError('El segmento no pertenece al intervalo de esta pista.');
+        }
+        const expectedStart = segment.index * this.segmentSeconds;
+        const expectedEnd = Math.min(this.duration, expectedStart + this.segmentSeconds);
+        if (Math.abs(segment.start - expectedStart) > 0.001
+            || Math.abs(segment.end - expectedEnd) > 0.001) {
+            throw new RangeError('El rango temporal del segmento no coincide con su índice.');
         }
         const payload = {
             ...segment,
@@ -164,7 +178,11 @@ export class WaveformCache {
                     && parsed?.identity !== this.identity.serialized) {
                     throw new Error('Colisión de identidad en la caché waveform; se rechazó el archivo existente.');
                 }
-                if (isValidManifest(parsed, this.identity)) {
+                if (isValidManifest(parsed, this.identity, {
+                    duration: this.duration,
+                    segmentSeconds: this.segmentSeconds,
+                    resolution: this.resolution
+                })) {
                     this.manifest = parsed;
                     return;
                 }
