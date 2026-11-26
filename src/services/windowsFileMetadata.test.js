@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
     buildServiceDescriptorPath,
     formatFileSize,
+    formatWindowsFileMetadataError,
     formatWindowsTimestamp,
     parseServiceDescriptor,
     validateBridgeBootstrap
@@ -51,6 +52,24 @@ test('formats file size using the byte count returned by Windows', () => {
     assert.equal(formatFileSize(1024), '1 KB');
     assert.equal(formatFileSize(1048576), '1 MB');
     assert.equal(formatFileSize(null), 'No disponible');
+});
+
+test('preserves the native Win32 error code in metadata failures', () => {
+    assert.equal(
+        formatWindowsFileMetadataError({
+            error: {
+                message: 'Windows could not read the media file attributes.',
+                win32Error: 1920
+            }
+        }, 500),
+        'Windows could not read the media file attributes. (Código Win32: 1920).'
+    );
+    assert.equal(
+        formatWindowsFileMetadataError({
+            error: { message: 'No autorizado.' }
+        }, 403),
+        'No autorizado.'
+    );
 });
 
 test('formats mtime/ctime values only when Windows reports them readable', () => {
