@@ -108,10 +108,10 @@ export default function PropertiesPanel({
                         )}
                         <dl>
                             {[
-                                ['Creación', 'creationTime'],
+                                ['Creación (ctime)', 'creationTime'],
                                 ['Último acceso (atime)', 'lastAccessTime'],
                                 ['Última modificación (mtime)', 'lastWriteTime'],
-                                ['Cambio NTFS (ctime)', 'changeTime']
+                                ['Cambio NTFS', 'changeTime']
                             ].map(([label, key]) => {
                                 const timestamp = fileMetadata?.timestamps?.[key];
                                 const formatted = formatWindowsTimestamp(timestamp);
