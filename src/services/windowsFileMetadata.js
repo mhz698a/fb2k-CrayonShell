@@ -48,6 +48,28 @@ async function readServiceDescriptor() {
     throw lastError || new Error('No se pudo leer el descriptor local de CrayonShell.');
 }
 
+async function getLocalNetworkAccessState() {
+    if (!globalThis.navigator?.permissions
+        || typeof globalThis.navigator.permissions.query !== 'function') {
+        return 'no disponible en este runtime';
+    }
+
+    try {
+        const permission = await globalThis.navigator.permissions.query({
+            name: 'local-network-access'
+        });
+        return permission?.state || 'desconocido';
+    } catch {
+        return 'no soportado por este runtime';
+    }
+}
+
+function getCurrentOrigin() {
+    return typeof window !== 'undefined' && window.location
+        ? window.location.origin
+        : 'origen desconocido';
+}
+
 async function getConnection(forceRefresh = false) {
     if (!forceRefresh && connection && connection.expiresAt > Date.now()) return connection;
     if (connection && connection.expiresAt <= Date.now()) connection = null;
@@ -83,6 +105,8 @@ async function requestFileMetadata(playlistIndex, itemIndex, signal, retryUnauth
             cache: 'no-store',
             credentials: 'omit',
             redirect: 'error',
+            // Explicitly classify the destination as loopback for Chromium.
+            targetAddressSpace: 'loopback',
             signal
         });
     } catch (failure) {
@@ -92,10 +116,26 @@ async function requestFileMetadata(playlistIndex, itemIndex, signal, retryUnauth
             await getConnection(true);
             return requestFileMetadata(playlistIndex, itemIndex, signal, false);
         }
-        throw new Error(
-            'No se pudo conectar con el servicio local de CrayonShell. '
-            + 'Comprueba que foo_crayonshell_bridge esté iniciado y que el origen WebView2 esté permitido.'
+        const permissionState = await getLocalNetworkAccessState();
+        const origin = getCurrentOrigin();
+        const detail = failure?.message
+            ? ' Detalle del navegador: ' + failure.message
+            : '';
+        const lnaHint = permissionState === 'denied'
+            ? ' El runtime tiene denegado el permiso de acceso a la red local para este origen.'
+            : permissionState === 'prompt'
+                ? ' El runtime indica que el permiso de acceso a la red local requiere autorización.'
+                : '';
+        const error = new Error(
+            'No se pudo completar la conexión HTTP con el servicio local. '
+            + 'Origen actual: ' + origin + '. '
+            + 'Permiso de red local: ' + permissionState + '.'
+            + lnaHint
+            + detail
         );
+        error.code = 'LOCAL_HTTP_FETCH_FAILED';
+        error.cause = failure;
+        throw error;
     }
 
     if (response.status === 401 && retryUnauthorized) {
