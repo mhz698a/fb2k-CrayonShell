@@ -70,3 +70,19 @@ test('session restoration does not cross playlist GUIDs', () => {
         { index: 0, path: 'D:/Music/A.flac', title: 'A' }
     ]), -1);
 });
+
+test('saved index is not reused when its previously known path disappeared', () => {
+    const session = {
+        version: 1,
+        playlistGuid: '{playlist-guid}',
+        focusedItem: 1,
+        focusedHandle: 'old-handle',
+        focusedPath: 'D:/Music/Removed.flac',
+        focusedTitle: 'Removed'
+    };
+
+    assert.equal(resolveSavedFocusIndex(session, '{playlist-guid}', [
+        { index: 0, path: 'D:/Music/A.flac' },
+        { index: 1, path: 'D:/Music/B.flac' }
+    ]), -1);
+});

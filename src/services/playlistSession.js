@@ -110,6 +110,10 @@ export function resolveSavedFocusIndex(sessionValue, playlistGuid, tracks) {
             track.index === session.focusedItem
         );
         if (indexMatch && Number.isInteger(indexMatch.index)) return indexMatch.index;
+
+        // A known path that no longer exists must not fall back to a different
+        // row that happens to occupy the old index.
+        return -1;
     }
 
     return Number.isInteger(session.focusedItem)
