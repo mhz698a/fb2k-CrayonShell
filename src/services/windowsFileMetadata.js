@@ -1,11 +1,11 @@
 import { invoke } from './foobarApi.js';
+import { validateBridgeBootstrap } from './windowsFileMetadataFormat.js';
 
 const BOOTSTRAP_METHOD = 'crayonshell_bridge.getBootstrap';
-const BOOTSTRAP_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 let connectionPromise = null;
 let connection = null;
 
-export { validateBridgeBootstrap, formatFileSize, formatWindowsTimestamp } from './windowsFileMetadataFormat.js';
+export { formatFileSize, formatWindowsTimestamp } from './windowsFileMetadataFormat.js';
 
 async function getConnection(forceRefresh = false) {
     if (!forceRefresh && connection) return connection;

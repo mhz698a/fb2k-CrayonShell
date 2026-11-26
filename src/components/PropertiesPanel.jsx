@@ -2,7 +2,7 @@ import { TRACK_PROPERTY_GROUPS } from '../services/trackProperties.js';
 import {
     formatFileSize,
     formatWindowsTimestamp
-} from '../services/windowsFileMetadata.js';
+} from '../services/windowsFileMetadataFormat.js';
 
 function displayValue(value) {
     if (value === null || value === undefined) return '';

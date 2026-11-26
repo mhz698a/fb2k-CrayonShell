@@ -1,3 +1,5 @@
+const BOOTSTRAP_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
 export function validateBridgeBootstrap(value) {
     const payload = value?.data && typeof value.data === 'object'
         ? value.data
