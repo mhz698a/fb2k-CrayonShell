@@ -13,17 +13,17 @@ export function buildServiceDescriptorPath(profilePath) {
     // spelling as well because foobar2000 SDK paths can use that prefix.
     if (/^file:\/\//i.test(normalized)) {
         normalized = normalized.replace(/^file:\/\//i, '');
-        normalized = normalized.replace(/^\\(?=[A-Za-z]:[\\/])/i, '');
+        normalized = normalized.replace(/^\/(?=[A-Za-z]:[\\/])/i, '');
     }
 
-    normalized = normalized.replace(/\//g, '\\\\');
+    normalized = normalized.replace(/\//g, '\\');
 
-    const isDriveRoot = /^[A-Za-z]:\\\\+$/i.test(normalized);
-    if (!isDriveRoot) normalized = normalized.replace(/\\\\+$/, '');
+    const isDriveRoot = /^[A-Za-z]:\\+$/i.test(normalized);
+    if (!isDriveRoot) normalized = normalized.replace(/\\+$/, '');
 
     const validAbsolutePath = WINDOWS_DRIVE_PATH.test(normalized)
         || WINDOWS_UNC_PATH.test(normalized);
-    const segments = normalized.split('\\\\');
+    const segments = normalized.split('\\');
 
     if (!validAbsolutePath
         || segments.some(segment => segment === '.' || segment === '..')
@@ -33,8 +33,8 @@ export function buildServiceDescriptorPath(profilePath) {
         throw new Error('La ruta de perfil de foobar2000 no es una ruta local absoluta válida.');
     }
 
-    const separator = normalized.endsWith('\\\\') ? '' : '\\\\';
-    return normalized + separator + 'foo_crayonshell_bridge\\\\service.json';
+    const separator = normalized.endsWith('\\') ? '' : '\\';
+    return normalized + separator + 'foo_crayonshell_bridge\\service.json';
 }
 
 export function parseServiceDescriptor(content) {
