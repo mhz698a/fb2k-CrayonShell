@@ -41,7 +41,8 @@ test('Core UI helpers preserve existing defaults and fallback boundaries', () =>
     const storage = createMemoryStorage();
     assert.deepEqual(readCoreUiSettings(storage), {
         sidebar: { width: 320, collapsed: true, view: 'library' },
-        refacets: { height: 68 }
+        refacets: { height: 68 },
+        properties: { width: 340, collapsed: false }
     });
 
     assert.equal(normalizeCoreUiSettings({
