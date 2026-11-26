@@ -2855,8 +2855,20 @@ button.play-btn {
             6px minmax(0, 1fr)
             0 0;
     }
-    .cui-container:not(.properties-collapsed) .properties-resizer,
-    .cui-container:not(.properties-collapsed) .properties-panel {
+    .cui-container.sidebar-collapsed:not(.properties-collapsed) {
+        grid-template-columns:
+            var(--activitybar-width) 0 0 minmax(0, 1fr) 0 0;
+    }
+    .cui-container:not(.properties-collapsed) .properties-resizer {
         display: none;
+    }
+    .cui-container:not(.properties-collapsed) .properties-panel {
+        position: fixed;
+        z-index: 1000;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(var(--properties-width, 340px), calc(100vw - var(--activitybar-width) - 8px));
+        box-shadow: -12px 0 30px rgba(0,0,0,.45);
     }
 }
