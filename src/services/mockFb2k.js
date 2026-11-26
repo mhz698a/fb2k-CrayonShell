@@ -10,7 +10,7 @@ const demoTracks = [
             genre: 'Demo', trackNumber: '01', discNumber: '1', composer: 'Demo Composer',
             label: 'Demo Label', codec: 'FLAC', bitrate: '920 kbps',
             sampleRate: '44100 Hz', channels: '2', bitDepth: '16',
-            fileSize: '24.8 MB', extension: 'flac', subsong: '0',
+            extension: 'flac', subsong: '0',
             details: 'Demo Artist - First Track'
         }
     },

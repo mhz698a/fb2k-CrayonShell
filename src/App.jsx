@@ -14,6 +14,7 @@ import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
 import { useTrackProperties } from './hooks/useTrackProperties.js';
+import { useWindowsFileMetadata } from './hooks/useWindowsFileMetadata.js';
 import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
 import {
     SIDEBAR_COLLAPSED_STORAGE_KEY,
@@ -211,6 +212,15 @@ export default function App() {
         loading: propertiesLoading,
         error: propertiesError
     } = useTrackProperties(activePlaylistGuid, selectedItemIndex, !propertiesCollapsed);
+    const {
+        metadata: windowsFileMetadata,
+        loading: windowsFileMetadataLoading,
+        error: windowsFileMetadataError
+    } = useWindowsFileMetadata(
+        activePlaylist?.index,
+        selectedItemIndex,
+        !propertiesCollapsed && Boolean(selectedItem)
+    );
 
     const normalizedFilter = filter.trim().toLocaleLowerCase();
     const visibleItems = items.filter((item) => {
@@ -544,6 +554,9 @@ export default function App() {
                 properties={trackProperties}
                 loading={propertiesLoading}
                 error={propertiesError}
+                fileMetadata={windowsFileMetadata}
+                fileMetadataLoading={windowsFileMetadataLoading}
+                fileMetadataError={windowsFileMetadataError}
             />
         </div>
     );

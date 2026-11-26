@@ -14,7 +14,6 @@ export const TRACK_PROPERTY_FORMATS = {
     sampleRate: "%samplerate%",
     channels: "%channels%",
     bitDepth: "%__bitspersample%",
-    fileSize: "$filesize()",
     extension: "$ext(%path%)",
     subsong: "%subsong%"
 };
@@ -45,7 +44,6 @@ export const TRACK_PROPERTY_GROUPS = [
             ['Frecuencia de muestreo', 'sampleRate'],
             ['Canales', 'channels'],
             ['Bits por muestra', 'bitDepth'],
-            ['Tamaño', 'fileSize'],
             ['Subsong', 'subsong']
         ]
     }

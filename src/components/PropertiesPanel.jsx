@@ -1,4 +1,8 @@
 import { TRACK_PROPERTY_GROUPS } from '../services/trackProperties.js';
+import {
+    formatFileSize,
+    formatWindowsTimestamp
+} from '../services/windowsFileMetadata.js';
 
 function displayValue(value) {
     if (value === null || value === undefined) return '';
@@ -32,7 +36,10 @@ export default function PropertiesPanel({
     selectedItem,
     properties,
     loading,
-    error
+    error,
+    fileMetadata,
+    fileMetadataLoading,
+    fileMetadataError
 }) {
     const values = properties?.formats || {};
     const path = properties?.path || selectedItem?.path || '';
@@ -78,6 +85,7 @@ export default function PropertiesPanel({
                         <h3>Archivo</h3>
                         <dl>
                             {[
+                                ['Tamaño', formatFileSize(fileMetadata?.fileSizeBytes)],
                                 ['Ubicación', path],
                                 ['Extensión', displayValue(values.extension)],
                                 ['Identificador de pista', displayValue(properties?.handle)]
@@ -91,15 +99,34 @@ export default function PropertiesPanel({
                     </section>
 
                     <section className="properties-section">
-                        <h3>Fechas del archivo</h3>
-                        <div className="properties-pending">
-                            <strong>Servicio local pendiente de conexión</strong>
-                            <span>
-                                Las fechas de creación, último acceso y última modificación se leerán
-                                desde Windows mediante foo_crayonshell_bridge. La edición se habilitará
-                                después de completar el enlace autenticado con WebView2.
-                            </span>
-                        </div>
+                        <h3>Fechas de Windows</h3>
+                        {fileMetadataLoading && (
+                            <div className="properties-loading">Leyendo fechas y tamaño del archivo…</div>
+                        )}
+                        {fileMetadataError && (
+                            <div className="properties-error" role="status">{fileMetadataError}</div>
+                        )}
+                        <dl>
+                            {[
+                                ['Creación', 'creationTime'],
+                                ['Último acceso', 'lastAccessTime'],
+                                ['Última modificación (mtime)', 'lastWriteTime'],
+                                ['Cambio NTFS (ctime)', 'changeTime']
+                            ].map(([label, key]) => {
+                                const timestamp = fileMetadata?.timestamps?.[key];
+                                const formatted = formatWindowsTimestamp(timestamp);
+                                return (
+                                    <div className="properties-row" key={key}>
+                                        <dt>{label}</dt>
+                                        <dd title={formatted}>{formatted}</dd>
+                                    </div>
+                                );
+                            })}
+                        </dl>
+                        <p className="properties-pending-note">
+                            ctime muestra ChangeTime de Windows/NTFS, no la fecha de creación.
+                            Es de solo lectura. mtime corresponde a LastWriteTime.
+                        </p>
                     </section>
                 </div>
             )}
