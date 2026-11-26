@@ -54,6 +54,20 @@ test('formats file size using the byte count returned by Windows', () => {
     assert.equal(formatFileSize(null), 'No disponible');
 });
 
+test('explains media items that do not have a native Windows path', () => {
+    assert.equal(
+        formatWindowsFileMetadataError({
+            error: {
+                code: 'ITEM_HAS_NO_NATIVE_PATH',
+                message: 'The selected playlist item has no native Windows file path.'
+            }
+        }, 422),
+        'El elemento seleccionado no tiene una ruta de archivo nativa de Windows. '
+            + 'El panel no puede leer atributos del sistema de archivos para streams '
+            + 'o ubicaciones virtuales.'
+    );
+});
+
 test('preserves the native Win32 error code in metadata failures', () => {
     assert.equal(
         formatWindowsFileMetadataError({
