@@ -405,3 +405,34 @@ test('decoder rejects a segment that remains truncated after the split limit', a
     );
     assert.equal(pcmBuffers.every(pcm => pcm.wasReleased()), true);
 });
+
+
+test('scheduler reports partial completion and retries failed segments explicitly', async () => {
+    const cache = makeCacheStub();
+    let firstFailure = true;
+    const scheduler = new WaveformScheduler({
+        resolution: 64,
+        segmentDurationOptions: { minimumSeconds: 2, maximumSeconds: 2, targetPcmBytes: 1 },
+        decodeSegment: async request => {
+            if (request.index === 0 && firstFailure) {
+                firstFailure = false;
+                throw new Error('Synthetic decode failure');
+            }
+            return makeSegment(request.index, request.start, request.end);
+        }
+    });
+
+    scheduler.setTrack({
+        id: 'A', duration: 4, sampleRate: 48000, channels: 2
+    }, cache, 0);
+
+    await waitFor(() => scheduler.getSnapshot().status === 'partial');
+    assert.equal(scheduler.getSnapshot().failedSegments, 1);
+    assert.equal(scheduler.getSnapshot().completedSegments, 1);
+
+    scheduler.retryFailed();
+    await waitFor(() => scheduler.getSnapshot().status === 'complete');
+    assert.equal(scheduler.getSnapshot().failedSegments, 0);
+    assert.equal(scheduler.getSnapshot().completedSegments, 2);
+    scheduler.dispose();
+});
