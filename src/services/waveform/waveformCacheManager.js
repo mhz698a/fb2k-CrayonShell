@@ -132,6 +132,25 @@ export class WaveformCacheManager {
             : null;
     }
 
+    async setMaxBytes(maxBytes) {
+        const nextLimit = Number(maxBytes);
+        if (!Number.isSafeInteger(nextLimit) || nextLimit <= 0) {
+            throw new RangeError('El presupuesto de caché debe ser un entero positivo y seguro.');
+        }
+
+        await this.initialize();
+        return this._enqueue(async () => {
+            this.maxBytes = nextLimit;
+            const previousTrackCount = this.entries.size;
+            await this._evictToBudget();
+            await this._writeIndex();
+            return {
+                ...this.getSnapshot(),
+                evictedTracks: Math.max(0, previousTrackCount - this.entries.size)
+            };
+        });
+    }
+
     getSnapshot() {
         const entries = Array.from(this.entries.values())
             .sort((a, b) => b.lastAccessAt - a.lastAccessAt)
