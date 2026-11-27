@@ -275,7 +275,7 @@ export class WaveformPlaybackController {
     async _loadTrack(track, revision) {
         try {
             let resolvedTrack = track;
-            if (!isUsableLocalTrack(resolvedTrack)) {
+            if (!resolvedTrack || typeof resolvedTrack !== 'object') {
                 const response = await this.sdk.player.getCurrentTrack();
                 if (response?.success === false) {
                     throw new Error(response.error || 'No se pudo resolver la pista actual.');
