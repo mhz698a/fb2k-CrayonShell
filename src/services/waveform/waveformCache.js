@@ -36,12 +36,17 @@ function isValidManifest(value, identity, configuration) {
         && Number(value.segmentSeconds) === configuration.segmentSeconds
         && Number(value.resolution) === configuration.resolution
         && Array.isArray(value.segments)
-        && value.segments.every(index => Number.isInteger(index) && index >= 0));
+        && value.segments.every(index => Number.isInteger(index) && index >= 0)
+        && (value.segmentBytes === undefined
+            || (value.segmentBytes && typeof value.segmentBytes === 'object' && !Array.isArray(value.segmentBytes))));
 }
 
 export class WaveformCache {
-    constructor({ sdk, identity, root, duration, segmentSeconds, resolution, manifest }) {
+    constructor({ sdk, identity, root, duration, segmentSeconds, resolution, manifest, cacheManager, onManagerError }) {
         this.sdk = sdk;
+        this.cacheManager = cacheManager || null;
+        this.onManagerError = onManagerError || (() => undefined);
+        this.lastAccessWriteAt = 0;
         this.identity = identity;
         this.root = root;
         this.duration = duration;
@@ -52,7 +57,10 @@ export class WaveformCache {
         this.writeTail = Promise.resolve();
     }
 
-    static async open({ sdk, identity, duration, segmentSeconds, resolution = 4096, root = DEFAULT_ROOT }) {
+    static async open({
+        sdk, identity, duration, segmentSeconds, resolution = 4096,
+        root = DEFAULT_ROOT, cacheManager, onManagerError
+    }) {
         if (!sdk?.file || typeof sdk.file.readBinary !== 'function'
             || typeof sdk.file.writeBinary !== 'function'
             || typeof sdk.file.write !== 'function'
@@ -77,9 +85,10 @@ export class WaveformCache {
 
         const cache = new WaveformCache({
             sdk, identity, root: rootPath, duration, segmentSeconds, resolution,
-            manifest: null
+            manifest: null, cacheManager, onManagerError
         });
         await cache._openManifest();
+        await cache.touch(true);
         return cache;
     }
 
@@ -117,6 +126,7 @@ export class WaveformCache {
                 || Math.abs(segment.end - expectedEnd) > 0.001) {
                 throw new Error('La identidad o el rango del segmento no coincide con la caché.');
             }
+            await this.touch(false);
             return { ...segment, cached: true };
         } catch {
             // A corrupt, incomplete or missing segment is a cache miss, never audio data.
@@ -153,6 +163,10 @@ export class WaveformCache {
             this.manifest = {
                 ...this.manifest,
                 segments: Array.from(next).sort((a, b) => a - b),
+                segmentBytes: {
+                    ...(this.manifest.segmentBytes || {}),
+                    [String(segment.index)]: bytes.byteLength
+                },
                 updatedAt: Date.now()
             };
             await this._writeManifest();
@@ -201,7 +215,9 @@ export class WaveformCache {
             segmentSeconds: this.segmentSeconds,
             resolution: this.resolution,
             segments: [],
+            segmentBytes: {},
             createdAt: Date.now(),
+            lastAccessAt: 0,
             updatedAt: Date.now()
         };
         await this._writeManifest();
@@ -216,6 +232,38 @@ export class WaveformCache {
             ),
             'No se pudo actualizar el índice de caché waveform'
         );
+
+        if (this.cacheManager) {
+            try {
+                await this.cacheManager.recordCache({
+                    manifest: this.manifest,
+                    manifestPath: this.manifestPath,
+                    rootPath: this.root
+                });
+            } catch (error) {
+                try {
+                    this.onManagerError(error);
+                } catch {
+                    // Cache-management diagnostics must not break manifest persistence.
+                }
+            }
+        }
+    }
+
+    async touch(force = false) {
+        const now = Date.now();
+        const lastAccessAt = Number(this.manifest?.lastAccessAt) || 0;
+        if (!force && now - lastAccessAt < 5 * 60 * 1000) return false;
+
+        this.manifest = {
+            ...this.manifest,
+            segmentBytes: this.manifest.segmentBytes || {},
+            lastAccessAt: now,
+            updatedAt: Math.max(Number(this.manifest.updatedAt) || 0, now)
+        };
+        await this._writeManifest();
+        this.lastAccessWriteAt = now;
+        return true;
     }
 
     async _forgetSegment(index) {
@@ -223,6 +271,10 @@ export class WaveformCache {
         this.manifest = {
             ...this.manifest,
             segments: this.manifest.segments.filter(value => value !== index),
+            segmentBytes: Object.fromEntries(
+                Object.entries(this.manifest.segmentBytes || {})
+                    .filter(([segmentIndex]) => Number(segmentIndex) !== index)
+            ),
             updatedAt: Date.now()
         };
         try {
