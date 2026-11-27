@@ -204,3 +204,29 @@ test('current track location remains available for selection when playback is st
     assert.equal(resolveCurrentTrackIndex(options), 4);
     assert.equal(resolvePlayingTrackIndex(options), -1);
 });
+
+
+test('falls back to getCurrentTrack when the playback location snapshot has no playlist row', () => {
+    assert.equal(resolveCurrentTrackIndex({
+        items: [
+            { index: 0, handle: 'D:\\Music\\Other.flac', path: 'D:\\Music\\Other.flac' },
+            { index: 6, handle: 'D:\\Music\\Loaded.flac', path: 'D:\\Music\\Loaded.flac' }
+        ],
+        playingTrackIndex: {
+            found: false,
+            playlist: null,
+            playlistGuid: null,
+            index: null
+        },
+        currentTrackResponse: {
+            found: true,
+            track: {
+                handle: 'D:\\Music\\Loaded.flac',
+                path: 'file:///D:/Music/Loaded.flac',
+                absolutePath: 'D:\\Music\\Loaded.flac',
+                subsong: 0
+            }
+        },
+        activePlaylistGuid: 'active'
+    }), 6);
+});

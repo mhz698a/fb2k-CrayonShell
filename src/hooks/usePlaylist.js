@@ -285,9 +285,10 @@ export function usePlaylist() {
         if (!playlistGuid || !hasBridge()) return;
 
         try {
-            const [playingTrack, playback] = await Promise.all([
+            const [playingTrack, playback, currentTrackResponse] = await Promise.all([
                 invoke('playback.getCurrentTrackIndex', { includeTrackInfo: true }),
-                invoke('playback.getState')
+                invoke('playback.getState'),
+                invoke('playback.getCurrentTrack').catch(() => null)
             ]);
 
             if (!mountedRef.current || activePlaylistGuidRef.current !== playlistGuid) return;
@@ -295,6 +296,7 @@ export function usePlaylist() {
             const nextPlayingIndex = resolvePlayingTrackIndex({
                 items: itemsRef.current,
                 playingTrackIndex: playingTrack,
+                currentTrackResponse,
                 activePlaylistGuid: playlistGuid,
                 playlists: playlistsRef.current,
                 playbackState: playback.state || 'stopped'
@@ -370,11 +372,12 @@ export function usePlaylist() {
         activePlaylistGuidRef.current = active.guid;
         setPlaylists(mapPlaylistList(nextPlaylists, active.guid));
 
-        const [nextItems, focus, playingTrack, playback] = await Promise.all([
+        const [nextItems, focus, playingTrack, playback, currentTrackResponse] = await Promise.all([
             readPlaylistItems(active),
             invoke('playlist.getFocusedTrack', { playlistGuid: active.guid }),
             invoke('playback.getCurrentTrackIndex', { includeTrackInfo: true }),
-            invoke('playback.getState')
+            invoke('playback.getState'),
+            invoke('playback.getCurrentTrack').catch(() => null)
         ]);
 
         if (!mountedRef.current || (initial && generation !== initializationGenerationRef.current)) return;
@@ -382,6 +385,7 @@ export function usePlaylist() {
         const nextPlayingIndex = resolvePlayingTrackIndex({
             items: nextItems,
             playingTrackIndex: playingTrack,
+            currentTrackResponse,
             activePlaylistGuid: active.guid,
             playlists: nextPlaylists,
             playbackState: playback.state || 'stopped'
@@ -532,11 +536,12 @@ export function usePlaylist() {
                 // Read the playing playlist, row and full track identity in one
                 // SDK response. Separate index and track calls can observe
                 // different playback moments during playlist activation.
-                const [nextItems, focus, playingTrack, playback] = await Promise.all([
+                const [nextItems, focus, playingTrack, playback, currentTrackResponse] = await Promise.all([
                     readPlaylistItems(active),
                     invoke('playlist.getFocusedTrack', { playlistGuid }),
                     invoke('playback.getCurrentTrackIndex', { includeTrackInfo: true }),
-                    invoke('playback.getState')
+                    invoke('playback.getState'),
+                    invoke('playback.getCurrentTrack').catch(() => null)
                 ]);
 
                 if (
@@ -548,6 +553,7 @@ export function usePlaylist() {
                 const currentTrackIndex = resolveCurrentTrackIndex({
                     items: nextItems,
                     playingTrackIndex: playingTrack,
+                    currentTrackResponse,
                     activePlaylistGuid: playlistGuid,
                     playlists: nextPlaylists
                 });
