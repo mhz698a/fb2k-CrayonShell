@@ -83,33 +83,33 @@ function getTrackPath(track) {
  * A native playlist index is the most precise identity when it belongs to the
  * active playlist; handle and normalized path provide the cross-playlist fallback.
  */
-export function resolvePlayingTrackIndex({
+export function resolveCurrentTrackIndex({
     items = [],
     playingTrackIndex = null,
     currentTrackResponse = null,
     activePlaylistGuid = '',
-    playlists = [],
-    playbackState = 'stopped'
+    playlists = []
 } = {}) {
-    if (playbackState === 'stopped') return -1;
-
-    const currentTrack = currentTrackResponse?.found === false
-        ? null
-        : (
-            currentTrackResponse?.track
-            || currentTrackResponse?.currentTrack
-            || (
-                currentTrackResponse && (
-                    currentTrackResponse.found === true
-                    || currentTrackResponse.handle
-                    || currentTrackResponse.id
-                    || currentTrackResponse.fullPath
-                    || currentTrackResponse.absolutePath
-                    || currentTrackResponse.path
+    const currentTrack = playingTrackIndex?.track
+        || (
+            currentTrackResponse?.found === false
+                ? null
+                : (
+                    currentTrackResponse?.track
+                    || currentTrackResponse?.currentTrack
+                    || (
+                        currentTrackResponse && (
+                            currentTrackResponse.found === true
+                            || currentTrackResponse.handle
+                            || currentTrackResponse.id
+                            || currentTrackResponse.fullPath
+                            || currentTrackResponse.absolutePath
+                            || currentTrackResponse.path
+                        )
+                            ? currentTrackResponse
+                            : null
+                    )
                 )
-                    ? currentTrackResponse
-                    : null
-            )
         );
 
     const playingPlaylistIndex = playingTrackIndex?.playlist
@@ -175,4 +175,15 @@ export function resolvePlayingTrackIndex({
         )
     );
     return pathMatch ? pathMatch.index : -1;
+}
+
+
+/**
+ * Resolve the loaded track regardless of playback state. This is used when a
+ * playlist is activated so a paused/just-stopped track can still be restored
+ * as the focused row without being rendered as actively playing.
+ */
+export function resolvePlayingTrackIndex(options = {}) {
+    if (options.playbackState === 'stopped') return -1;
+    return resolveCurrentTrackIndex(options);
 }

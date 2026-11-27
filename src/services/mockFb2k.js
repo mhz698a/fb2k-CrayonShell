@@ -139,12 +139,26 @@ export const demoBridge = {
                 };
             }
 
-            case 'playback.getCurrentTrackIndex':
-                return {
-                    found: playingIndex >= 0,
-                    playlist: playingIndex >= 0 ? 0 : null,
-                    index: playingIndex >= 0 ? playingIndex : null
+            case 'playback.getCurrentTrackIndex': {
+                const current = demoTracks.find((track) => track.index === playingIndex);
+                const response = {
+                    found: Boolean(current),
+                    playlist: current ? 0 : null,
+                    playlistGuid: current ? activePlaylistGuid : null,
+                    index: current ? playingIndex : null
                 };
+                if (params.includeTrackInfo && current) {
+                    response.track = {
+                        handle: current.path,
+                        path: current.path,
+                        absolutePath: current.path,
+                        subsong: 0,
+                        title: current.formats.title,
+                        artist: current.formats.artist
+                    };
+                }
+                return response;
+            }
 
             case 'playback.getState':
                 return { state: playbackState };

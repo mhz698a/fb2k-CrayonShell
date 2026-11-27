@@ -6,7 +6,10 @@ import {
     subscribe
 } from '../services/foobarApi.js';
 import { PLAYLIST_FORMATS } from '../services/playlistFormats.js';
-import { resolvePlayingTrackIndex } from '../utils/trackIdentity.js';
+import {
+    resolveCurrentTrackIndex,
+    resolvePlayingTrackIndex
+} from '../utils/trackIdentity.js';
 import {
     findUnmatchedPlaylistRows,
     getTrackIdentity,
@@ -110,6 +113,8 @@ export function usePlaylist() {
     const activationRequestRef = useRef(0);
     const activationEventRequestRef = useRef(0);
     const activationTargetGuidRef = useRef('');
+    const activationLoadRef = useRef(null);
+    const focusCorrectionRef = useRef(new Set());
     const focusRevisionRef = useRef(0);
     const pinnedSelectionRef = useRef(null);
 
@@ -280,10 +285,9 @@ export function usePlaylist() {
         if (!playlistGuid || !hasBridge()) return;
 
         try {
-            const [playingTrack, playback, currentTrackResponse] = await Promise.all([
-                invoke('playback.getCurrentTrackIndex'),
-                invoke('playback.getState'),
-                invoke('playback.getCurrentTrack').catch(() => null)
+            const [playingTrack, playback] = await Promise.all([
+                invoke('playback.getCurrentTrackIndex', { includeTrackInfo: true }),
+                invoke('playback.getState')
             ]);
 
             if (!mountedRef.current || activePlaylistGuidRef.current !== playlistGuid) return;
@@ -291,7 +295,6 @@ export function usePlaylist() {
             const nextPlayingIndex = resolvePlayingTrackIndex({
                 items: itemsRef.current,
                 playingTrackIndex: playingTrack,
-                currentTrackResponse,
                 activePlaylistGuid: playlistGuid,
                 playlists: playlistsRef.current,
                 playbackState: playback.state || 'stopped'
@@ -367,12 +370,11 @@ export function usePlaylist() {
         activePlaylistGuidRef.current = active.guid;
         setPlaylists(mapPlaylistList(nextPlaylists, active.guid));
 
-        const [nextItems, focus, playingTrack, playback, currentTrackResponse] = await Promise.all([
+        const [nextItems, focus, playingTrack, playback] = await Promise.all([
             readPlaylistItems(active),
             invoke('playlist.getFocusedTrack', { playlistGuid: active.guid }),
-            invoke('playback.getCurrentTrackIndex'),
-            invoke('playback.getState'),
-            invoke('playback.getCurrentTrack').catch(() => null)
+            invoke('playback.getCurrentTrackIndex', { includeTrackInfo: true }),
+            invoke('playback.getState')
         ]);
 
         if (!mountedRef.current || (initial && generation !== initializationGenerationRef.current)) return;
@@ -380,7 +382,6 @@ export function usePlaylist() {
         const nextPlayingIndex = resolvePlayingTrackIndex({
             items: nextItems,
             playingTrackIndex: playingTrack,
-            currentTrackResponse,
             activePlaylistGuid: active.guid,
             playlists: nextPlaylists,
             playbackState: playback.state || 'stopped'
@@ -496,114 +497,174 @@ export function usePlaylist() {
         }
     }, [refreshPlaylistOnce, setStatusMessage]);
 
-    const loadActivatedPlaylist = useCallback(async (playlistGuid) => {
-        if (!playlistGuid || !hasBridge()) return;
+    const loadActivatedPlaylist = useCallback((playlistGuid) => {
+        if (!playlistGuid || !hasBridge()) return Promise.resolve();
         if (initializationInProgressRef.current) {
             pendingActivatedGuidRef.current = playlistGuid;
-            return;
+            return Promise.resolve();
         }
-        if (
-            playlistGuid === activePlaylistGuidRef.current
-            || activationTargetGuidRef.current === playlistGuid
-        ) return;
+
+        const inFlight = activationLoadRef.current;
+        if (inFlight?.playlistGuid === playlistGuid) return inFlight.promise;
+        if (playlistGuid === activePlaylistGuidRef.current) return Promise.resolve();
 
         activationTargetGuidRef.current = playlistGuid;
         const requestId = ++activationRequestRef.current;
 
-        try {
-            const result = await invoke('playlist.getAll');
-            const nextPlaylists = Array.isArray(result.playlists) ? result.playlists : [];
-            const active = nextPlaylists.find((playlist) => playlist.guid === playlistGuid);
+        const operation = (async () => {
+            try {
+                const result = await invoke('playlist.getAll');
+                const nextPlaylists = Array.isArray(result.playlists) ? result.playlists : [];
+                const active = nextPlaylists.find((playlist) => playlist.guid === playlistGuid);
 
-            if (!active) {
-                setPlaylists(nextPlaylists);
-                return;
-            }
+                if (
+                    !mountedRef.current
+                    || requestId !== activationRequestRef.current
+                    || activationTargetGuidRef.current !== playlistGuid
+                ) return;
 
-            const [nextItems, focus, playingTrack, playback, currentTrackResponse] = await Promise.all([
-                readPlaylistItems(active),
-                invoke('playlist.getFocusedTrack', { playlistGuid }),
-                invoke('playback.getCurrentTrackIndex'),
-                invoke('playback.getState'),
-                invoke('playback.getCurrentTrack').catch(() => null)
-            ]);
-
-            if (
-                !mountedRef.current
-                || requestId !== activationRequestRef.current
-                || activationTargetGuidRef.current !== playlistGuid
-            ) return;
-
-            const nextPlayingIndex = resolvePlayingTrackIndex({
-                items: nextItems,
-                playingTrackIndex: playingTrack,
-                currentTrackResponse,
-                activePlaylistGuid: playlistGuid,
-                playlists: nextPlaylists,
-                playbackState: playback.state || 'stopped'
-            });
-
-            let nextFocusedIndex = normalizeIndex(focus.index);
-            let selectionError = null;
-            const playingItem = nextItems.find((item) => item.index === nextPlayingIndex);
-            const playingIdentity = playingItem ? getTrackIdentity(playingItem) : '';
-            pinnedSelectionRef.current = nextPlayingIndex >= 0 && playingIdentity
-                ? {
-                    playlistGuid,
-                    identity: playingIdentity,
-                    index: nextPlayingIndex
+                if (!active) {
+                    playlistsRef.current = nextPlaylists;
+                    setPlaylists(nextPlaylists);
+                    return;
                 }
-                : null;
-            activePlaylistGuidRef.current = playlistGuid;
-            commitItems(nextItems);
 
-            if (nextPlayingIndex >= 0) {
-                let selectionApplied = false;
-                try {
-                    await invoke('playlist.setSelection', {
+                // Read the playing playlist, row and full track identity in one
+                // SDK response. Separate index and track calls can observe
+                // different playback moments during playlist activation.
+                const [nextItems, focus, playingTrack, playback] = await Promise.all([
+                    readPlaylistItems(active),
+                    invoke('playlist.getFocusedTrack', { playlistGuid }),
+                    invoke('playback.getCurrentTrackIndex', { includeTrackInfo: true }),
+                    invoke('playback.getState')
+                ]);
+
+                if (
+                    !mountedRef.current
+                    || requestId !== activationRequestRef.current
+                    || activationTargetGuidRef.current !== playlistGuid
+                ) return;
+
+                const currentTrackIndex = resolveCurrentTrackIndex({
+                    items: nextItems,
+                    playingTrackIndex: playingTrack,
+                    activePlaylistGuid: playlistGuid,
+                    playlists: nextPlaylists
+                });
+                const nextPlayingIndex = playback.state === 'stopped'
+                    ? -1
+                    : currentTrackIndex;
+
+                let nextFocusedIndex = currentTrackIndex >= 0
+                    ? currentTrackIndex
+                    : normalizeIndex(focus.index);
+                const currentTrack = nextItems.find((item) => item.index === currentTrackIndex);
+                const currentTrackIdentity = currentTrack ? getTrackIdentity(currentTrack) : '';
+                pinnedSelectionRef.current = currentTrackIndex >= 0 && currentTrackIdentity
+                    ? {
                         playlistGuid,
-                        indices: [nextPlayingIndex],
-                        clearOthers: true
-                    });
-                    selectionApplied = true;
-                    nextFocusedIndex = nextPlayingIndex;
-                    await invoke('playlist.setFocusedTrack', {
-                        playlistGuid,
-                        index: nextPlayingIndex
-                    });
-                } catch (error) {
-                    if (!selectionApplied) pinnedSelectionRef.current = null;
-                    selectionError = error;
+                        identity: currentTrackIdentity,
+                        index: currentTrackIndex
+                    }
+                    : null;
+
+                // Publish the new React/ref state before awaiting native writes.
+                // Focus events emitted by those writes now belong to the active
+                // playlist and the pin is already in place to reject stale focus.
+                const mappedPlaylists = mapPlaylistList(nextPlaylists, playlistGuid);
+                playlistsRef.current = mappedPlaylists;
+                activePlaylistGuidRef.current = playlistGuid;
+                commitItems(nextItems);
+                setPlaylists(mappedPlaylists);
+                setActivePlaylistGuid(playlistGuid);
+                commitFocusedItem(nextFocusedIndex);
+                commitPlayingItem(nextPlayingIndex);
+                setPlaybackState(playback.state || 'stopped');
+                setSessionReady(true);
+
+                let selectionError = null;
+                if (currentTrackIndex >= 0) {
+                    try {
+                        await invoke('playlist.setSelection', {
+                            playlistGuid,
+                            indices: [currentTrackIndex],
+                            clearOthers: true
+                        });
+                        await invoke('playlist.setFocusedTrack', {
+                            playlistGuid,
+                            index: currentTrackIndex
+                        });
+
+                        // Verify both native channels; focus and selection are
+                        // distinct states in foobar2000.
+                        const [nativeSelection, nativeFocus] = await Promise.all([
+                            invoke('playlist.getSelection', { playlistGuid }),
+                            invoke('playlist.getFocusedTrack', { playlistGuid })
+                        ]);
+                        const selectionMatches = Array.isArray(nativeSelection.items)
+                            && nativeSelection.items.includes(currentTrackIndex);
+                        const focusMatches = normalizeIndex(nativeFocus.index) === currentTrackIndex;
+
+                        if (!selectionMatches || !focusMatches) {
+                            await invoke('playlist.setSelection', {
+                                playlistGuid,
+                                indices: [currentTrackIndex],
+                                clearOthers: true
+                            });
+                            await invoke('playlist.setFocusedTrack', {
+                                playlistGuid,
+                                index: currentTrackIndex
+                            });
+                        }
+                    } catch (error) {
+                        selectionError = error;
+                    }
+                }
+
+                if (
+                    !mountedRef.current
+                    || requestId !== activationRequestRef.current
+                    || activationTargetGuidRef.current !== playlistGuid
+                ) return;
+
+                // Do not replace a newer user focus with the earlier activation
+                // snapshot. The pin remains until an explicit CrayonShell selection.
+                if (pinnedSelectionRef.current?.playlistGuid === playlistGuid) {
+                    nextFocusedIndex = pinnedSelectionRef.current.index;
+                }
+                commitFocusedItem(nextFocusedIndex);
+
+                setStatusMessage(
+                    selectionError
+                        ? 'No se pudo seleccionar la pista en reproducción'
+                        : 'Playlist: ' + active.name,
+                    selectionError
+                );
+
+                if (nextPlayingIndex >= 0) requestScroll('playing');
+            } catch (error) {
+                setStatusMessage('No se pudo activar la playlist', error);
+            } finally {
+                if (
+                    activationTargetGuidRef.current === playlistGuid
+                    && requestId === activationRequestRef.current
+                ) {
+                    activationTargetGuidRef.current = '';
                 }
             }
+        })();
 
-            if (
-                !mountedRef.current
-                || requestId !== activationRequestRef.current
-                || activationTargetGuidRef.current !== playlistGuid
-            ) return;
-
-            setPlaylists(mapPlaylistList(nextPlaylists, playlistGuid));
-            setActivePlaylistGuid(playlistGuid);
-            commitFocusedItem(nextFocusedIndex);
-            commitPlayingItem(nextPlayingIndex);
-            setPlaybackState(playback.state || 'stopped');
-            setSessionReady(true);
-            setStatusMessage(
-                selectionError
-                    ? 'No se pudo seleccionar la pista en reproducción'
-                    : 'Playlist: ' + active.name,
-                selectionError
-            );
-
-            if (nextPlayingIndex >= 0) requestScroll('playing');
-        } catch (error) {
-            setStatusMessage('No se pudo activar la playlist', error);
-        } finally {
-            if (activationTargetGuidRef.current === playlistGuid) {
-                activationTargetGuidRef.current = '';
+        const sharedPromise = operation.finally(() => {
+            if (activationLoadRef.current?.requestId === requestId) {
+                activationLoadRef.current = null;
             }
-        }
+        });
+        activationLoadRef.current = {
+            playlistGuid,
+            requestId,
+            promise: sharedPromise
+        };
+        return sharedPromise;
     }, [
         commitFocusedItem,
         commitItems,
@@ -963,8 +1024,23 @@ export function usePlaylist() {
                 playlistGuid,
                 nextIndex
             })) {
-                // Ignore late native focus notifications that would undo the
-                // selected playing row restored during startup or activation.
+                // A late native focus notification can arrive after activation
+                // has completed. Keep the visual row and reassert native focus.
+                const pinnedIndex = pinnedSelectionRef.current.index;
+                if (
+                    activationTargetGuidRef.current !== playlistGuid
+                    && !focusCorrectionRef.current.has(playlistGuid)
+                ) {
+                    focusCorrectionRef.current.add(playlistGuid);
+                    void invoke('playlist.setFocusedTrack', {
+                        playlistGuid,
+                        index: pinnedIndex
+                    }).catch((error) => {
+                        setStatusMessage('No se pudo restaurar el foco de la pista en reproducción', error);
+                    }).finally(() => {
+                        focusCorrectionRef.current.delete(playlistGuid);
+                    });
+                }
                 return;
             }
 
@@ -1001,7 +1077,9 @@ export function usePlaylist() {
                 if (!playlistGuid && requestedIndex === -1) {
                     activePlaylistGuidRef.current = '';
                     setActivePlaylistGuid('');
+                    playlistsRef.current = mapPlaylistList(playlistsRef.current, '');
                     setPlaylists((previous) => mapPlaylistList(previous, ''));
+                    pinnedSelectionRef.current = null;
                     commitItems([]);
                     commitFocusedItem(-1);
                     commitPlayingItem(-1);

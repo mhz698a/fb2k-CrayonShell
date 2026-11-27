@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
     normalizeTrackPath,
     trackPathsMatch,
+    resolveCurrentTrackIndex,
     resolvePlayingTrackIndex
 } from './trackIdentity.js';
 
@@ -157,4 +158,49 @@ test('matches the flat SDK track identity when its playing playlist is different
         activePlaylistGuid: 'active-playlist',
         playbackState: 'playing'
     }), 8);
+});
+
+
+test('resolves the current row and track details from one atomic SDK location snapshot', () => {
+    const snapshot = {
+        found: true,
+        playlist: 2,
+        playlistGuid: 'active',
+        index: 7,
+        track: {
+            handle: 'D:\\Music\\Playing.flac',
+            absolutePath: 'D:\\Music\\Playing.flac',
+            path: 'file:///D:/Music/Playing.flac',
+            subsong: 0
+        }
+    };
+
+    assert.equal(resolveCurrentTrackIndex({
+        items: [{
+            index: 7,
+            handle: 'D:\\Music\\Playing.flac',
+            absolutePath: 'D:\\Music\\Playing.flac',
+            path: 'file:///D:/Music/Playing.flac',
+            subsong: 0
+        }],
+        playingTrackIndex: snapshot,
+        activePlaylistGuid: 'active'
+    }), 7);
+});
+
+test('current track location remains available for selection when playback is stopped', () => {
+    const options = {
+        items: [{ index: 4, handle: 'D:\\Music\\Loaded.flac' }],
+        playingTrackIndex: {
+            found: true,
+            playlistGuid: 'active',
+            index: 4,
+            track: { handle: 'D:\\Music\\Loaded.flac' }
+        },
+        activePlaylistGuid: 'active',
+        playbackState: 'stopped'
+    };
+
+    assert.equal(resolveCurrentTrackIndex(options), 4);
+    assert.equal(resolvePlayingTrackIndex(options), -1);
 });
