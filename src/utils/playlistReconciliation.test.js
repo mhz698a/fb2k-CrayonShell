@@ -1,0 +1,131 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+    reconcilePlaylistItems,
+    resolveInitialSelectionIndex
+} from './playlistReconciliation.js';
+
+const track = (index, handle, title = handle) => ({
+    index,
+    handle,
+    path: handle,
+    title
+});
+
+test('reuses unchanged playlist rows without replacing their objects', () => {
+    const first = track(0, 'A');
+    const second = track(1, 'B');
+    const result = reconcilePlaylistItems({
+        currentItems: [first, second],
+        identityRows: [{ index: 0, handle: 'A' }, { index: 1, handle: 'B' }]
+    });
+
+    assert.equal(result[0], first);
+    assert.equal(result[1], second);
+});
+
+test('updates indices while preserving existing row metadata after insertion', () => {
+    const first = track(0, 'A', 'Original A');
+    const second = track(1, 'B', 'Original B');
+    const inserted = track(1, 'X', 'New X');
+    const result = reconcilePlaylistItems({
+        currentItems: [first, second],
+        identityRows: [
+            { index: 0, handle: 'A' },
+            { index: 1, handle: 'X' },
+            { index: 2, handle: 'B' }
+        ],
+        hydratedItems: [inserted]
+    });
+
+    assert.deepEqual(result.map((item) => [item.index, item.handle, item.title]), [
+        [0, 'A', 'Original A'],
+        [1, 'X', 'New X'],
+        [2, 'B', 'Original B']
+    ]);
+    assert.equal(result[0], first);
+    assert.equal(result[2].title, 'Original B');
+});
+
+test('drops removed rows and compacts the surviving indices', () => {
+    const first = track(0, 'A');
+    const removed = track(1, 'B');
+    const last = track(2, 'C');
+    const result = reconcilePlaylistItems({
+        currentItems: [first, removed, last],
+        identityRows: [
+            { index: 0, handle: 'A' },
+            { index: 1, handle: 'C' }
+        ]
+    });
+
+    assert.deepEqual(result.map((item) => [item.index, item.handle]), [
+        [0, 'A'],
+        [1, 'C']
+    ]);
+    assert.equal(result[0], first);
+    assert.equal(result[1].title, last.title);
+    assert.notEqual(result[1], last);
+});
+
+test('hydrates only identities that were added or replaced', () => {
+    const unchanged = track(0, 'A');
+    const replacement = track(1, 'C', 'Replacement');
+    const result = reconcilePlaylistItems({
+        currentItems: [unchanged, track(1, 'B')],
+        identityRows: [
+            { index: 0, handle: 'A' },
+            { index: 1, handle: 'C' }
+        ],
+        hydratedItems: [replacement]
+    });
+
+    assert.equal(result[0], unchanged);
+    assert.equal(result[1], replacement);
+});
+
+test('matches repeated handles in playlist order', () => {
+    const first = track(0, 'same', 'First occurrence');
+    const second = track(1, 'same', 'Second occurrence');
+    const result = reconcilePlaylistItems({
+        currentItems: [first, second],
+        identityRows: [
+            { index: 0, handle: 'same' },
+            { index: 1, handle: 'same' }
+        ]
+    });
+
+    assert.equal(result[0], first);
+    assert.equal(result[1], second);
+});
+
+test('fails instead of silently dropping a row when hydration is missing', () => {
+    assert.throws(() => reconcilePlaylistItems({
+        currentItems: [],
+        identityRows: [{ index: 4, handle: 'new-track' }]
+    }), /new track|nueva pista/i);
+});
+
+test('prefers the playing row over saved focus during startup restoration', () => {
+    assert.equal(resolveInitialSelectionIndex({
+        playingIndex: 8,
+        savedFocusIndex: 2,
+        focusedIndex: 0,
+        itemCount: 12
+    }), 8);
+});
+
+test('restores saved focus when playback is stopped or outside the playlist', () => {
+    assert.equal(resolveInitialSelectionIndex({
+        playingIndex: -1,
+        savedFocusIndex: 4,
+        focusedIndex: 0,
+        itemCount: 10
+    }), 4);
+    assert.equal(resolveInitialSelectionIndex({
+        playingIndex: 99,
+        savedFocusIndex: -1,
+        focusedIndex: 0,
+        itemCount: 10
+    }), 0);
+});
