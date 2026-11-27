@@ -39,3 +39,18 @@ export function getWaveformPositionFromPointer(clientX, bounds, duration) {
     const ratio = Math.min(1, Math.max(0, (clientX - left) / width));
     return ratio * totalDuration;
 }
+
+
+export function getWaveformTimeLabels(position, duration) {
+    const totalSeconds = Number.isFinite(Number(duration))
+        ? Math.max(0, Number(duration))
+        : 0;
+    const currentSeconds = clampWaveformPosition(position, totalSeconds);
+    const remainingSeconds = Math.max(0, totalSeconds - currentSeconds);
+
+    return {
+        current: formatWaveformTime(currentSeconds),
+        remaining: formatWaveformTime(remainingSeconds),
+        total: formatWaveformTime(totalSeconds)
+    };
+}
