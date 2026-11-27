@@ -101,6 +101,7 @@ export default function WaveformSeekbar() {
     const [isDragging, setIsDragging] = useState(false);
     const [isSeeking, setIsSeeking] = useState(false);
     const [error, setError] = useState('');
+    const [segmentsRevision, setSegmentsRevision] = useState(0);
 
     snapshotRef.current = snapshot;
 
@@ -175,6 +176,7 @@ export default function WaveformSeekbar() {
                         end: segment.end,
                         peaks: Float32Array.from(segment.peaks)
                     });
+                    setSegmentsRevision((revision) => revision + 1);
                 },
                 onUpdate(update) {
                     updateSnapshot(update?.snapshot);
@@ -211,6 +213,11 @@ export default function WaveformSeekbar() {
     useEffect(() => {
         let frameId = 0;
         let running = true;
+        const shouldAnimate = Boolean(
+            (snapshot?.trackKey && snapshot.playbackState === 'playing')
+            || isDragging
+            || isSeeking
+        );
 
         const render = () => {
             if (!running) return;
@@ -244,15 +251,15 @@ export default function WaveformSeekbar() {
                 }
             }
 
-            frameId = window.requestAnimationFrame(render);
+            if (shouldAnimate) frameId = window.requestAnimationFrame(render);
         };
 
-        frameId = window.requestAnimationFrame(render);
+        render();
         return () => {
             running = false;
-            window.cancelAnimationFrame(frameId);
+            if (frameId) window.cancelAnimationFrame(frameId);
         };
-    }, []);
+    }, [snapshot?.trackKey, snapshot?.playbackState, segmentsRevision, isDragging, isSeeking]);
 
     const currentDuration = Number(snapshot?.duration)
         || Number(snapshot?.waveform?.duration)
