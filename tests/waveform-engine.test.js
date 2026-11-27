@@ -7,12 +7,25 @@ import {
     getWaveformSegmentRange
 } from '../src/services/waveform/waveformIdentity.js';
 import { WaveformCache } from '../src/services/waveform/waveformCache.js';
+import { WaveformCacheManager } from '../src/services/waveform/waveformCacheManager.js';
 import { WaveformScheduler } from '../src/services/waveform/waveformScheduler.js';
 import { WaveformEngine } from '../src/services/waveform/waveformEngine.js';
 import { decodeWaveformSegment } from '../src/services/waveform/waveformDecoder.js';
 
 function makeMemorySdk(profilePath = 'C:\\\\Users\\\\Test\\\\foobar2000-v2') {
     const files = new Map();
+    const handlers = new Map();
+    let operationSequence = 0;
+
+    function emit(eventName, payload) {
+        for (const handler of handlers.get(eventName) || []) handler(payload);
+    }
+
+    function getSize(value) {
+        if (value instanceof Uint8Array) return value.byteLength;
+        return new TextEncoder().encode(String(value)).byteLength;
+    }
+
     return {
         files,
         sdk: {
@@ -21,6 +34,11 @@ function makeMemorySdk(profilePath = 'C:\\\\Users\\\\Test\\\\foobar2000-v2') {
                 async getProfilePath() {
                     return { success: true, path: profilePath };
                 }
+            },
+            on(eventName, handler) {
+                if (!handlers.has(eventName)) handlers.set(eventName, new Set());
+                handlers.get(eventName).add(handler);
+                return () => handlers.get(eventName)?.delete(handler);
             },
             file: {
                 async mkdir() { return { success: true, created: true }; },
@@ -31,6 +49,20 @@ function makeMemorySdk(profilePath = 'C:\\\\Users\\\\Test\\\\foobar2000-v2') {
                         isFile: files.has(path)
                     };
                 },
+                async list(path, options = {}) {
+                    const prefix = String(path).replace(/[\\\\/]+$/, '') + '\\\\';
+                    const extension = String(options.pattern || '*').startsWith('*.') 
+                        ? String(options.pattern).slice(1).toLowerCase()
+                        : '';
+                    const names = [];
+                    for (const filePath of files.keys()) {
+                        if (!filePath.toLowerCase().startsWith(prefix.toLowerCase())) continue;
+                        const name = filePath.slice(prefix.length);
+                        if (name.includes('\\\\')) continue;
+                        if (!extension || name.toLowerCase().endsWith(extension)) names.push(name);
+                    }
+                    return { success: true, files: names, directories: [], items: names };
+                },
                 async writeBinary(path, bytes, options) {
                     assert.equal(options?.atomic, true);
                     files.set(path, new Uint8Array(bytes));
@@ -40,16 +72,30 @@ function makeMemorySdk(profilePath = 'C:\\\\Users\\\\Test\\\\foobar2000-v2') {
                     if (!files.has(path)) throw new Error('NOT_FOUND');
                     return new Uint8Array(files.get(path));
                 },
-                async write(path, content, options) {
+                async write(path, value, options) {
                     assert.equal(options?.atomic, true);
-                    files.set(path, String(content));
+                    files.set(path, String(value));
                     return { success: true };
                 },
                 async read(path) {
                     if (!files.has(path)) throw new Error('NOT_FOUND');
-                    return { success: true, content: files.get(path) };
+                    return { success: true, content: String(files.get(path)) };
                 },
-                async getInfo() {
+                async getInfo(path) {
+                    if (files.has(path)) {
+                        return {
+                            success: true,
+                            exists: true,
+                            isFile: true,
+                            size: getSize(files.get(path)),
+                            modified: 1700000000000
+                        };
+                    }
+                    const normalized = String(path).toLowerCase();
+                    const profilePrefix = String(profilePath).toLowerCase().replace(/[\\\\/]+$/, '') + '\\\\';
+                    if (normalized.startsWith(profilePrefix)) {
+                        return { success: true, exists: false };
+                    }
                     return {
                         success: true,
                         exists: true,
@@ -57,6 +103,28 @@ function makeMemorySdk(profilePath = 'C:\\\\Users\\\\Test\\\\foobar2000-v2') {
                         size: 4096,
                         modified: 1700000000000
                     };
+                },
+                async deleteAsync(paths, options) {
+                    assert.equal(options?.moveToTrash, false);
+                    const operationId = 'fileop_test_' + (++operationSequence);
+                    const results = paths.map(source => {
+                        if (!files.has(source)) return { source, status: 'failed', reason: 'not-found' };
+                        files.delete(source);
+                        return { source, status: 'ok' };
+                    });
+                    const successCount = results.filter(item => item.status === 'ok').length;
+                    const failureCount = results.length - successCount;
+                    queueMicrotask(() => {
+                        emit('file:opProgress', {
+                            operationId, op: 'delete', done: results.length,
+                            total: results.length, results
+                        });
+                        emit('file:opComplete', {
+                            operationId, op: 'delete', total: results.length,
+                            successCount, skippedCount: 0, failureCount, cancelled: false
+                        });
+                    });
+                    return { success: true, operationId, totalCount: paths.length };
                 }
             }
         }
@@ -523,4 +591,89 @@ test('WaveformEngine decodes, persists and publishes sequential segments', async
     assert.ok(Array.from(storage.files.keys()).some(path => path.endsWith('.000000.wfs')));
     assert.ok(Array.from(storage.files.keys()).some(path => path.endsWith('.000001.wfs')));
     engine.dispose();
+});
+
+
+function seedCacheEntry(storage, rootPath, key, lastAccessAt, segmentBytes = 300) {
+    const manifestPath = rootPath + '\\\\' + key + '.wfm';
+    const segmentPath = rootPath + '\\\\' + key + '.000000.wfs';
+    const manifest = {
+        format: 'CrayonShellWaveformCache',
+        version: 1,
+        key,
+        identity: JSON.stringify({ path: 'd:\\\\audio\\\\' + key + '.flac', subsong: 0 }),
+        duration: 1,
+        segmentSeconds: 1,
+        resolution: 64,
+        segments: [0],
+        segmentBytes: { 0: segmentBytes },
+        createdAt: lastAccessAt,
+        lastAccessAt,
+        updatedAt: lastAccessAt
+    };
+    storage.files.set(manifestPath, JSON.stringify(manifest));
+    storage.files.set(segmentPath, new Uint8Array(segmentBytes));
+    return { manifestPath, segmentPath, manifest };
+}
+
+test('cache manager rebuilds inventory and removes orphan and invalid cache files asynchronously', async () => {
+    const storage = makeMemorySdk('D:\\\\Profiles\\\\Test');
+    const manager = new WaveformCacheManager({
+        sdk: storage.sdk,
+        maxBytes: 1024 * 1024,
+        maintenanceIntervalMs: 0
+    });
+    const initial = await manager.initialize();
+    assert.equal(initial.cachedTracks, 0);
+
+    const root = initial.root;
+    const validKey = '0000000000000001';
+    const invalidKey = '0000000000000002';
+    const missingManifestKey = '0000000000000003';
+    const valid = seedCacheEntry(storage, root, validKey, 1000, 120);
+    const invalidManifestPath = root + '\\\\' + invalidKey + '.wfm';
+    const invalidSegmentPath = root + '\\\\' + invalidKey + '.000000.wfs';
+    const orphanSegmentPath = root + '\\\\' + missingManifestKey + '.000004.wfs';
+    storage.files.set(invalidManifestPath, '{ invalid json');
+    storage.files.set(invalidSegmentPath, new Uint8Array(80));
+    storage.files.set(orphanSegmentPath, new Uint8Array(64));
+
+    const snapshot = await manager.maintain({ force: true });
+    assert.equal(snapshot.cachedTracks, 1);
+    assert.equal(snapshot.cachedSegments, 1);
+    assert.equal(snapshot.usedBytes > 120, true);
+    assert.equal(storage.files.has(valid.manifestPath), true);
+    assert.equal(storage.files.has(valid.segmentPath), true);
+    assert.equal(storage.files.has(invalidManifestPath), false);
+    assert.equal(storage.files.has(invalidSegmentPath), false);
+    assert.equal(storage.files.has(orphanSegmentPath), false);
+    assert.equal(storage.files.has(root + '\\\\index.wfi'), true);
+    manager.setActiveTrackKey(null);
+});
+
+test('cache manager evicts least-recently-used tracks and protects the active track', async () => {
+    const storage = makeMemorySdk('D:\\\\Profiles\\\\Lru');
+    const manager = new WaveformCacheManager({
+        sdk: storage.sdk,
+        maxBytes: 1,
+        maintenanceIntervalMs: 0
+    });
+    const initial = await manager.initialize();
+    const oldestKey = '0000000000000011';
+    const activeKey = '0000000000000022';
+    const oldest = seedCacheEntry(storage, initial.root, oldestKey, 1000, 300);
+    const active = seedCacheEntry(storage, initial.root, activeKey, 2000, 300);
+
+    const snapshot = await manager.maintain({
+        force: true,
+        activeTrackKey: activeKey
+    });
+    assert.equal(snapshot.cachedTracks, 1);
+    assert.equal(snapshot.entries[0].key, activeKey);
+    assert.equal(storage.files.has(oldest.manifestPath), false);
+    assert.equal(storage.files.has(oldest.segmentPath), false);
+    assert.equal(storage.files.has(active.manifestPath), true);
+    assert.equal(storage.files.has(active.segmentPath), true);
+    assert.equal(snapshot.overBudget, true);
+    manager.setActiveTrackKey(null);
 });
