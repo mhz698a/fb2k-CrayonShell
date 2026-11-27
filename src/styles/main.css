@@ -3341,3 +3341,18 @@ button.play-btn {
     .waveform-cache-section-heading > span { text-align: right; }
     .waveform-cache-footer { align-items: flex-start; flex-direction: column; }
 }
+
+.waveform-cache-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin: 0;
+    color: #a9d9ae;
+    font-size: 10px;
+    line-height: 1.45;
+}
+.waveform-cache-progress > span {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
