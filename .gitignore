@@ -51,3 +51,4 @@ Thumbs.db
 
 # github updates:
 sync-pr.js
+.env.local
