@@ -447,3 +447,24 @@ test('refreshes seek capability when the active track changes', async () => {
     assert.equal(controller.getSnapshot().canSeek, false);
     controller.dispose();
 });
+
+
+test('converts a local file URL to a native Windows path when no native path is supplied', async () => {
+    const track = createTrack('file-url');
+    delete track.absolutePath;
+    delete track.handle;
+    track.path = 'file:///C:/Music/file%20url.flac';
+
+    const sdk = createFakeSdk(track);
+    const engine = createFakeEngine();
+    const { controller } = createController({ sdk, engine });
+
+    await controller.start();
+
+    assert.equal(engine.setTrackCalls.length, 1);
+    assert.equal(
+        engine.setTrackCalls[0].track.absolutePath,
+        'C:\\Music\\file url.flac'
+    );
+    controller.dispose();
+});
