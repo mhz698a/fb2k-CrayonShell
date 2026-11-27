@@ -112,6 +112,49 @@ test('the deepest matching folder wins before the default fallback', () => {
     );
 });
 
+test('track-change events resolve folder rules from the native absolutePath', async () => {
+    const handlers = new Map();
+    let activePreset = 'Default';
+    const applications = [];
+    const controller = createDspAutoActivationController({
+        getSettings: () => ({
+            defaultPreset: 'Default',
+            folderRules: [
+                { id: 'folder-native', path: 'D:\\Music\\Classical', presetName: 'Classical' }
+            ],
+            trackRules: []
+        }),
+        isAvailable: () => true,
+        subscribeEvents: (name, handler) => {
+            handlers.set(name, handler);
+            return () => handlers.delete(name);
+        },
+        getSdk: () => ({
+            dsp: {
+                async getChain() {
+                    return { success: true, activePreset };
+                },
+                async applyPreset(name) {
+                    activePreset = name;
+                    applications.push(name);
+                    return { success: true, appliedPreset: name };
+                }
+            }
+        })
+    });
+
+    controller.start();
+    handlers.get('playback:trackChanged')({
+        path: 'file:///D:/Music/Classical/Symphony.flac',
+        absolutePath: 'D:\\Music\\Classical\\Symphony.flac'
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.deepEqual(applications, ['Classical']);
+    assert.equal(controller.getState().activePreset, 'Classical');
+    controller.stop();
+});
+
 test('controller skips repeat activation and restores the default on stop', async () => {
     const settings = createSettings();
     let activePreset = 'Default';

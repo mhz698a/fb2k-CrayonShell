@@ -10,7 +10,7 @@ The versioned local settings contain:
 - \`folderRules\`: folder path to preset mappings. The most deeply nested matching folder wins.
 - \`trackRules\`: exact file path exceptions. These take priority over every folder rule.
 
-Paths are normalized for Windows separator and case differences. Duplicate folder paths and duplicate track paths are rejected.
+Paths are normalized for Windows separators, case differences, subsong suffixes and `file://` URIs. The controller and manager prefer foobar2000's native `absolutePath` field; this keeps a local folder rule comparable to the path stored by playlist rows and playback events. Duplicate folder paths and duplicate track paths are rejected.
 
 ## Playback integration
 

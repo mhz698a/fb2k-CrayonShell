@@ -67,6 +67,12 @@ export default function DspAutoPresetDialog({
     const [activeTrackPath, setActiveTrackPath] = useState(currentTrackPath);
 
     useEffect(() => {
+        if (open && currentTrackPath) {
+            setActiveTrackPath(currentTrackPath);
+        }
+    }, [open, currentTrackPath]);
+
+    useEffect(() => {
         const dialog = dialogRef.current;
         if (!dialog) return;
 
