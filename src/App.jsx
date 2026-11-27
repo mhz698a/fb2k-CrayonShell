@@ -16,6 +16,7 @@ import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
 import WaveformSeekbar from './components/WaveformSeekbar.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
+import { usePlaybackController } from './hooks/usePlaybackController.js';
 import { useTrackProperties } from './hooks/useTrackProperties.js';
 import { useWindowsFileMetadata } from './hooks/useWindowsFileMetadata.js';
 import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
@@ -238,6 +239,9 @@ export default function App() {
         playItem,
         openNativeContextMenu
     } = usePlaylist();
+
+    // Keep one native playback controller alive for the entire application.
+    usePlaybackController();
 
     const playingItem = items.find((item) => item.index === playingItemIndex) || null;
     const playingTrackPath = playingItem?.absolutePath || playingItem?.path || '';
