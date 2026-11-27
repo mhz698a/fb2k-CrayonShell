@@ -399,28 +399,35 @@ export function usePlaylist() {
         let nextFocusedIndex = restoredIndex;
         if (initial) {
             const playingItem = nextItems.find((item) => item.index === nextPlayingIndex);
-            pinnedSelectionRef.current = nextPlayingIndex >= 0 && playingItem
+            const playingIdentity = playingItem ? getTrackIdentity(playingItem) : '';
+            pinnedSelectionRef.current = nextPlayingIndex >= 0 && playingIdentity
                 ? {
                     playlistGuid: active.guid,
-                    identity: getTrackIdentity(playingItem),
+                    identity: playingIdentity,
                     index: nextPlayingIndex
                 }
                 : null;
         }
 
         if (restoredIndex >= 0) {
+            let selectionApplied = false;
             try {
                 await invoke('playlist.setSelection', {
                     playlistGuid: active.guid,
                     indices: [restoredIndex],
                     clearOthers: true
                 });
+                selectionApplied = true;
                 await invoke('playlist.setFocusedTrack', {
                     playlistGuid: active.guid,
                     index: restoredIndex
                 });
             } catch (error) {
-                if (initial && pinnedSelectionRef.current?.playlistGuid === active.guid) {
+                if (
+                    initial
+                    && !selectionApplied
+                    && pinnedSelectionRef.current?.playlistGuid === active.guid
+                ) {
                     pinnedSelectionRef.current = null;
                 }
                 setStatusMessage('No se pudo restaurar la selección de la playlist', error);
@@ -530,10 +537,11 @@ export function usePlaylist() {
             let nextFocusedIndex = normalizeIndex(focus.index);
             let selectionError = null;
             const playingItem = nextItems.find((item) => item.index === nextPlayingIndex);
-            pinnedSelectionRef.current = nextPlayingIndex >= 0 && playingItem
+            const playingIdentity = playingItem ? getTrackIdentity(playingItem) : '';
+            pinnedSelectionRef.current = nextPlayingIndex >= 0 && playingIdentity
                 ? {
                     playlistGuid,
-                    identity: getTrackIdentity(playingItem),
+                    identity: playingIdentity,
                     index: nextPlayingIndex
                 }
                 : null;
@@ -541,19 +549,21 @@ export function usePlaylist() {
             commitItems(nextItems);
 
             if (nextPlayingIndex >= 0) {
+                let selectionApplied = false;
                 try {
                     await invoke('playlist.setSelection', {
                         playlistGuid,
                         indices: [nextPlayingIndex],
                         clearOthers: true
                     });
+                    selectionApplied = true;
                     nextFocusedIndex = nextPlayingIndex;
                     await invoke('playlist.setFocusedTrack', {
                         playlistGuid,
                         index: nextPlayingIndex
                     });
                 } catch (error) {
-                    pinnedSelectionRef.current = null;
+                    if (!selectionApplied) pinnedSelectionRef.current = null;
                     selectionError = error;
                 }
             }
