@@ -869,19 +869,34 @@ export function usePlaylist() {
                 throw new Error('La playlist activa cambió antes de completar la selección.');
             }
 
-            await invoke('playlist.setSelection', {
-                playlistGuid: requestedPlaylistGuid,
-                indices: [index],
-                clearOthers: true
-            });
-            await invoke('playlist.setFocusedTrack', {
-                playlistGuid: requestedPlaylistGuid,
-                index
-            });
+            // Release the automatic pin before native writes so the resulting
+            // focusChanged event is treated as an explicit user selection.
+            const previousPin = pinnedSelectionRef.current;
+            pinnedSelectionRef.current = null;
 
-            if (mountedRef.current && activePlaylistGuidRef.current === requestedPlaylistGuid) {
-                pinnedSelectionRef.current = null;
-                commitFocusedItem(index);
+            try {
+                await invoke('playlist.setSelection', {
+                    playlistGuid: requestedPlaylistGuid,
+                    indices: [index],
+                    clearOthers: true
+                });
+                await invoke('playlist.setFocusedTrack', {
+                    playlistGuid: requestedPlaylistGuid,
+                    index
+                });
+
+                if (mountedRef.current && activePlaylistGuidRef.current === requestedPlaylistGuid) {
+                    commitFocusedItem(index);
+                }
+            } catch (error) {
+                if (
+                    mountedRef.current
+                    && activePlaylistGuidRef.current === requestedPlaylistGuid
+                    && previousPin?.playlistGuid === requestedPlaylistGuid
+                ) {
+                    pinnedSelectionRef.current = previousPin;
+                }
+                throw error;
             }
         };
 
@@ -1028,8 +1043,7 @@ export function usePlaylist() {
                 // has completed. Keep the visual row and reassert native focus.
                 const pinnedIndex = pinnedSelectionRef.current.index;
                 if (
-                    activationTargetGuidRef.current !== playlistGuid
-                    && !focusCorrectionRef.current.has(playlistGuid)
+                    !focusCorrectionRef.current.has(playlistGuid)
                 ) {
                     focusCorrectionRef.current.add(playlistGuid);
                     void invoke('playlist.setFocusedTrack', {
