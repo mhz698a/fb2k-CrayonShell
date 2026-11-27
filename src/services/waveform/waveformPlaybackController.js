@@ -2,10 +2,16 @@ import { getFooSdk } from '../fooSdk.js';
 import { WaveformEngine } from './waveformEngine.js';
 
 function isUsableLocalTrack(track) {
+    const path = String(track?.absolutePath || '').trim();
+    const mediaPath = path.replace(/\\|subsong:\\d+$/i, '');
+    const isWindowsPath = /^[a-z]:\\\\/i.test(mediaPath)
+        || /^\\\\\\\\[^\\\\]+\\\\[^\\\\]+/.test(mediaPath);
+    const isAudioPath = /\\.(?:aac|aif|aiff|alac|ape|dff|dsf|flac|m4a|m4b|mka|mp3|mpc|oga|ogg|opus|tak|tta|wav|wave|wma|wv)$/i.test(mediaPath);
+
     return Boolean(
         track
-        && typeof track.absolutePath === 'string'
-        && track.absolutePath.trim()
+        && isWindowsPath
+        && isAudioPath
         && Number.isFinite(Number(track.duration))
         && Number(track.duration) > 0
     );
@@ -162,6 +168,8 @@ export class WaveformPlaybackController {
             duration: clockDuration > 0 ? clockDuration : waveform.duration,
             trackKey: this.trackKey || null,
             trackPath: this.currentTrack?.absolutePath || null,
+            trackTitle: this.currentTrack?.title || '',
+            trackArtist: this.currentTrack?.artist || '',
             lastError: this.lastError,
             waveform
         };
@@ -316,6 +324,7 @@ export class WaveformPlaybackController {
         this.currentTrack = null;
         this.trackKey = null;
         this.lastPrioritySegment = null;
+        this.canSeek = false;
     }
 
     _onClockChange(change = {}) {
