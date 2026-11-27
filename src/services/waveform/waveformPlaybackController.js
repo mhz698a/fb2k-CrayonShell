@@ -277,7 +277,27 @@ export class WaveformPlaybackController {
         this.canSeek = false;
         this.engine.clear();
 
-        this.pendingTrackTask = this._loadTrack(track, revision);
+        const stateRevision = this.stateRevision;
+        this.pendingTrackTask = this._loadTrack(track, revision).then(async (result) => {
+            if (revision !== this.trackRevision
+                || stateRevision !== this.stateRevision
+                || typeof this.sdk.player.getState !== 'function') {
+                return result;
+            }
+
+            try {
+                const state = await this.sdk.player.getState();
+                if (revision === this.trackRevision
+                    && stateRevision === this.stateRevision
+                    && state?.success === true) {
+                    this._onStateChanged(state);
+                }
+            } catch {
+                // Keep the current PlaybackClock state when the host state read fails.
+            }
+
+            return result;
+        });
         return this.pendingTrackTask;
     }
 
