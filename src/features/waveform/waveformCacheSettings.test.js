@@ -6,6 +6,7 @@ import {
     MIN_WAVEFORM_CACHE_MAX_BYTES,
     MEBIBYTE,
     WAVEFORM_CACHE_SETTINGS_STORAGE_KEY,
+    WAVEFORM_CACHE_BUDGET_STEP_BYTES,
     normalizeWaveformCacheSettings,
     readWaveformCacheSettings,
     writeWaveformCacheSettings
@@ -34,6 +35,11 @@ test('normalizes the cache budget to whole MiB and supported bounds', () => {
         normalizeWaveformCacheSettings({ maxBytes: 1536.4 * MEBIBYTE }).maxBytes,
         1536 * MEBIBYTE
     );
+    assert.equal(
+        normalizeWaveformCacheSettings({ maxBytes: 123 * MEBIBYTE }).maxBytes,
+        128 * MEBIBYTE
+    );
+    assert.equal(WAVEFORM_CACHE_BUDGET_STEP_BYTES, 64 * MEBIBYTE);
     assert.equal(
         normalizeWaveformCacheSettings({ maxBytes: 1 }).maxBytes,
         MIN_WAVEFORM_CACHE_MAX_BYTES
