@@ -26,7 +26,10 @@ export class WaveformPlaybackController {
         const engineOptions = {
             ...(options.engineOptions || {}),
             sdk: this.sdk,
-            onSegment: (segment) => this._notify(options.onSegment, segment),
+            onSegment: (segment) => this._notify(options.onSegment, {
+                ...segment,
+                trackKey: this.trackKey
+            }),
             onState: (state) => this._emit('waveform-state', state),
             onError: (error, context) => this._reportError(error, context)
         };
@@ -60,6 +63,9 @@ export class WaveformPlaybackController {
         this.trackKey = null;
         this.lastPrioritySegment = null;
         this.lastError = null;
+        this.playbackState = 'stopped';
+        this.canSeek = false;
+        this.stateRevision = 0;
     }
 
     async start() {
@@ -88,12 +94,20 @@ export class WaveformPlaybackController {
             this._subscribe('playback:timeHighRes', () => {
                 this._onHighResolutionTime();
             });
+            this._subscribe('playback:stateChanged', (state) => {
+                this._onStateChanged(state);
+            });
 
             const revisionAtRead = this.trackRevision;
-            const [currentTrackResponse] = await Promise.all([
+            const stateRevisionAtRead = this.stateRevision;
+            const stateRequest = typeof this.sdk.player.getState === 'function'
+                ? this.sdk.player.getState().catch(() => null)
+                : Promise.resolve(null);
+            const [currentTrackResponse, initialState] = await Promise.all([
                 this.sdk.player.getCurrentTrack(),
-                this.clock.ready
-            ]);
+                this.clock.ready,
+                stateRequest
+            ]).then(([trackResponse, , stateResponse]) => [trackResponse, stateResponse]);
 
             if (!this.started || this.disposed) return this.getSnapshot();
 
@@ -102,6 +116,10 @@ export class WaveformPlaybackController {
             if (revisionAtRead !== this.trackRevision) {
                 await this.pendingTrackTask;
                 return this.getSnapshot();
+            }
+
+            if (stateRevisionAtRead === this.stateRevision) {
+                this._onStateChanged(initialState, false);
             }
 
             if (currentTrackResponse?.success === false) {
@@ -138,7 +156,8 @@ export class WaveformPlaybackController {
         return {
             started: this.started,
             disposed: this.disposed,
-            playbackState: this.clock?.state || 'stopped',
+            playbackState: this.clock?.state || this.playbackState || 'stopped',
+            canSeek: this.canSeek,
             position: this.getPosition(),
             duration: clockDuration > 0 ? clockDuration : waveform.duration,
             trackKey: this.trackKey || null,
@@ -154,6 +173,37 @@ export class WaveformPlaybackController {
         }
         await this.clock.resync();
         return this.getSnapshot();
+    }
+
+    async seek(position) {
+        if (!this.started || this.disposed) {
+            throw new Error('WaveformPlaybackController no está iniciado.');
+        }
+        if (!this.canSeek) {
+            const error = new Error('La pista actual no admite búsqueda.');
+            error.code = 'NOT_SUPPORTED';
+            throw error;
+        }
+        const requested = Number(position);
+        if (!Number.isFinite(requested)) {
+            throw new TypeError('La posición de búsqueda debe ser un número finito.');
+        }
+
+        const duration = Number(this.clock?.duration)
+            || Number(this.currentTrack?.duration)
+            || 0;
+        const target = Math.max(0, duration > 0
+            ? Math.min(duration, requested)
+            : requested);
+        const response = await this.sdk.player.seek(target);
+        if (response?.success === false) {
+            const error = new Error(response.error || 'foobar2000 rechazó la búsqueda.');
+            error.code = response.code;
+            throw error;
+        }
+
+        await this.clock?.resync();
+        return response;
     }
 
     whenTrackChangeSettled() {
@@ -207,6 +257,7 @@ export class WaveformPlaybackController {
         this.currentTrack = null;
         this.trackKey = null;
         this.lastPrioritySegment = null;
+        this.canSeek = false;
         this.engine.clear();
 
         this.pendingTrackTask = this._loadTrack(track, revision);
@@ -278,6 +329,13 @@ export class WaveformPlaybackController {
         }
 
         this._emit('clock-' + (change.reason || 'change'), change);
+    }
+
+    _onStateChanged(state = {}, emit = true) {
+        this.stateRevision += 1;
+        if (state.state) this.playbackState = state.state;
+        if (typeof state.canSeek === 'boolean') this.canSeek = state.canSeek;
+        if (emit) this._emit('playback-state', state);
     }
 
     _onHighResolutionTime() {
