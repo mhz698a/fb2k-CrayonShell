@@ -85,11 +85,13 @@ export class WaveformEngine {
         this.segmentDurationOptions = options.segmentDurationOptions || {};
         this.workerFactory = options.workerFactory;
         this.cacheRoot = options.cacheRoot;
+        this.onCacheProgress = options.onCacheProgress || (() => undefined);
         this.cacheManager = options.cacheManager || new WaveformCacheManager({
             sdk: this.sdk,
             root: this.cacheRoot,
             maxBytes: options.cacheMaxBytes || options.cacheManagerOptions?.maxBytes || DEFAULT_WAVEFORM_CACHE_MAX_BYTES,
             ...(options.cacheManagerOptions || {}),
+            onProgress: progress => this._safeNotify(this.onCacheProgress, progress),
             onError: error => this._safeNotify(this.onError, error, { source: 'cache-manager' })
         });
         this.cacheManagerEnabled = Boolean(this.cacheManager);
