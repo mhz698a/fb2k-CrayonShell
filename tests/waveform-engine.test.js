@@ -50,7 +50,7 @@ function makeMemorySdk(profilePath = 'C:\\\\Users\\\\Test\\\\foobar2000-v2') {
                     };
                 },
                 async list(path, options = {}) {
-                    const prefix = String(path).replace(/[\\\\/]+$/, '') + '\\\\';
+                    const prefix = String(path).replace(/[\\\\/]+$/, '') + '\\';
                     const extension = String(options.pattern || '*').startsWith('*.') 
                         ? String(options.pattern).slice(1).toLowerCase()
                         : '';
@@ -58,7 +58,7 @@ function makeMemorySdk(profilePath = 'C:\\\\Users\\\\Test\\\\foobar2000-v2') {
                     for (const filePath of files.keys()) {
                         if (!filePath.toLowerCase().startsWith(prefix.toLowerCase())) continue;
                         const name = filePath.slice(prefix.length);
-                        if (name.includes('\\\\')) continue;
+                        if (name.includes('\\')) continue;
                         if (!extension || name.toLowerCase().endsWith(extension)) names.push(name);
                     }
                     return { success: true, files: names, directories: [], items: names };
@@ -92,7 +92,7 @@ function makeMemorySdk(profilePath = 'C:\\\\Users\\\\Test\\\\foobar2000-v2') {
                         };
                     }
                     const normalized = String(path).toLowerCase();
-                    const profilePrefix = String(profilePath).toLowerCase().replace(/[\\\\/]+$/, '') + '\\\\';
+                    const profilePrefix = String(profilePath).toLowerCase().replace(/[\\\\/]+$/, '') + '\\';
                     if (normalized.startsWith(profilePrefix)) {
                         return { success: true, exists: false };
                     }
@@ -595,8 +595,8 @@ test('WaveformEngine decodes, persists and publishes sequential segments', async
 
 
 function seedCacheEntry(storage, rootPath, key, lastAccessAt, segmentBytes = 300) {
-    const manifestPath = rootPath + '\\\\' + key + '.wfm';
-    const segmentPath = rootPath + '\\\\' + key + '.000000.wfs';
+    const manifestPath = rootPath + '\\' + key + '.wfm';
+    const segmentPath = rootPath + '\\' + key + '.000000.wfs';
     const manifest = {
         format: 'CrayonShellWaveformCache',
         version: 1,
@@ -631,9 +631,9 @@ test('cache manager rebuilds inventory and removes orphan and invalid cache file
     const invalidKey = '0000000000000002';
     const missingManifestKey = '0000000000000003';
     const valid = seedCacheEntry(storage, root, validKey, 1000, 120);
-    const invalidManifestPath = root + '\\\\' + invalidKey + '.wfm';
-    const invalidSegmentPath = root + '\\\\' + invalidKey + '.000000.wfs';
-    const orphanSegmentPath = root + '\\\\' + missingManifestKey + '.000004.wfs';
+    const invalidManifestPath = root + '\\' + invalidKey + '.wfm';
+    const invalidSegmentPath = root + '\\' + invalidKey + '.000000.wfs';
+    const orphanSegmentPath = root + '\\' + missingManifestKey + '.000004.wfs';
     storage.files.set(invalidManifestPath, '{ invalid json');
     storage.files.set(invalidSegmentPath, new Uint8Array(80));
     storage.files.set(orphanSegmentPath, new Uint8Array(64));
