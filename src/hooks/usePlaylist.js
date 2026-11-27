@@ -6,6 +6,7 @@ import {
     subscribe
 } from '../services/foobarApi.js';
 import { PLAYLIST_FORMATS } from '../services/playlistFormats.js';
+import { resolvePlayingTrackIndex } from '../utils/trackIdentity.js';
 import {
     prepareDspPresetForTrack,
     cancelPreparedDspPresetTrack
@@ -152,7 +153,8 @@ export function usePlaylist() {
             readPlaylistItems(active),
             invoke('playlist.getFocusedTrack', { playlistGuid: active.guid }),
             invoke('playback.getCurrentTrackIndex'),
-            invoke('playback.getState')
+            invoke('playback.getState'),
+            invoke('playback.getCurrentTrack').catch(() => null)
         ]);
 
         if (!mountedRef.current) return;
@@ -189,13 +191,13 @@ export function usePlaylist() {
         setItems(nextItems);
         setFocusedItem(nextFocusedIndex);
         setPlaybackState(playback.state || 'stopped');
-        setPlayingItemIndex(
-            playingTrack.found
-                && playingTrack.playlistGuid === active.guid
-                && playback.state !== 'stopped'
-                ? Number(playingTrack.index)
-                : -1
-        );
+        setPlayingItemIndex(resolvePlayingTrackIndex({
+            items: nextItems,
+            playingTrackIndex: playingTrack,
+            currentTrackResponse,
+            activePlaylistGuid: active.guid,
+            playbackState: playback.state || 'stopped'
+        }));
         setSessionReady(true);
         setStatusMessage('Playlist: ' + active.name);
     }, [readPlaylistItems, setStatusMessage]);
