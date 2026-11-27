@@ -318,9 +318,16 @@ export function createDspAutoActivationController({
 
     async function refreshExternalPreset() {
         if (!isAvailable() || ['queued', 'applying', 'verifying'].includes(state.status)) return;
+        const observedRequestSequence = requestSequence;
         try {
             const chain = await getSdk().dsp.getChain();
             if (chain?.success === false) return;
+            if (
+                observedRequestSequence !== requestSequence
+                || ['queued', 'applying', 'verifying'].includes(state.status)
+            ) {
+                return;
+            }
             publish({
                 activePreset: chain.activePreset || null,
                 targetPreset: chain.activePreset || null,
@@ -342,6 +349,7 @@ export function createDspAutoActivationController({
             subscribeEvents('playback:stopped', handleStopped),
             subscribeEvents('audio:dspPresetChanged', refreshExternalPreset)
         );
+        void refreshExternalPreset();
         return () => stop();
     }
 
