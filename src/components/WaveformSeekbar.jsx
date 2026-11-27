@@ -202,6 +202,9 @@ export default function WaveformSeekbar() {
             });
 
             controllerRef.current = controller;
+            if (import.meta.env.DEV) {
+                window.__crayonshellWaveformPlaybackController = controller;
+            }
             controller.start().then((initialSnapshot) => {
                 updateSnapshot(initialSnapshot);
             }).catch((failure) => {
@@ -217,6 +220,10 @@ export default function WaveformSeekbar() {
             mountedRef.current = false;
             pointerRef.current = null;
             controllerRef.current = null;
+            if (import.meta.env.DEV
+                && window.__crayonshellWaveformPlaybackController === controller) {
+                delete window.__crayonshellWaveformPlaybackController;
+            }
             controller?.dispose();
         };
     }, []);
