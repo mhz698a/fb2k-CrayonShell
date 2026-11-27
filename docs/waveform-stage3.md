@@ -20,7 +20,7 @@ La altura del canvas se controla desde la variable CSS global:
 }
 ```
 
-Cambia `34px` por el alto requerido. Por ejemplo, `42px` aumenta los picos y `26px` los reduce. La fila añade 10 px de espacio vertical para su alineación y padding.
+Cambia `25px` por el alto requerido. Por ejemplo, `42px` aumenta los picos y `26px` los reduce. La fila añade 10 px de espacio vertical para su alineación y padding.
 
 ## Waveform de audio y video
 
