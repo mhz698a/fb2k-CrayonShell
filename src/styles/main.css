@@ -5,6 +5,7 @@
     --accent-color: #007acc;
     --activitybar-width: 52px;
     --sidebar-width: 250px;
+    --waveform-seekbar-height: 34px;
 }
 
 html {
@@ -2909,66 +2910,57 @@ button.play-btn {
 
 
 
-/* Progressive PCM waveform seekbar. */
+/* Single-row waveform seekbar pinned to the bottom of the playlist panel. */
 .waveform-seekbar {
     display: flex;
     flex: 0 0 auto;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-    padding: 6px 11px 7px;
-    background: #222224;
-    border-bottom: 1px solid rgba(128, 128, 128, .28);
-}
-
-.waveform-seekbar-heading {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) minmax(100px, auto);
+    flex-direction: row;
     align-items: center;
     gap: 10px;
+    width: 100%;
     min-width: 0;
-    min-height: 14px;
-    font-size: 9px;
+    min-height: calc(var(--waveform-seekbar-height, 34px) + 10px);
+    padding: 5px 11px;
+    background: #222224;
+    border-top: 1px solid rgba(128, 128, 128, .28);
 }
 
 .waveform-seekbar-time {
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     color: #d5d5d5;
+    font-size: 10px;
+    line-height: 1;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
-.waveform-seekbar-time > span:last-child {
+.waveform-seekbar-current {
+    justify-content: flex-start;
+    min-width: 52px;
+}
+
+.waveform-seekbar-end {
+    justify-content: flex-end;
+    min-width: max-content;
+}
+
+.waveform-seekbar-remaining {
+    color: #d5d5d5;
+}
+
+.waveform-seekbar-time-separator,
+.waveform-seekbar-duration {
     color: #858585;
-}
-
-.waveform-seekbar-track {
-    min-width: 0;
-    overflow: hidden;
-    color: #a9a9a9;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.waveform-seekbar-status {
-    min-width: 0;
-    overflow: hidden;
-    color: #858585;
-    text-align: right;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.waveform-seekbar-status.is-error {
-    color: #d89a91;
 }
 
 .waveform-seekbar-canvas {
     display: block;
-    width: 100%;
-    height: 30px;
+    flex: 1 1 0;
+    width: 0;
+    height: var(--waveform-seekbar-height, 34px);
     min-width: 0;
     overflow: hidden;
     background: rgba(0, 0, 0, .12);
@@ -2988,17 +2980,19 @@ button.play-btn {
     outline-offset: 1px;
 }
 
-@media (max-width: 600px) {
-    .waveform-seekbar-heading {
-        grid-template-columns: auto minmax(0, 1fr);
+@media (max-width: 560px) {
+    .waveform-seekbar {
         gap: 6px;
+        padding-right: 7px;
+        padding-left: 7px;
     }
 
-    .waveform-seekbar-status {
-        display: none;
+    .waveform-seekbar-time {
+        gap: 4px;
+        font-size: 9px;
     }
 
-    .waveform-seekbar-canvas {
-        height: 26px;
+    .waveform-seekbar-current {
+        min-width: 43px;
     }
 }
