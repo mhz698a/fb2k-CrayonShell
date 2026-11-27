@@ -78,6 +78,19 @@ export const demoBridge = {
             case 'playlist.getFocusedTrack':
                 return { index: focusedIndex };
 
+            case 'playback.getCurrentTrack': {
+                const current = demoTracks.find((track) => track.index === playingIndex);
+                return {
+                    found: Boolean(current),
+                    track: current ? {
+                        path: current.path,
+                        absolutePath: current.path,
+                        title: current.formats.title,
+                        artist: current.formats.artist
+                    } : null
+                };
+            }
+
             case 'playback.getCurrentTrackIndex':
                 return {
                     found: playingIndex >= 0,
