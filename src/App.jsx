@@ -493,7 +493,7 @@ export default function App() {
                         onExecuteAction={executeActivityBarAction}
                     />
 
-                    <WaveformSeekbar />
+                    {contentView === 'playlist' && <WaveformSeekbar />}
 
                     {isDemoMode && (
                         <div className="demo-notice">
