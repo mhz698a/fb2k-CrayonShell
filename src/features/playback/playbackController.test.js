@@ -165,6 +165,7 @@ test('all transport and playback-setting actions call the corresponding SDK meth
         'next',
         'random',
         'setOrder',
+        'setOrder',
         'setStopAfterCurrent',
         'toggleStopAfterCurrent',
         'setVolume',
