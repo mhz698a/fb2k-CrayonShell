@@ -89,6 +89,9 @@ export function usePlaylist() {
                     handle: track.handle ? String(track.handle) : '',
                     path: track.path ? String(track.path) : '',
                     absolutePath: track.absolutePath ? String(track.absolutePath) : '',
+                    subsong: track.subsong === null || track.subsong === undefined
+                        ? null
+                        : Number(track.subsong),
                     duration: formats.duration ? String(formats.duration) : '',
                     title: formats.title ? String(formats.title) : '',
                     artist: formats.artist ? String(formats.artist) : '',
