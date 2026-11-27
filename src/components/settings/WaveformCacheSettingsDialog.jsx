@@ -4,6 +4,7 @@ import {
     MAX_WAVEFORM_CACHE_MAX_BYTES,
     MIN_WAVEFORM_CACHE_MAX_BYTES,
     MEBIBYTE,
+    WAVEFORM_CACHE_BUDGET_STEP_BYTES,
     normalizeWaveformCacheSettings,
     readWaveformCacheSettings,
     writeWaveformCacheSettings
@@ -97,13 +98,14 @@ export default function WaveformCacheSettingsDialog({ open, cacheActions, progre
         const parsedMiB = Number(nextMiB);
         if (!Number.isInteger(parsedMiB)
             || parsedMiB < MIN_WAVEFORM_CACHE_MAX_BYTES / MEBIBYTE
-            || parsedMiB > MAX_WAVEFORM_CACHE_MAX_BYTES / MEBIBYTE) {
+            || parsedMiB > MAX_WAVEFORM_CACHE_MAX_BYTES / MEBIBYTE
+            || (parsedMiB * MEBIBYTE) % WAVEFORM_CACHE_BUDGET_STEP_BYTES !== 0) {
             setError(
                 'El límite debe ser un entero entre '
                 + (MIN_WAVEFORM_CACHE_MAX_BYTES / MEBIBYTE)
                 + ' y '
                 + (MAX_WAVEFORM_CACHE_MAX_BYTES / MEBIBYTE)
-                + ' MiB.'
+                + ' MiB y en múltiplos de 64 MiB.'
             );
             setMessage('');
             return;
@@ -164,7 +166,8 @@ export default function WaveformCacheSettingsDialog({ open, cacheActions, progre
     const canManage = Boolean(cacheActions && !busy);
     const budgetIsValid = Number.isInteger(Number(budgetMiB))
         && Number(budgetMiB) >= MIN_WAVEFORM_CACHE_MAX_BYTES / MEBIBYTE
-        && Number(budgetMiB) <= MAX_WAVEFORM_CACHE_MAX_BYTES / MEBIBYTE;
+        && Number(budgetMiB) <= MAX_WAVEFORM_CACHE_MAX_BYTES / MEBIBYTE
+        && (Number(budgetMiB) * MEBIBYTE) % WAVEFORM_CACHE_BUDGET_STEP_BYTES === 0;
     const usedBytes = Number(snapshot?.usedBytes) || 0;
     const maxBytes = Number(snapshot?.maxBytes) || DEFAULT_WAVEFORM_CACHE_MAX_BYTES;
     const usagePercent = maxBytes > 0
