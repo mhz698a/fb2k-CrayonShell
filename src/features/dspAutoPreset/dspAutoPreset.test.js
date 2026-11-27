@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
     DSP_AUTO_PRESET_SETTINGS_STORAGE_KEY,
+    getDspTrackDirectory,
+    normalizeDspRulePath,
     normalizeDspAutoPresetSettings,
     readDspAutoPresetSettings,
     writeDspAutoPresetSettings
@@ -51,6 +53,38 @@ test('invalid duplicate paths are rejected case-insensitively', () => {
             { id: 'b', path: 'd:/music/', presetName: 'Two' }
         ]
     }), /misma ruta/);
+});
+
+test('normalizes file URLs to native Windows paths before matching rules', () => {
+    assert.equal(
+        normalizeDspRulePath('file:///D:/Music/Album/Track.flac'),
+        'd:\\music\\album\\track.flac'
+    );
+    assert.equal(
+        getDspTrackDirectory('D:\\Music\\Album\\Track.flac'),
+        'D:\\Music\\Album'
+    );
+    assert.equal(
+        getDspTrackDirectory('https://radio.example/live'),
+        ''
+    );
+});
+
+test('folder rules match URI paths and local absolute paths consistently', () => {
+    const settings = {
+        defaultPreset: 'Default',
+        folderRules: [
+            { id: 'folder-uri', path: 'D:\\Music\\Classical', presetName: 'Classical' }
+        ],
+        trackRules: []
+    };
+
+    const result = resolveDspPresetForTrack(
+        settings,
+        'file:///D:/Music/Classical/Symphony.flac'
+    );
+    assert.equal(result.presetName, 'Classical');
+    assert.equal(result.source, 'folder');
 });
 
 test('a track-specific rule takes priority over folder rules', () => {

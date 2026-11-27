@@ -1,5 +1,8 @@
 import { getFooSdk } from '../../services/fooSdk.js';
-import { readDspAutoPresetSettings } from './dspAutoPresetSettings.js';
+import {
+    normalizeDspRulePath,
+    readDspAutoPresetSettings
+} from './dspAutoPresetSettings.js';
 
 function hasNativePlaybackBridge() {
     return typeof window !== 'undefined'
@@ -24,7 +27,7 @@ function subscribePlaybackEvent(eventName, handler) {
 import { resolveDspPresetForTrack } from './dspPresetResolver.js';
 
 export function normalizePlaybackPath(path) {
-    return String(path || '').trim().replace(/\//g, '\\').replace(/\\+$/, '').toLocaleLowerCase('en-US');
+    return normalizeDspRulePath(path);
 }
 
 export function createDspAutoActivationController({
@@ -310,7 +313,7 @@ export function createDspAutoActivationController({
     }
 
     function handleTrackChanged(track) {
-        const path = String(track?.path || '');
+        const path = String(track?.absolutePath || track?.path || '');
         const normalizedPath = normalizePlaybackPath(path);
         if (!path) return;
 

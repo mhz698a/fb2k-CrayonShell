@@ -41,10 +41,44 @@ function normalizeRule(rule, kind, seenPaths) {
     return { id, path, presetName, kind };
 }
 
+function toDspFilesystemPath(path) {
+    let normalized = String(path || '').trim();
+    normalized = normalized.replace(/\|subsong:\d+$/i, '');
+
+    if (/^file:\/\//i.test(normalized)) {
+        normalized = normalized.replace(/^file:\/\//i, '');
+        if (/^\/[a-z]:[\\/]/i.test(normalized)) {
+            normalized = normalized.slice(1);
+        } else if (!/^[a-z]:[\\/]/i.test(normalized) && !normalized.startsWith('/')) {
+            normalized = '\\\\' + normalized;
+        }
+        try {
+            normalized = decodeURIComponent(normalized);
+        } catch {
+            // Keep the original path if an external file URI contains invalid escapes.
+        }
+    }
+
+    return normalized.replace(/\//g, '\\');
+}
+
 export function normalizeDspRulePath(path) {
-    let normalized = String(path || '').trim().replace(/\//g, '\\');
-    normalized = normalized.replace(/\\+$/, '');
-    return normalized.toLocaleLowerCase('en-US');
+    return toDspFilesystemPath(path).replace(/\\+$/, '').toLocaleLowerCase('en-US');
+}
+
+/** Returns the parent directory of a local track path, or an empty string for streams. */
+export function getDspTrackDirectory(path) {
+    const filesystemPath = toDspFilesystemPath(path);
+    const isDrivePath = /^[a-z]:\\/i.test(filesystemPath);
+    const isUncPath = filesystemPath.startsWith('\\\\');
+    if (!filesystemPath || (!isDrivePath && !isUncPath)) return '';
+
+    const separatorIndex = filesystemPath.lastIndexOf('\\');
+    if (separatorIndex < 0) return '';
+    if (/^[a-z]:$/i.test(filesystemPath.slice(0, separatorIndex))) {
+        return filesystemPath.slice(0, separatorIndex + 1);
+    }
+    return filesystemPath.slice(0, separatorIndex);
 }
 
 export function normalizeDspAutoPresetSettings(value = {}) {

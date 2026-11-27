@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getFooSdk } from '../../services/fooSdk.js';
 import {
     createDspAutoPresetRule,
+    getDspTrackDirectory,
+    normalizeDspRulePath,
     normalizeDspAutoPresetSettings,
     readDspAutoPresetSettings,
     writeDspAutoPresetSettings
@@ -62,6 +64,7 @@ export default function DspAutoPresetDialog({
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [info, setInfo] = useState('');
+    const [activeTrackPath, setActiveTrackPath] = useState(currentTrackPath);
 
     useEffect(() => {
         const dialog = dialogRef.current;
@@ -83,9 +86,10 @@ export default function DspAutoPresetDialog({
                     throw new Error('La administración de DSP requiere ejecutar CrayonShell dentro de foobar2000.');
                 }
                 const sdk = getFooSdk();
-                const [presetResult, chainResult] = await Promise.all([
+                const [presetResult, chainResult, currentTrackResult] = await Promise.all([
                     sdk.dsp.getPresets(),
-                    sdk.dsp.getChain()
+                    sdk.dsp.getChain(),
+                    sdk.playback.getCurrentTrack().catch(() => null)
                 ]);
                 if (presetResult?.success === false) {
                     throw new Error(presetResult.error || 'No se pudieron consultar los DSP Presets.');
@@ -105,10 +109,18 @@ export default function DspAutoPresetDialog({
                 if (!saved.defaultPreset && chainResult.activePreset) {
                     saved.defaultPreset = chainResult.activePreset;
                 }
+                const playingTrack = currentTrackResult?.found ? currentTrackResult.track : null;
+                const resolvedTrackPath = String(
+                    playingTrack?.absolutePath
+                    || playingTrack?.path
+                    || currentTrackPath
+                    || ''
+                ).trim();
 
                 if (!cancelled) {
                     setPresets(available);
                     setConfig(saved);
+                    setActiveTrackPath(resolvedTrackPath);
                 }
             } catch (loadError) {
                 if (!cancelled) setError(loadError?.message || String(loadError));
@@ -137,39 +149,47 @@ export default function DspAutoPresetDialog({
         }));
     }
 
-    async function addFolderRule() {
-        setError('');
-        try {
-            const result = await getFooSdk().dialog.openFolder({
-                title: 'Seleccionar subcarpeta para DSP Auto Preset'
-            });
-            if (result?.success === false) {
-                throw new Error(result.error || 'No se pudo abrir el selector de carpetas.');
-            }
-            if (result.canceled || !result.folderPath) return;
-
-            setConfig((current) => ({
-                ...current,
-                folderRules: [
-                    ...current.folderRules,
-                    createDspAutoPresetRule(result.folderPath, current.defaultPreset || presetNames[0] || '')
-                ]
-            }));
-        } catch (addError) {
-            setError(addError?.message || String(addError));
+    function addFolderRule() {
+        const folderPath = getDspTrackDirectory(activeTrackPath);
+        if (!folderPath) {
+            setError('La canción actual no tiene una ruta de archivo local desde la que obtener su carpeta.');
+            return;
         }
+
+        setError('');
+        const normalizedPath = normalizeDspRulePath(folderPath);
+        if (config.folderRules.some((rule) => normalizeDspRulePath(rule.path) === normalizedPath)) {
+            setInfo('La carpeta de esta canción ya tiene una regla. Puedes editarla en la lista.');
+            return;
+        }
+
+        setConfig((current) => ({
+            ...current,
+            folderRules: [
+                ...current.folderRules,
+                createDspAutoPresetRule(folderPath, current.defaultPreset || presetNames[0] || '')
+            ]
+        }));
+        setInfo('Carpeta añadida. Guarda los cambios y vuelve a abrir la canción para que se aplique el DSP Preset.');
     }
 
     function addTrackRule() {
-        if (!currentTrackPath) return;
+        if (!activeTrackPath) return;
         setError('');
+        const normalizedPath = normalizeDspRulePath(activeTrackPath);
+        if (config.trackRules.some((rule) => normalizeDspRulePath(rule.path) === normalizedPath)) {
+            setInfo('La canción actual ya tiene una regla. Puedes editarla en la lista.');
+            return;
+        }
+
         setConfig((current) => ({
             ...current,
             trackRules: [
                 ...current.trackRules,
-                createDspAutoPresetRule(currentTrackPath, current.defaultPreset || presetNames[0] || '')
+                createDspAutoPresetRule(activeTrackPath, current.defaultPreset || presetNames[0] || '')
             ]
         }));
+        setInfo('Canción añadida. Guarda los cambios y vuelve a abrir/reproducir esta canción para que se aplique el DSP Preset.');
     }
 
     function removeRule(kind, id) {
@@ -286,10 +306,11 @@ export default function DspAutoPresetDialog({
                     <button
                         type="button"
                         className="dsp-auto-preset-add"
-                        disabled={isDisabled}
+                        disabled={isDisabled || !getDspTrackDirectory(activeTrackPath)}
+                        title={getDspTrackDirectory(activeTrackPath) || 'No hay una canción local en reproducción'}
                         onClick={addFolderRule}
                     >
-                        <FaIcon name="folder-open"/> Agregar subcarpeta
+                        <FaIcon name="folder-open"/> Agregar carpeta contenedora
                     </button>
                 </section>
 
@@ -318,15 +339,15 @@ export default function DspAutoPresetDialog({
                     <button
                         type="button"
                         className="dsp-auto-preset-add"
-                        disabled={isDisabled || !currentTrackPath}
-                        title={currentTrackPath || 'No hay una canción en reproducción'}
+                        disabled={isDisabled || !activeTrackPath}
+                        title={activeTrackPath || 'No hay una canción en reproducción'}
                         onClick={addTrackRule}
                     >
                         <FaIcon name="music"/> Agregar canción actual
                     </button>
-                    {currentTrackPath && (
-                        <div className="dsp-auto-preset-current-path" title={currentTrackPath}>
-                            En reproducción: {currentTrackPath}
+                    {activeTrackPath && (
+                        <div className="dsp-auto-preset-current-path" title={activeTrackPath}>
+                            En reproducción: {activeTrackPath}
                         </div>
                     )}
                 </section>

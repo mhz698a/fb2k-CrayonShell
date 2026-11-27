@@ -87,6 +87,7 @@ export function usePlaylist() {
                     index: Number(track.index),
                     handle: track.handle ? String(track.handle) : '',
                     path: track.path ? String(track.path) : '',
+                    absolutePath: track.absolutePath ? String(track.absolutePath) : '',
                     duration: formats.duration ? String(formats.duration) : '',
                     title: formats.title ? String(formats.title) : '',
                     artist: formats.artist ? String(formats.artist) : '',
@@ -361,8 +362,9 @@ export function usePlaylist() {
         try {
             await setSelectedItem(index);
             const targetTrack = items.find((item) => item.index === index);
-            if (!isDemoMode && targetTrack?.path) {
-                const dspResult = await prepareDspPresetForTrack(targetTrack.path);
+            const targetTrackPath = targetTrack?.absolutePath || targetTrack?.path || '';
+            if (!isDemoMode && targetTrackPath) {
+                const dspResult = await prepareDspPresetForTrack(targetTrackPath);
                 preparedDsp = Boolean(dspResult?.prepared);
                 if (dspResult?.success === false && dspResult.error) {
                     setStatusMessage('No se pudo preparar el DSP Preset; se iniciará la canción igualmente', new Error(dspResult.error));

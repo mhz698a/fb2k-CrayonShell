@@ -240,7 +240,7 @@ export default function App() {
     } = usePlaylist();
 
     const playingItem = items.find((item) => item.index === playingItemIndex) || null;
-    const playingTrackPath = playingItem?.path || '';
+    const playingTrackPath = playingItem?.absolutePath || playingItem?.path || '';
 
     useEffect(() => {
         if (playbackState !== 'stopped' && playingTrackPath && !isDemoMode) {

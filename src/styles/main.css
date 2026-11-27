@@ -3475,6 +3475,23 @@ button.play-btn {
     font-size: 12px;
 }
 
+/* Native select popups must use the same dark palette as the dialog. */
+.dsp-auto-preset select {
+    color-scheme: dark;
+    color: #e4e4e4;
+    background-color: #2d2d30;
+}
+
+.dsp-auto-preset select option {
+    color: #e4e4e4;
+    background-color: #2d2d30;
+}
+
+.dsp-auto-preset select option:checked {
+    color: #fff;
+    background-color: #075f95;
+}
+
 .dsp-auto-preset-default:focus,
 .dsp-auto-preset-rule input:focus,
 .dsp-auto-preset-rule select:focus {
