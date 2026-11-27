@@ -212,9 +212,12 @@ export default function WaveformSeekbar() {
             const duration = Number(currentSnapshot?.duration)
                 || Number(currentSnapshot?.waveform?.duration)
                 || 0;
+            const clockPosition = controller?.getPosition();
             const position = pointerRef.current
                 ? pointerRef.current.position
-                : controller?.getPosition() ?? Number(currentSnapshot?.position) || 0;
+                : Number.isFinite(clockPosition)
+                    ? clockPosition
+                    : Number(currentSnapshot?.position) || 0;
 
             drawWaveform(
                 canvasRef.current,
