@@ -60,3 +60,8 @@ La consola registra segmentos mediante `[CrayonShell Waveform Stage 2]`. El mét
 - La seekbar aún no dibuja segmentos, cursor ni tiempos.
 - La prioridad de reproducción solo cambia al cruzar segmentos o al producirse un seek/resync. La lectura fluida para el cursor debe usar `PlaybackClock.position()` directamente desde la futura capa visual.
 - La política LRU y el presupuesto global de la caché continúan pendientes.
+
+
+## Sincronización sin carreras
+
+El controlador registra los listeners antes de leer la pista inicial. Si foobar2000 cambia de canción durante esa lectura, la respuesta inicial se descarta y prevalece el evento más reciente. Al recibir un cambio de pista, cancela y limpia de inmediato el análisis anterior antes de resolver la nueva pista local; un error o una fuente no local no deja visible la waveform anterior como si perteneciera a la pista nueva.
