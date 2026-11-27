@@ -28,7 +28,7 @@ function createMemoryStorage(initial = {}) {
     };
 }
 
-test('registers six real providers in stable order and exports all current configuration areas', () => {
+test('registers seven real providers in stable order and exports all current configuration areas', () => {
     const storage = createMemoryStorage();
     const registry = createSettingsRegistry();
     registerCoreSettingsProviders(registry, storage);
@@ -48,7 +48,8 @@ test('registers six real providers in stable order and exports all current confi
         'external-tools',
         'yearbook.explorer',
         'refacets',
-        'spectrum'
+        'spectrum',
+        'waveform.cache'
     ]);
     assert.equal(backup.providers['core.ui'].settings.sidebar.width, 320);
     assert.equal(backup.providers['activitybar'].settings.version, 1);
@@ -189,18 +190,19 @@ test('is idempotent when the bootstrap is evaluated again', () => {
     registerCoreSettingsProviders(registry, storage);
 
     assert.doesNotThrow(() => registerCoreSettingsProviders(registry, storage));
-    assert.equal(registry.getProviders().length, 6);
+    assert.equal(registry.getProviders().length, 7);
 });
 
 test('provider factories are usable with injected storage without browser globals', () => {
     const providers = createCoreSettingsProviders(createMemoryStorage());
-    assert.equal(providers.length, 6);
+    assert.equal(providers.length, 7);
     assert.deepEqual(providers.map((provider) => provider.id), [
         'core.ui',
         'activitybar',
         'external-tools',
         'yearbook.explorer',
         'refacets',
-        'spectrum'
+        'spectrum',
+        'waveform.cache'
     ]);
 });

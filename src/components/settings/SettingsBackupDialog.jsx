@@ -213,7 +213,7 @@ export default function SettingsBackupDialog({ open, onClose }) {
                             <FaIcon name="download"/>
                             <div>
                                 <strong>Exportar configuración actual</strong>
-                                <span>Genera un archivo JSON con los seis proveedores registrados. No incluye cachés, logs ni estado temporal.</span>
+                                <span>Genera un archivo JSON con los ajustes persistentes registrados. No incluye archivos de caché, logs ni estado temporal.</span>
                             </div>
                         </div>
                         <button type="button" onClick={handleExport} disabled={busy}>

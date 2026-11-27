@@ -34,6 +34,11 @@ import {
     readYearbookExplorerSettings,
     writeYearbookExplorerSettings
 } from '../../yearbook/yearbookExplorerSettings.js';
+import {
+    normalizeWaveformCacheSettings,
+    readWaveformCacheSettings,
+    writeWaveformCacheSettings
+} from '../../waveform/waveformCacheSettings.js';
 
 function getStorage(storage) {
     return resolveSettingsStorage(storage);
@@ -144,6 +149,16 @@ export function createCoreSettingsProviders(storageOverride) {
             readSettings: () => readSpectrumSettings(storage),
             validateSettings: normalizeSpectrumSettings,
             applySettings: (value) => writeSpectrumSettings(value, storage)
+        },
+        {
+            id: 'waveform.cache',
+            label: 'Caché de waveform',
+            description: 'Presupuesto persistente de almacenamiento para segmentos y manifiestos de waveform.',
+            version: 1,
+            order: 70,
+            readSettings: () => readWaveformCacheSettings(storage),
+            validateSettings: normalizeWaveformCacheSettings,
+            applySettings: (value) => writeWaveformCacheSettings(value, storage)
         }
     ];
 }
