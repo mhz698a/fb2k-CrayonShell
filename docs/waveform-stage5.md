@@ -53,3 +53,7 @@ Durante la eliminación, el diálogo refleja los eventos `file:opProgress` como 
 - Los ajustes persistidos se cargan al crear el controlador waveform. La importación de un respaldo sigue requiriendo recargar CrayonShell, como los demás ajustes restaurados.
 - No existe bloqueo interproceso para dos paneles WebView2 modificando simultáneamente el mismo perfil. El índice global sigue siendo reconstruible y los manifiestos individuales continúan siendo la fuente de verdad.
 - El inventario corresponde al perfil de foobar2000 al que está conectado el panel actual.
+
+## Validación
+
+Las pruebas manuales de administración de caché en foobar2000 fueron completadas y reportadas como correctas. La validación automatizada de la etapa 6 registra 158 pruebas aprobadas y compilación de producción correcta.
