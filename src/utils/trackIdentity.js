@@ -7,7 +7,7 @@ function decodePath(value) {
 }
 
 function splitSubsongSuffix(value) {
-    const match = value.match(/\\|subsong:(\\d+)$/i);
+    const match = value.match(/\|subsong:(\d+)$/i);
     return match
         ? { path: value.slice(0, match.index), subsong: Number(match[1]) }
         : { path: value, subsong: null };
