@@ -436,8 +436,8 @@ export class WaveformCacheManager {
             return { successCount: 0, failureCount: 0, skippedCount: 0, deletedPaths: [] };
         }
 
-        const progressEvents = [];
-        let completion = null;
+        const progressBatches = [];
+        const completionEvents = [];
         let expectedOperationId = null;
         let resolveCompletion;
         let rejectCompletion;
@@ -448,14 +448,16 @@ export class WaveformCacheManager {
             rejectCompletion = reject;
         });
         const onProgress = payload => {
-            if (payload?.operationId === expectedOperationId) {
-                progressEvents.push(...(Array.isArray(payload.results) ? payload.results : []));
+            if (!expectedOperationId || payload?.operationId === expectedOperationId) {
+                progressBatches.push(payload);
             }
         };
         const onComplete = payload => {
             if (!expectedOperationId || payload?.operationId === expectedOperationId) {
-                completion = payload;
-                if (expectedOperationId) resolveCompletion(payload);
+                completionEvents.push(payload);
+                if (expectedOperationId && payload?.operationId === expectedOperationId) {
+                    resolveCompletion(payload);
+                }
             }
         };
 
@@ -478,16 +480,11 @@ export class WaveformCacheManager {
                 throw new Error('La limpieza waveform no devolvió un identificador de operación.');
             }
 
-            for (const payload of progressEvents) {
-                if (payload?.operationId === expectedOperationId) {
-                    // The operation id is assigned after the dispatch receipt; this is kept
-                    // for SDK implementations that emit progress while resolving the call.
-                    progressEvents.push(...(Array.isArray(payload.results) ? payload.results : []));
-                }
-            }
-
-            if (completion?.operationId === expectedOperationId) {
-                resolveCompletion(completion);
+            const earlyCompletion = completionEvents.find(
+                payload => payload?.operationId === expectedOperationId
+            );
+            if (earlyCompletion) {
+                resolveCompletion(earlyCompletion);
             } else {
                 timeoutId = setTimeout(() => {
                     rejectCompletion(new Error('La limpieza de caché waveform no confirmó su finalización.'));
@@ -495,7 +492,9 @@ export class WaveformCacheManager {
             }
 
             const final = await completionPromise;
-            const successfulPaths = progressEvents
+            const successfulPaths = progressBatches
+                .filter(batch => batch?.operationId === expectedOperationId)
+                .flatMap(batch => Array.isArray(batch.results) ? batch.results : [])
                 .filter(item => item?.status === 'ok' && typeof item.source === 'string')
                 .map(item => item.source.toLowerCase());
             return {
