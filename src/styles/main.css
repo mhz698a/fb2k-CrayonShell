@@ -5,7 +5,7 @@
     --accent-color: #007acc;
     --activitybar-width: 52px;
     --sidebar-width: 250px;
-    --waveform-seekbar-height: 34px;
+    --waveform-seekbar-height: 25px;
 }
 
 html {
@@ -2920,7 +2920,7 @@ button.play-btn {
     width: 100%;
     min-width: 0;
     min-height: calc(var(--waveform-seekbar-height, 34px) + 10px);
-    padding: 5px 11px;
+    padding: 0px 8px;
     background: #222224;
     border-top: 1px solid rgba(128, 128, 128, .28);
 }
@@ -2939,7 +2939,7 @@ button.play-btn {
 
 .waveform-seekbar-current {
     justify-content: flex-start;
-    min-width: 52px;
+    min-width: 30px;
 }
 
 .waveform-seekbar-end {
