@@ -27,7 +27,7 @@ function formatMaintenanceDate(value) {
     return new Date(timestamp).toLocaleString();
 }
 
-export default function WaveformCacheSettingsDialog({ open, cacheActions, onClose }) {
+export default function WaveformCacheSettingsDialog({ open, cacheActions, progress, onClose }) {
     const dialogRef = useRef(null);
     const [budgetMiB, setBudgetMiB] = useState(String(
         Math.round(readWaveformCacheSettings().maxBytes / MEBIBYTE)
@@ -321,9 +321,30 @@ export default function WaveformCacheSettingsDialog({ open, cacheActions, onClos
                     </section>
 
                     {busy && (
-                        <p className="waveform-cache-feedback" role="status">
-                            <FaIcon name="refresh"/> Operación en curso. La interfaz de reproducción permanece disponible.
-                        </p>
+                        <div className="waveform-cache-progress" role="status">
+                            <span>
+                                <FaIcon name="refresh"/>
+                                {progress?.phase === 'deleting' && Number(progress.total) > 0
+                                    ? 'Eliminando archivos: ' + Math.min(Number(progress.done) || 0, Number(progress.total))
+                                        + ' de ' + Number(progress.total) + '.'
+                                    : 'Operación en curso. La interfaz de reproducción permanece disponible.'}
+                            </span>
+                            {progress?.phase === 'deleting' && Number(progress.total) > 0 && (
+                                <div
+                                    className="waveform-cache-meter"
+                                    role="progressbar"
+                                    aria-label="Progreso de eliminación de caché"
+                                    aria-valuemin={0}
+                                    aria-valuemax={Number(progress.total)}
+                                    aria-valuenow={Math.min(Number(progress.done) || 0, Number(progress.total))}
+                                >
+                                    <span style={{
+                                        width: (Math.min(Number(progress.done) || 0, Number(progress.total))
+                                            / Number(progress.total) * 100) + '%'
+                                    }} />
+                                </div>
+                            )}
+                        </div>
                     )}
                     {error && <p className="waveform-cache-feedback is-error" role="alert">{error}</p>}
                     {message && <p className="waveform-cache-feedback" role="status">{message}</p>}
