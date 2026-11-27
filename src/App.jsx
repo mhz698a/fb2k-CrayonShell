@@ -561,7 +561,7 @@ export default function App() {
                     fileMetadataLoading={windowsFileMetadataLoading}
                     fileMetadataError={windowsFileMetadataError}
                 />
-                </div>
+            </div>
             <WaveformSeekbar />
         </div>
     );
