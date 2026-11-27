@@ -1,16 +1,25 @@
 import { getFooSdk } from '../fooSdk.js';
 import { WaveformEngine } from './waveformEngine.js';
 
+function getNativeTrackPath(track) {
+    const candidates = [track?.handle, track?.absolutePath, track?.path]
+        .map(value => String(value || '').trim())
+        .filter(Boolean);
+
+    return candidates.find((candidate) => {
+        const path = candidate.replace(/\|subsong:\d+$/i, '');
+        return /^[a-z]:\\/i.test(path) || /^\\\\[^\\]+\\[^\\]+/.test(path);
+    }) || '';
+}
+
 function isUsableLocalTrack(track) {
-    const path = String(track?.absolutePath || '').trim();
+    const path = getNativeTrackPath(track);
     const mediaPath = path.replace(/\|subsong:\d+$/i, '');
-    const isWindowsPath = /^[a-z]:\\/i.test(mediaPath)
-        || /^\\\\[^\\]+\\[^\\]+/.test(mediaPath);
     const isAudioPath = /\.(?:aac|aif|aiff|alac|ape|dff|dsf|flac|m4a|m4b|mka|mp3|mpc|oga|ogg|opus|tak|tta|wav|wave|wma|wv)$/i.test(mediaPath);
 
     return Boolean(
         track
-        && isWindowsPath
+        && path
         && isAudioPath
         && Number.isFinite(Number(track.duration))
         && Number(track.duration) > 0
@@ -293,12 +302,16 @@ export class WaveformPlaybackController {
                 return { available: false };
             }
 
-            const result = await this.engine.setTrack(resolvedTrack, this.getPosition());
+            const nativePath = getNativeTrackPath(resolvedTrack);
+            const waveformTrack = resolvedTrack.absolutePath === nativePath
+                ? resolvedTrack
+                : { ...resolvedTrack, absolutePath: nativePath };
+            const result = await this.engine.setTrack(waveformTrack, this.getPosition());
             if (revision !== this.trackRevision || !this.started || result?.cancelled) {
                 return { cancelled: true };
             }
 
-            this.currentTrack = resolvedTrack;
+            this.currentTrack = waveformTrack;
             this.trackKey = result.trackKey || null;
             this.lastPrioritySegment = this._getPrioritySegment(
                 this.getPosition(),
