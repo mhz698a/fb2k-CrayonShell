@@ -6,7 +6,8 @@ export default function ActivityBar({
     buttons = [],
     actionCatalog = [],
     onExecuteAction,
-    onOpenSettingsBackup
+    onOpenSettingsBackup,
+    onOpenWaveformCacheSettings
 }) {
     const actionMap = new Map(actionCatalog.map((action) => [action.id, action]));
     const managerAction = actionMap.get('activitybar.manage');
@@ -58,6 +59,17 @@ export default function ActivityBar({
                     onClick={() => onOpenSettingsBackup?.()}
                 >
                     <FaIcon name="archive"/>
+                </button>
+                <button
+                    id="WaveformCacheSettings"
+                    className="activitybar-button"
+                    type="button"
+                    aria-label="Administrar caché de waveform"
+                    aria-haspopup="dialog"
+                    title="Administrar caché de waveform"
+                    onClick={() => onOpenWaveformCacheSettings?.()}
+                >
+                    <FaIcon name="database"/>
                 </button>
                 <button
                     id="ActivityBarManager"
