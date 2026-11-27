@@ -290,15 +290,13 @@ export class WaveformCacheManager {
         for (const index of indexes) {
             const path = joinWindowsPath(rootPath, getSegmentName(key, index));
             let sizeBytes = getManifestSegmentBytes(manifest, index);
-            if (typeof this.sdk.file.getInfo === 'function') {
+            if (sizeBytes === null && typeof this.sdk.file.getInfo === 'function') {
                 const info = assertSuccess(
                     await this.sdk.file.getInfo(path),
                     'No se pudo consultar el tamaño de un segmento waveform'
                 );
                 if (info?.exists !== true || info?.isFile !== true) continue;
-                if (sizeBytes === null || sizeBytes !== Number(info.size)) {
-                    sizeBytes = Number(info.size) || 0;
-                }
+                sizeBytes = Number(info.size) || 0;
             }
             segments.push({ index, sizeBytes: sizeBytes ?? 0 });
         }
