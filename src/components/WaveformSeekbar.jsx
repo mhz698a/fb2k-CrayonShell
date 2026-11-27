@@ -306,11 +306,9 @@ export default function WaveformSeekbar() {
 
     const finishPointerSeek = (event, shouldSeek) => {
         if (!pointerRef.current || pointerRef.current.pointerId !== event.pointerId) return;
-        const position = getPointerPosition(event);
+        const pointerPosition = getPointerPosition(event);
         pointerRef.current = null;
         setIsDragging(false);
-        setPreviewPosition(position);
-        setDisplayPosition(position);
 
         try {
             if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -320,6 +318,11 @@ export default function WaveformSeekbar() {
             // Releasing an already lost capture is harmless.
         }
 
+        const position = shouldSeek
+            ? pointerPosition
+            : controllerRef.current?.getPosition() || 0;
+        setPreviewPosition(position);
+        setDisplayPosition(position);
         if (shouldSeek) void seekTo(position);
     };
 
