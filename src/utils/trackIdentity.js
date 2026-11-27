@@ -109,15 +109,16 @@ export function resolvePlayingTrackIndex({
             const itemPath = getTrackPath(indexedItem);
             const currentPath = getTrackPath(currentTrack);
 
-            const handleConflict = itemHandle && currentHandle && itemHandle !== currentHandle;
-            const pathConflict = itemPath && currentPath && !trackPathsMatch(
-                itemPath,
-                currentPath,
-                indexedItem.subsong,
-                currentTrack.subsong
-            );
+            const identityConflict = itemPath && currentPath
+                ? !trackPathsMatch(
+                    itemPath,
+                    currentPath,
+                    indexedItem.subsong,
+                    currentTrack.subsong
+                )
+                : itemHandle && currentHandle && itemHandle !== currentHandle;
 
-            if (!handleConflict && !pathConflict) return indexedItem.index;
+            if (!identityConflict) return indexedItem.index;
         }
     }
 
