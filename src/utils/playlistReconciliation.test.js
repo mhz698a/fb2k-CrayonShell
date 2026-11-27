@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
     reconcilePlaylistItems,
     resolveInitialSelectionIndex,
+    resolvePinnedSelectionIndex,
     shouldIgnorePinnedFocusChange
 } from './playlistReconciliation.js';
 
@@ -167,4 +168,30 @@ test('does not block focus changes after the pin is released or on another playl
         playlistGuid: 'another',
         nextIndex: 0
     }), false);
+});
+
+test('keeps the pinned selection attached to its track after reordering', () => {
+    const pinnedSelection = {
+        playlistGuid: 'active',
+        identity: 'track-c',
+        index: 2
+    };
+    const reordered = [
+        track(0, 'track-a'),
+        track(1, 'track-c'),
+        track(2, 'track-b')
+    ];
+
+    assert.equal(resolvePinnedSelectionIndex(reordered, pinnedSelection, 'active'), 1);
+    assert.equal(resolvePinnedSelectionIndex(reordered, pinnedSelection, 'other'), -1);
+});
+
+test('returns no pinned index after the pinned track is removed', () => {
+    const pinnedSelection = {
+        playlistGuid: 'active',
+        identity: 'track-c',
+        index: 2
+    };
+
+    assert.equal(resolvePinnedSelectionIndex([track(0, 'track-a')], pinnedSelection, 'active'), -1);
 });
