@@ -211,6 +211,13 @@ export class WaveformEngine {
         return this.cacheManager.clearInactive();
     }
 
+    setCacheMaxBytes(maxBytes) {
+        if (!this.cacheManager || typeof this.cacheManager.setMaxBytes !== 'function') {
+            return Promise.reject(new Error('La administración de presupuesto de caché no está disponible.'));
+        }
+        return this.cacheManager.setMaxBytes(maxBytes);
+    }
+
     maintainCache(options = {}) {
         if (!this.cacheManagerEnabled || !this.cacheManager) {
             return Promise.resolve(this.getCacheSnapshot());
