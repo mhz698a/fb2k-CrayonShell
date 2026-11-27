@@ -157,6 +157,7 @@ test('start loads the current track using the PlaybackClock position', async () 
     assert.equal(snapshot.trackKey, 'c:\\music\\first.flac');
     assert.equal(snapshot.position, 17.5);
     assert.equal(snapshot.playbackState, 'playing');
+    assert.equal(snapshot.canSeek, true);
     controller.dispose();
 });
 
