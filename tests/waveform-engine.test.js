@@ -712,3 +712,33 @@ test('manual cache cleanup removes inactive tracks but keeps the active track', 
     assert.equal(storage.files.has(active.manifestPath), true);
     assert.equal(storage.files.has(active.segmentPath), true);
 });
+
+
+test('cache manager updates the storage budget and keeps the active track when evicting', async () => {
+    const storage = makeMemorySdk('D:\\\\Profiles\\\\Budget');
+    const manager = new WaveformCacheManager({
+        sdk: storage.sdk,
+        maxBytes: 1024 * 1024,
+        maintenanceIntervalMs: 0
+    });
+    const initial = await manager.initialize();
+    const inactiveKey = '0000000000000055';
+    const activeKey = '0000000000000066';
+    const inactive = seedCacheEntry(storage, initial.root, inactiveKey, 1000, 512);
+    const active = seedCacheEntry(storage, initial.root, activeKey, 2000, 512);
+
+    await manager.maintain({ force: true, activeTrackKey: activeKey });
+    const result = await manager.setMaxBytes(128);
+
+    assert.equal(result.maxBytes, 128);
+    assert.equal(result.evictedTracks, 1);
+    assert.equal(result.cachedTracks, 1);
+    assert.equal(result.entries[0].key, activeKey);
+    assert.equal(result.overBudget, true);
+    assert.equal(storage.files.has(inactive.manifestPath), false);
+    assert.equal(storage.files.has(inactive.segmentPath), false);
+    assert.equal(storage.files.has(active.manifestPath), true);
+    assert.equal(storage.files.has(active.segmentPath), true);
+
+    await assert.rejects(manager.setMaxBytes(0), /entero positivo/);
+});
