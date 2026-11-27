@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     reconcilePlaylistItems,
-    resolveInitialSelectionIndex
+    resolveInitialSelectionIndex,
+    shouldIgnorePinnedFocusChange
 } from './playlistReconciliation.js';
 
 const track = (index, handle, title = handle) => ({
@@ -136,4 +137,34 @@ test('restores saved focus when playback is stopped or outside the playlist', ()
         focusedIndex: 0,
         itemCount: 10
     }), 0);
+});
+
+test('ignores delayed native focus changes that conflict with the restored playing row', () => {
+    const pinnedSelection = { playlistGuid: 'active', identity: 'track-8', index: 8 };
+
+    assert.equal(shouldIgnorePinnedFocusChange({
+        pinnedSelection,
+        playlistGuid: 'active',
+        nextIndex: 0
+    }), true);
+    assert.equal(shouldIgnorePinnedFocusChange({
+        pinnedSelection,
+        playlistGuid: 'active',
+        nextIndex: 8
+    }), false);
+});
+
+test('does not block focus changes after the pin is released or on another playlist', () => {
+    const pinnedSelection = { playlistGuid: 'active', identity: 'track-8', index: 8 };
+
+    assert.equal(shouldIgnorePinnedFocusChange({
+        pinnedSelection: null,
+        playlistGuid: 'active',
+        nextIndex: 0
+    }), false);
+    assert.equal(shouldIgnorePinnedFocusChange({
+        pinnedSelection,
+        playlistGuid: 'another',
+        nextIndex: 0
+    }), false);
 });
