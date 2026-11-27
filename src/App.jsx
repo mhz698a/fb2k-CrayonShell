@@ -493,7 +493,6 @@ export default function App() {
                         onExecuteAction={executeActivityBarAction}
                     />
 
-                    {contentView === 'playlist' && <WaveformSeekbar />}
 
                     {isDemoMode && (
                         <div className="demo-notice">
@@ -527,6 +526,7 @@ export default function App() {
                     </div>
 
                     <PlaylistStatus message={status} />
+                    <WaveformSeekbar />
                 </section>
             </main>
 
