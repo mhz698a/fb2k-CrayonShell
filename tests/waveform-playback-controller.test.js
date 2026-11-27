@@ -382,3 +382,19 @@ test('resolves a native track path from handle before a file URL path', async ()
     assert.equal(controller.getSnapshot().trackPath, track.handle);
     controller.dispose();
 });
+
+
+test('PlaybackClock state remains usable when getState is unavailable', async () => {
+    const sdk = createFakeSdk(createTrack('clock-fallback'), {
+        getState: async () => {
+            throw new Error('state query temporarily unavailable');
+        }
+    });
+    const { controller } = createController({ sdk });
+
+    const snapshot = await controller.start();
+
+    assert.equal(snapshot.playbackState, 'playing');
+    assert.equal(snapshot.canSeek, false);
+    controller.dispose();
+});
