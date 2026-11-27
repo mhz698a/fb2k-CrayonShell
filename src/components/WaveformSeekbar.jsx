@@ -334,7 +334,7 @@ export default function WaveformSeekbar() {
                 <span className="waveform-seekbar-track" title={title}>
                     {title || 'Waveform'}
                 </span>
-                <span className="waveform-seekbar-status" title={statusText}>
+                <span className={'waveform-seekbar-status' + (error ? ' is-error' : '')} title={statusText}>
                     {statusText}
                 </span>
             </div>
