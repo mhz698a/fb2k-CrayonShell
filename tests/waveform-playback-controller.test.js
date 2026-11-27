@@ -99,10 +99,22 @@ function createFakeEngine() {
 
 function createFakeSdk(initialTrack, options = {}) {
     const listeners = new Map();
+    const seekCalls = [];
     const sdk = {
         player: {
             getCurrentTrack: options.getCurrentTrack
-                || (async () => ({ success: true, found: Boolean(initialTrack), track: initialTrack }))
+                || (async () => ({ success: true, found: Boolean(initialTrack), track: initialTrack })),
+            getState: options.getState
+                || (async () => ({
+                    success: true,
+                    state: 'playing',
+                    canPause: true,
+                    canSeek: true
+                })),
+            async seek(position) {
+                seekCalls.push(position);
+                return { success: true, requested: position, position };
+            }
         },
         on(eventName, handler) {
             if (!listeners.has(eventName)) listeners.set(eventName, new Set());
@@ -114,7 +126,8 @@ function createFakeSdk(initialTrack, options = {}) {
         },
         listenerCount() {
             return [...listeners.values()].reduce((total, set) => total + set.size, 0);
-        }
+        },
+        seekCalls
     };
     return sdk;
 }
@@ -269,5 +282,61 @@ test('start reports an explicit error when the SDK does not expose PlaybackClock
     });
 
     await assert.rejects(controller.start(), /PlaybackClock unavailable/);
+    controller.dispose();
+});
+
+
+test('seek delegates to the host, clamps to duration and resynchronizes PlaybackClock', async () => {
+    const { controller, sdk, getClock } = createController({ position: 12 });
+    const clock = getClock();
+    let resyncCalls = 0;
+    const originalResync = clock.resync.bind(clock);
+    clock.resync = async () => {
+        resyncCalls += 1;
+        return originalResync();
+    };
+
+    await controller.start();
+    const result = await controller.seek(130);
+
+    assert.deepEqual(sdk.seekCalls, [100]);
+    assert.equal(result.position, 100);
+    assert.equal(resyncCalls, 1);
+    controller.dispose();
+});
+
+test('seek refuses when the active track is reported as non-seekable', async () => {
+    const sdk = createFakeSdk(createTrack('stream'), {
+        getState: async () => ({
+            success: true,
+            state: 'playing',
+            canPause: true,
+            canSeek: false
+        })
+    });
+    const { controller } = createController({ sdk });
+
+    await controller.start();
+    await assert.rejects(controller.seek(20), (error) => error.code === 'NOT_SUPPORTED');
+    assert.deepEqual(sdk.seekCalls, []);
+    controller.dispose();
+});
+
+test('stateChanged updates canSeek without discarding the current waveform', async () => {
+    const { controller, sdk, engine } = createController();
+    await controller.start();
+
+    sdk.emit('playback:stateChanged', {
+        state: 'paused',
+        canSeek: true,
+        duration: 100,
+        position: 12,
+        hostTime: Date.now()
+    });
+
+    assert.equal(controller.getSnapshot().canSeek, true);
+    assert.equal(controller.getSnapshot().playbackState, 'paused');
+    assert.ok(controller.getSnapshot().trackKey);
+    assert.equal(engine.clearCalls, 0);
     controller.dispose();
 });
