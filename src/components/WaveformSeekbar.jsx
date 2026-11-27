@@ -4,7 +4,8 @@ import { WaveformPlaybackController } from '../services/waveform/waveformPlaybac
 import {
     clampWaveformPosition,
     formatWaveformTime,
-    getWaveformPositionFromPointer
+    getWaveformPositionFromPointer,
+    getWaveformTimeLabels
 } from '../services/waveform/waveformDisplay.js';
 
 function drawWaveform(canvas, segmentMap, duration, position, accentColor) {
@@ -73,9 +74,13 @@ function drawWaveform(canvas, segmentMap, duration, position, accentColor) {
 function getStatusText(snapshot, error, isSeeking) {
     if (isSeeking) return 'Buscando…';
     if (error) return error;
-
     if (!snapshot?.started) return 'Conectando con foobar2000…';
-    if (!snapshot.trackKey) return 'Reproduce un archivo de audio local';
+    if (!snapshot.trackPath) return 'No hay una pista cargada.';
+    if (!snapshot.trackKey) {
+        return snapshot.canSeek
+            ? 'No hay PCM disponible. La seekbar continúa habilitada.'
+            : 'No hay PCM disponible para esta pista.';
+    }
     if (snapshot.waveform?.status === 'complete') return 'Análisis completo';
     if (snapshot.waveform?.status === 'partial') return 'Análisis parcial';
 
@@ -239,7 +244,7 @@ export default function WaveformSeekbar() {
         let frameId = 0;
         let running = true;
         const shouldAnimate = Boolean(
-            (snapshot?.trackKey && snapshot.playbackState === 'playing')
+            (Number(snapshot?.duration) > 0 && snapshot.playbackState === 'playing')
             || isDragging
             || isSeeking
         );
@@ -293,8 +298,8 @@ export default function WaveformSeekbar() {
     const currentPosition = isDragging || isSeeking
         ? previewPosition
         : clampWaveformPosition(displayPosition, currentDuration);
-    const canSeek = Boolean(snapshot?.trackKey && snapshot?.canSeek && currentDuration > 0);
-    const title = [snapshot?.trackTitle, snapshot?.trackArtist].filter(Boolean).join(' — ');
+    const canSeek = Boolean(snapshot?.canSeek && currentDuration > 0);
+    const timeLabels = getWaveformTimeLabels(currentPosition, currentDuration);
     const statusText = getStatusText(snapshot, error, isSeeking);
 
     const getPointerPosition = (event) => {
@@ -371,19 +376,10 @@ export default function WaveformSeekbar() {
     };
 
     return (
-        <div className="waveform-seekbar">
-            <div className="waveform-seekbar-heading">
-                <div className="waveform-seekbar-time">
-                    <span>{formatWaveformTime(currentPosition)}</span>
-                    <span>{formatWaveformTime(currentDuration)}</span>
-                </div>
-                <span className="waveform-seekbar-track" title={title}>
-                    {title || 'Waveform'}
-                </span>
-                <span className={'waveform-seekbar-status' + (error ? ' is-error' : '')} title={statusText}>
-                    {statusText}
-                </span>
-            </div>
+        <div className="waveform-seekbar" role="group" aria-label="Controles de posición de reproducción">
+            <span className="waveform-seekbar-time waveform-seekbar-current">
+                {timeLabels.current}
+            </span>
             <canvas
                 ref={canvasRef}
                 className={'waveform-seekbar-canvas' + (canSeek ? ' is-seekable' : '')}
@@ -392,15 +388,25 @@ export default function WaveformSeekbar() {
                 aria-valuemin={0}
                 aria-valuemax={currentDuration}
                 aria-valuenow={currentPosition}
-                aria-valuetext={formatWaveformTime(currentPosition) + ' de ' + formatWaveformTime(currentDuration)}
+                aria-valuetext={
+                    timeLabels.current + ' transcurridos, '
+                    + timeLabels.remaining + ' restantes, duración total '
+                    + timeLabels.total
+                }
                 aria-disabled={!canSeek}
                 tabIndex={canSeek ? 0 : -1}
+                title={statusText}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={(event) => finishPointerSeek(event, true)}
                 onPointerCancel={(event) => finishPointerSeek(event, false)}
                 onKeyDown={handleKeyDown}
             />
+            <div className="waveform-seekbar-time waveform-seekbar-end">
+                <span className="waveform-seekbar-remaining">−{timeLabels.remaining}</span>
+                <span className="waveform-seekbar-time-separator">/</span>
+                <span className="waveform-seekbar-duration">{timeLabels.total}</span>
+            </div>
         </div>
     );
 }
