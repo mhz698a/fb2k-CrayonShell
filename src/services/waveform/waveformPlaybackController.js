@@ -162,7 +162,7 @@ export class WaveformPlaybackController {
         return {
             started: this.started,
             disposed: this.disposed,
-            playbackState: this.clock?.state || this.playbackState || 'stopped',
+            playbackState: this.playbackState || this.clock?.state || 'stopped',
             canSeek: this.canSeek,
             position: this.getPosition(),
             duration: clockDuration > 0 ? clockDuration : waveform.duration,
