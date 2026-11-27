@@ -3,6 +3,7 @@ import ActivityBar from './components/activitybar/ActivityBar.jsx';
 import ActivityBarManagerDialog from './components/activitybar/ActivityBarManagerDialog.jsx';
 import ExternalToolsDialog from './components/activitybar/ExternalToolsDialog.jsx';
 import SettingsBackupDialog from './components/settings/SettingsBackupDialog.jsx';
+import WaveformCacheSettingsDialog from './components/settings/WaveformCacheSettingsDialog.jsx';
 import { useExternalToolsConfig } from './features/activitybar/hooks/useExternalToolsConfig.js';
 import { useActivityBarConfig } from './features/activitybar/hooks/useActivityBarConfig.js';
 import { useActivityBarActions } from './features/activitybar/hooks/useActivityBarActions.js';
@@ -78,6 +79,8 @@ export default function App() {
     const [activityBarManagerOpen, setActivityBarManagerOpen] = useState(false);
     const [externalToolsSettingsOpen, setExternalToolsSettingsOpen] = useState(false);
     const [settingsBackupOpen, setSettingsBackupOpen] = useState(false);
+    const [waveformCacheSettingsOpen, setWaveformCacheSettingsOpen] = useState(false);
+    const [waveformCacheActions, setWaveformCacheActions] = useState(null);
     const { config: externalToolsConfig, saveConfig: saveExternalToolsConfig } = useExternalToolsConfig();
     const {
         config: activityBarConfig,
@@ -138,6 +141,18 @@ export default function App() {
 
     const closeSettingsBackup = useCallback(() => {
         setSettingsBackupOpen(false);
+    }, []);
+
+    const openWaveformCacheSettings = useCallback(() => {
+        setWaveformCacheSettingsOpen(true);
+    }, []);
+
+    const closeWaveformCacheSettings = useCallback(() => {
+        setWaveformCacheSettingsOpen(false);
+    }, []);
+
+    const handleWaveformCacheActionsChange = useCallback((actions) => {
+        setWaveformCacheActions(actions);
     }, []);
 
     const reportActivityActionError = useCallback((failure) => {
@@ -408,6 +423,7 @@ export default function App() {
                     actionCatalog={activityBarActionCatalog}
                     onExecuteAction={executeActivityBarAction}
                     onOpenSettingsBackup={openSettingsBackup}
+                    onOpenWaveformCacheSettings={openWaveformCacheSettings}
                 />
 
                 <ExternalToolsDialog
@@ -419,6 +435,11 @@ export default function App() {
                 <SettingsBackupDialog
                     open={settingsBackupOpen}
                     onClose={closeSettingsBackup}
+                />
+                <WaveformCacheSettingsDialog
+                    open={waveformCacheSettingsOpen}
+                    cacheActions={waveformCacheActions}
+                    onClose={closeWaveformCacheSettings}
                 />
                 <ActivityBarManagerDialog
                     open={activityBarManagerOpen}
@@ -562,7 +583,7 @@ export default function App() {
                     fileMetadataError={windowsFileMetadataError}
                 />
             </div>
-            <WaveformSeekbar />
+            <WaveformSeekbar onCacheControllerChange={handleWaveformCacheActionsChange} />
         </div>
     );
 }
