@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
     clampWaveformPosition,
     formatWaveformTime,
-    getWaveformPositionFromPointer
+    getWaveformPositionFromPointer,
+    getWaveformTimeLabels
 } from '../src/services/waveform/waveformDisplay.js';
 
 test('formats normal durations as mm:ss', () => {
@@ -36,4 +37,26 @@ test('converts pointer coordinates to a bounded track position', () => {
 test('returns safe defaults for invalid pointer geometry', () => {
     assert.equal(getWaveformPositionFromPointer(100, { left: 0, width: 0 }, 200), 0);
     assert.equal(getWaveformPositionFromPointer(100, { left: 0, width: 100 }, 0), 0);
+});
+
+
+test('provides elapsed, remaining and total time labels for one seekbar row', () => {
+    assert.deepEqual(getWaveformTimeLabels(65, 240), {
+        current: '01:05',
+        remaining: '02:55',
+        total: '04:00'
+    });
+    assert.deepEqual(getWaveformTimeLabels(400, 240), {
+        current: '04:00',
+        remaining: '00:00',
+        total: '04:00'
+    });
+});
+
+test('formats waveform time labels for video-length media', () => {
+    assert.deepEqual(getWaveformTimeLabels(3661, 7322), {
+        current: '1:01:01',
+        remaining: '1:01:01',
+        total: '2:02:02'
+    });
 });
