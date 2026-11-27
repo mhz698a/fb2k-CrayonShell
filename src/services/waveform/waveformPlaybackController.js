@@ -57,6 +57,31 @@ function getClockPosition(clock) {
     return Number.isFinite(position) && position > 0 ? position : 0;
 }
 
+function createUnavailableWaveformEngine(error) {
+    return {
+        async setTrack() {
+            throw error;
+        },
+        setPosition() {
+            return false;
+        },
+        getSnapshot() {
+            return {
+                trackKey: null,
+                duration: 0,
+                segmentSeconds: 0,
+                completedSegments: 0,
+                totalSegments: 0,
+                status: 'unavailable',
+                lastError: error?.message || String(error)
+            };
+        },
+        clear() {},
+        dispose() {}
+    };
+}
+
+
 export class WaveformPlaybackController {
     constructor(options = {}) {
         this.sdk = options.sdk || getFooSdk();
@@ -74,10 +99,19 @@ export class WaveformPlaybackController {
             onState: (state) => this._emit('waveform-state', state),
             onError: (error, context) => this._reportError(error, context)
         };
-        this.engine = options.engine
-            || (typeof options.engineFactory === 'function'
-                ? options.engineFactory(engineOptions)
-                : new WaveformEngine(engineOptions));
+        if (options.engine) {
+            this.engine = options.engine;
+        } else {
+            try {
+                this.engine = typeof options.engineFactory === 'function'
+                    ? options.engineFactory(engineOptions)
+                    : new WaveformEngine(engineOptions);
+            } catch (error) {
+                // Playback and seeking must remain available when PCM waveform
+                // support is missing or the engine cannot be initialized.
+                this.engine = createUnavailableWaveformEngine(error);
+            }
+        }
 
         this.clockFactory = options.clockFactory || ((sdk) => {
             if (typeof sdk.PlaybackClock !== 'function') {
