@@ -157,7 +157,8 @@ export function resolveActivatedPlaylistGuid(payload = {}, playlists = []) {
 }
 
 /**
- * Focus events identify their playlist by numeric playlist index, not by GUID.
+ * Focus events provide both a stable playlist GUID and a numeric playlist index.
+ * Prefer the GUID; use the index only as a compatibility fallback.
  */
 export function resolvePlaylistGuidFromEvent(payload = {}, playlists = []) {
     const explicitGuid = payload.playlistGuid || payload.newGuid;

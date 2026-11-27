@@ -234,3 +234,13 @@ test('resolves focus-change events that identify their playlist by numeric index
     }, [{ index: 0, guid: 'playlist-a' }, { index: 1, guid: 'playlist-b' }]), 'playlist-b');
     assert.equal(resolvePlaylistGuidFromEvent({ playlist: -1 }, []), '');
 });
+
+
+test('prefers the stable playlist GUID when a focus event also includes an index', () => {
+    assert.equal(resolvePlaylistGuidFromEvent({
+        playlist: 0,
+        playlistGuid: 'playlist-b',
+        from: 1,
+        to: 8
+    }, [{ index: 0, guid: 'playlist-a' }]), 'playlist-b');
+});
