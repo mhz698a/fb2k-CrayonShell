@@ -48,13 +48,22 @@ export function normalizeTrackPath(value) {
     };
 }
 
-export function trackPathsMatch(left, right) {
+function normalizeSubsong(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const subsong = Number(value);
+    return Number.isInteger(subsong) && subsong >= 0 ? subsong : null;
+}
+
+export function trackPathsMatch(left, right, leftSubsong = null, rightSubsong = null) {
     const normalizedLeft = normalizeTrackPath(left);
     const normalizedRight = normalizeTrackPath(right);
 
     if (!normalizedLeft.path || normalizedLeft.path !== normalizedRight.path) return false;
-    if (normalizedLeft.subsong !== null && normalizedRight.subsong !== null) {
-        return normalizedLeft.subsong === normalizedRight.subsong;
+
+    const subsongLeft = normalizedLeft.subsong ?? normalizeSubsong(leftSubsong);
+    const subsongRight = normalizedRight.subsong ?? normalizeSubsong(rightSubsong);
+    if (subsongLeft !== null && subsongRight !== null) {
+        return subsongLeft === subsongRight;
     }
     return true;
 }
@@ -107,7 +116,12 @@ export function resolvePlayingTrackIndex({
     if (!currentPath) return -1;
 
     const pathMatch = items.find((item) =>
-        trackPathsMatch(item.absolutePath || item.path, currentPath)
+        trackPathsMatch(
+            item.absolutePath || item.path,
+            currentPath,
+            item.subsong,
+            currentTrack.subsong
+        )
     );
     return pathMatch ? pathMatch.index : -1;
 }
