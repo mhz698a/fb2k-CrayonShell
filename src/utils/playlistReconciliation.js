@@ -70,8 +70,17 @@ export function reconcilePlaylistItems({
 
         const hydrated = hydratedByIndex.get(index);
         if (!hydrated) {
-            throw new Error('No se recibieron los datos de la nueva pista en la fila ' + index + '.');
+            const error = new Error('No se recibieron los datos de la nueva pista en la fila ' + index + '.');
+            error.code = 'STALE_SNAPSHOT';
+            throw error;
         }
+
+        if (identity && getTrackIdentity(hydrated) !== identity) {
+            const error = new Error('La pista cambió durante la hidratación de la fila ' + index + '.');
+            error.code = 'STALE_SNAPSHOT';
+            throw error;
+        }
+
         return hydrated.index === index
             ? hydrated
             : { ...hydrated, index };
