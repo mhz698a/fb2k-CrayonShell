@@ -212,6 +212,17 @@ export default function WaveformSeekbar() {
     }, []);
 
     useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || typeof ResizeObserver !== 'function') return undefined;
+
+        const observer = new ResizeObserver(() => {
+            setSegmentsRevision((revision) => revision + 1);
+        });
+        observer.observe(canvas);
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
         let frameId = 0;
         let running = true;
         const shouldAnimate = Boolean(
