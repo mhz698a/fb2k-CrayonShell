@@ -12,6 +12,7 @@ import {
     getTrackIdentity,
     reconcilePlaylistItems,
     resolveInitialSelectionIndex,
+    resolvePinnedSelectionIndex,
     shouldIgnorePinnedFocusChange
 } from '../utils/playlistReconciliation.js';
 import {
@@ -649,8 +650,10 @@ export function usePlaylist() {
 
         const pinnedSelection = pinnedSelectionRef.current;
         if (pinnedSelection?.playlistGuid === playlistGuid) {
-            const nextPinnedIndex = nextItems.findIndex(
-                (item) => getTrackIdentity(item) === pinnedSelection.identity
+            const nextPinnedIndex = resolvePinnedSelectionIndex(
+                nextItems,
+                pinnedSelection,
+                playlistGuid
             );
 
             if (nextPinnedIndex >= 0) {
