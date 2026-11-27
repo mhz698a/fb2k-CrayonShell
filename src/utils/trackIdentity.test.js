@@ -35,6 +35,8 @@ test('keeps distinct subsongs separate while allowing a path-only match', () => 
     assert.equal(trackPathsMatch('D:\\Audio\\Album.flac|subsong:1', 'd:/audio/album.flac|subsong:1'), true);
     assert.equal(trackPathsMatch('D:\\Audio\\Album.flac|subsong:1', 'D:\\Audio\\Album.flac|subsong:2'), false);
     assert.equal(trackPathsMatch('D:\\Audio\\Album.flac|subsong:1', 'D:\\Audio\\Album.flac'), true);
+    assert.equal(trackPathsMatch('D:\\Audio\\Album.flac', 'D:\\Audio\\Album.flac', 2, 2), true);
+    assert.equal(trackPathsMatch('D:\\Audio\\Album.flac', 'D:\\Audio\\Album.flac', 1, 2), false);
 });
 
 test('prefers a native index belonging to the active playlist', () => {
@@ -76,6 +78,21 @@ test('prefers a matching native handle over duplicate file paths', () => {
         activePlaylistGuid: 'active',
         playbackState: 'playing'
     }), 7);
+});
+
+test('uses subsong metadata to distinguish rows that share one container path', () => {
+    assert.equal(resolvePlayingTrackIndex({
+        items: [
+            { index: 3, path: 'D:\\Music\\Cue.flac', subsong: 1 },
+            { index: 4, path: 'D:\\Music\\Cue.flac', subsong: 2 }
+        ],
+        currentTrackResponse: {
+            found: true,
+            track: { path: 'D:\\Music\\Cue.flac', subsong: 2 }
+        },
+        activePlaylistGuid: 'active',
+        playbackState: 'playing'
+    }), 4);
 });
 
 test('does not mark a track after Stop or when no path can be matched', () => {
