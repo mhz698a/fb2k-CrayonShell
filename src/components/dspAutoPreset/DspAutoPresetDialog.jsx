@@ -318,7 +318,7 @@ export default function DspAutoPresetDialog({
                         title={getDspTrackDirectory(activeTrackPath) || 'No hay una canción local en reproducción'}
                         onClick={addFolderRule}
                     >
-                        <FaIcon name="folder-open"/> Agregar carpeta contenedora
+                        <FaIcon name="folder-open"/> Agregar carpeta contenedora de la canción actual
                     </button>
                 </section>
 
