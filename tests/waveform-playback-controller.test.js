@@ -343,7 +343,7 @@ test('stateChanged updates canSeek without discarding the current waveform', asy
 });
 
 
-test('video tracks do not enter the PCM audio decoder', async () => {
+test('video containers are passed to the PCM decoder to extract their audio stream', async () => {
     const videoTrack = {
         ...createTrack('clip'),
         absolutePath: 'C:\\Media\\clip.mp4',
@@ -355,9 +355,10 @@ test('video tracks do not enter the PCM audio decoder', async () => {
     sdk.emit('playback:trackChanged', videoTrack);
     await controller.whenTrackChangeSettled();
 
-    assert.equal(engine.setTrackCalls.length, 1);
-    assert.equal(controller.getSnapshot().trackKey, null);
-    assert.equal(controller.getSnapshot().canSeek, false);
+    assert.equal(engine.setTrackCalls.length, 2);
+    assert.equal(engine.setTrackCalls[1].track.absolutePath, videoTrack.absolutePath);
+    assert.equal(controller.getSnapshot().trackKey, videoTrack.absolutePath.toLowerCase());
+    assert.equal(controller.getSnapshot().canSeek, true);
     controller.dispose();
 });
 
@@ -400,7 +401,7 @@ test('PlaybackClock state remains usable when getState is unavailable', async ()
 });
 
 
-test('remote audio URLs do not enter the local PCM decoder', async () => {
+test('remote audio URLs skip local PCM decoding but keep the player seekbar usable', async () => {
     const remoteTrack = {
         ...createTrack('stream'),
         absolutePath: 'https://example.invalid/audio/stream.mp3',
@@ -415,7 +416,11 @@ test('remote audio URLs do not enter the local PCM decoder', async () => {
 
     assert.equal(engine.setTrackCalls.length, 1);
     assert.equal(controller.getSnapshot().trackKey, null);
-    assert.equal(controller.getSnapshot().canSeek, false);
+    assert.equal(controller.getSnapshot().trackPath, remoteTrack.path);
+    assert.equal(controller.getSnapshot().canSeek, true);
+
+    await controller.seek(25);
+    assert.deepEqual(sdk.seekCalls, [25]);
     controller.dispose();
 });
 
@@ -466,5 +471,33 @@ test('converts a local file URL to a native Windows path when no native path is 
         engine.setTrackCalls[0].track.absolutePath,
         'C:\\Music\\file url.flac'
     );
+    controller.dispose();
+});
+
+
+test('a local video or audio track remains seekable when PCM decoding yields no waveform', async () => {
+    const engine = createFakeEngine();
+    engine.setTrack = async () => {
+        throw Object.assign(new Error('The decoder found no audio stream'), {
+            code: 'DECODE_FAILED'
+        });
+    };
+    const track = {
+        ...createTrack('silent-video'),
+        absolutePath: 'C:\\Media\\silent-video.mkv',
+        handle: 'C:\\Media\\silent-video.mkv'
+    };
+    const sdk = createFakeSdk(track);
+    const { controller } = createController({ track, sdk, engine });
+
+    const snapshot = await controller.start();
+
+    assert.equal(snapshot.trackKey, null);
+    assert.equal(snapshot.trackPath, track.absolutePath);
+    assert.equal(snapshot.duration, track.duration);
+    assert.equal(snapshot.canSeek, true);
+
+    await controller.seek(37);
+    assert.deepEqual(sdk.seekCalls, [37]);
     controller.dispose();
 });
