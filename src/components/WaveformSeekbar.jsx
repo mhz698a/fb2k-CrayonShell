@@ -77,6 +77,7 @@ function getStatusText(snapshot, error, isSeeking) {
     if (!snapshot?.started) return 'Conectando con foobar2000…';
     if (!snapshot.trackKey) return 'Reproduce un archivo de audio local';
     if (snapshot.waveform?.status === 'complete') return 'Análisis completo';
+    if (snapshot.waveform?.status === 'partial') return 'Análisis parcial';
 
     const completed = Number(snapshot.waveform?.completedSegments) || 0;
     const total = Number(snapshot.waveform?.totalSegments) || 0;
