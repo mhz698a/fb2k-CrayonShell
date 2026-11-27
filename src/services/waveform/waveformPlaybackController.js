@@ -78,7 +78,7 @@ export class WaveformPlaybackController {
         this.trackKey = null;
         this.lastPrioritySegment = null;
         this.lastError = null;
-        this.playbackState = 'stopped';
+        this.playbackState = null;
         this.canSeek = false;
         this.stateRevision = 0;
     }
