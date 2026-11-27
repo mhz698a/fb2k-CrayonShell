@@ -149,7 +149,7 @@ export function usePlaylist() {
             isActive: playlist.guid === active.guid
         })));
 
-        const [nextItems, focus, playingTrack, playback] = await Promise.all([
+        const [nextItems, focus, playingTrack, playback, currentTrackResponse] = await Promise.all([
             readPlaylistItems(active),
             invoke('playlist.getFocusedTrack', { playlistGuid: active.guid }),
             invoke('playback.getCurrentTrackIndex'),
