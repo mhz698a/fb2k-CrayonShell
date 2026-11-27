@@ -2,7 +2,7 @@ import { getFooSdk } from '../../services/fooSdk.js';
 
 export const PLAYBACK_ORDER_NAMES = Object.freeze([
     'default',
-    'repeat',
+    'repeat-playlist',
     'repeat-track',
     'random'
 ]);
@@ -95,7 +95,8 @@ function normalizeOrder(response, fallbackName) {
     );
     const indexValue = response?.orderIndex
         ?? (typeof rawOrder === 'number' ? rawOrder : null);
-    const index = Number.isInteger(Number(indexValue))
+    const hasIndex = indexValue !== null && indexValue !== undefined && indexValue !== '';
+    const index = hasIndex && Number.isInteger(Number(indexValue))
         ? Number(indexValue)
         : PLAYBACK_ORDER_NAMES.indexOf(name);
 
@@ -105,8 +106,12 @@ function normalizeOrder(response, fallbackName) {
 function normalizeVolume(response, previousState) {
     const volumeValue = Number(response?.volume);
     const volumeDbValue = Number(response?.volumeDb);
-    const hasVolume = response?.volume !== undefined && Number.isFinite(volumeValue);
-    const hasVolumeDb = response?.volumeDb !== undefined && Number.isFinite(volumeDbValue);
+    const hasVolume = response?.volume !== undefined
+        && response?.volume !== null
+        && Number.isFinite(volumeValue);
+    const hasVolumeDb = response?.volumeDb !== undefined
+        && response?.volumeDb !== null
+        && Number.isFinite(volumeDbValue);
     const mutedValue = response?.muted ?? response?.isMuted;
 
     return {
@@ -391,8 +396,6 @@ export function createPlaybackController({
     }
 
     async function runAction(actionId, method, args = [], onSuccess) {
-        const sdk = activeSdk || getSdk();
-        const invoke = readMethod(sdk, method);
         const count = (pendingActionCounts.get(actionId) || 0) + 1;
         pendingActionCounts.set(actionId, count);
         publish({
@@ -401,6 +404,8 @@ export function createPlaybackController({
         });
 
         try {
+            const sdk = activeSdk || getSdk();
+            const invoke = readMethod(sdk, method);
             const response = assertSuccess(
                 await invoke(...args),
                 method
@@ -421,13 +426,15 @@ export function createPlaybackController({
 
     const actions = Object.freeze({
         play: () => runAction('play', 'play', [], () => {
-            publish({ playbackState: 'opening' });
+            markEvent('playbackState', {
+                playbackState: state.playbackState === 'stopped' ? 'opening' : 'playing'
+            });
         }),
         pause: () => runAction('pause', 'pause', [], () => {
-            publish({ playbackState: 'paused' });
+            markEvent('playbackState', { playbackState: 'paused' });
         }),
         playPause: () => runAction('playPause', 'playPause', [], (response) => {
-            publish({
+            markEvent('playbackState', {
                 playbackState: response.state
                     ? normalizePlaybackState(response.state)
                     : response.isPlaying === true
@@ -437,7 +444,7 @@ export function createPlaybackController({
         }),
         previous: () => runAction('previous', 'prev'),
         stopPlayback: () => runAction('stop', 'stop', [], () => {
-            publish({ playbackState: 'stopped' });
+            markEvent('playbackState', { playbackState: 'stopped' });
         }),
         next: () => runAction('next', 'next'),
         playRandom: () => runAction('playRandom', 'random'),
@@ -447,7 +454,7 @@ export function createPlaybackController({
                 return Promise.reject(new TypeError('Playback Order no admitido: ' + value));
             }
             return runAction('setPlaybackOrder', 'setOrder', [value], (response) => {
-                publish({
+                markEvent('order', {
                     order: normalizeOrder(response, value),
                     orderKnown: true
                 });
@@ -458,7 +465,7 @@ export function createPlaybackController({
             'setStopAfterCurrent',
             [Boolean(enabled)],
             (response) => {
-                publish({
+                markEvent('stopAfterCurrent', {
                     stopAfterCurrent: typeof response.enabled === 'boolean'
                         ? response.enabled
                         : Boolean(enabled),
@@ -472,7 +479,7 @@ export function createPlaybackController({
             [],
             (response) => {
                 if (typeof response.enabled === 'boolean') {
-                    publish({
+                    markEvent('stopAfterCurrent', {
                         stopAfterCurrent: response.enabled,
                         stopAfterCurrentKnown: true
                     });
@@ -486,7 +493,7 @@ export function createPlaybackController({
             }
             const clamped = Math.max(0, Math.min(100, value));
             return runAction('setVolume', 'setVolume', [clamped], (response) => {
-                publish(normalizeVolume(response, state));
+                markEvent('volume', normalizeVolume(response, state));
             });
         },
         setMuted: (muted = true) => runAction(
@@ -495,12 +502,16 @@ export function createPlaybackController({
             [Boolean(muted)],
             (response) => {
                 const value = response.muted ?? response.isMuted;
-                if (typeof value === 'boolean') publish({ muted: value });
+                if (typeof value === 'boolean') {
+                    markEvent('volume', { muted: value, volumeKnown: true });
+                }
             }
         ),
         toggleMute: () => runAction('toggleMute', 'toggleMute', [], (response) => {
             const value = response.muted ?? response.isMuted;
-            if (typeof value === 'boolean') publish({ muted: value });
+            if (typeof value === 'boolean') {
+                markEvent('volume', { muted: value, volumeKnown: true });
+            }
         }),
         volumeUp: () => runAction('volumeUp', 'volumeUp'),
         volumeDown: () => runAction('volumeDown', 'volumeDown')
