@@ -38,6 +38,7 @@ const demoTracks = [
 
 const listeners = new Map();
 let focusedIndex = 0;
+let selectedIndices = [0];
 let playingIndex = -1;
 let playbackState = 'stopped';
 let activePlaylistGuid = demoPlaylistGuid;
@@ -69,14 +70,58 @@ export const demoBridge = {
             case 'playlist.getTracks': {
                 const start = Number(params.start) || 0;
                 const count = Number(params.count) || demoTracks.length;
+                const rows = demoTracks.slice(start, start + count).map((track) => ({
+                    ...track,
+                    handle: track.path,
+                    absolutePath: track.path,
+                    subsong: 0
+                }));
+                const tracks = Array.isArray(params.fields) && params.fields.length > 0
+                    ? rows.map((track) => ({
+                        index: track.index,
+                        ...Object.fromEntries(params.fields.map((field) => [field, track[field]]))
+                    }))
+                    : rows;
+
                 return {
-                    tracks: demoTracks.slice(start, start + count),
+                    playlistGuid: demoPlaylistGuid,
+                    contentVersion: 'demo-content-v1',
+                    start,
+                    count: tracks.length,
+                    tracks,
                     total: demoTracks.length
+                };
+            }
+
+            case 'playlist.getTracksAt': {
+                const rows = Array.isArray(params.rows) ? params.rows : [];
+                const tracks = rows
+                    .map((index) => demoTracks.find((track) => track.index === Number(index)))
+                    .filter(Boolean)
+                    .map((track) => ({
+                        ...track,
+                        handle: track.path,
+                        absolutePath: track.path,
+                        subsong: 0
+                    }));
+                return {
+                    playlistGuid: demoPlaylistGuid,
+                    contentVersion: 'demo-content-v1',
+                    count: tracks.length,
+                    total: demoTracks.length,
+                    tracks
                 };
             }
 
             case 'playlist.getFocusedTrack':
                 return { index: focusedIndex };
+
+            case 'playlist.getSelection':
+                return {
+                    playlistGuid: demoPlaylistGuid,
+                    items: [...selectedIndices],
+                    count: selectedIndices.length
+                };
 
             case 'playback.getCurrentTrack': {
                 const current = demoTracks.find((track) => track.index === playingIndex);
@@ -102,12 +147,21 @@ export const demoBridge = {
                 return { state: playbackState };
 
             case 'playlist.setSelection':
+                selectedIndices = Array.isArray(params.indices)
+                    ? params.indices.map(Number).filter(Number.isInteger)
+                    : [];
                 return { success: true };
 
-            case 'playlist.setFocusedTrack':
+            case 'playlist.setFocusedTrack': {
+                const previous = focusedIndex;
                 focusedIndex = Number(params.index);
-                emit('playlist:focusChanged', { index: focusedIndex });
+                emit('playlist:focusChanged', {
+                    playlistGuid: demoPlaylistGuid,
+                    from: previous,
+                    to: focusedIndex
+                });
                 return { success: true };
+            }
 
             case 'playlist.setActive':
                 activePlaylistGuid = params.playlistGuid;
@@ -117,6 +171,7 @@ export const demoBridge = {
             case 'playlist.playTrack':
                 playingIndex = Number(params.index);
                 focusedIndex = playingIndex;
+                selectedIndices = [playingIndex];
                 playbackState = 'playing';
                 emit('playback:trackChanged', { index: playingIndex });
                 emit('playback:stateChanged', { state: playbackState });
