@@ -115,6 +115,7 @@ export class WaveformCacheManager {
             : DELETE_TIMEOUT_MS;
         this.now = options.now || Date.now;
         this.onError = options.onError || (() => undefined);
+        this.onProgress = options.onProgress || (() => undefined);
 
         this.rootPath = null;
         this.indexPath = null;
@@ -504,18 +505,29 @@ export class WaveformCacheManager {
             deletedPaths: []
         };
 
+        let completedBeforeBatch = 0;
         for (let offset = 0; offset < uniquePaths.length; offset += DELETE_BATCH_SIZE) {
             const batch = uniquePaths.slice(offset, offset + DELETE_BATCH_SIZE);
-            const batchResult = await this._deleteBatch(batch);
+            const batchResult = await this._deleteBatch(batch, (progress) => {
+                this._notifyProgress({
+                    ...progress,
+                    done: completedBeforeBatch + Math.min(
+                        batch.length,
+                        Math.max(0, Number(progress.done) || 0)
+                    ),
+                    total: uniquePaths.length
+                });
+            });
             result.successCount += batchResult.successCount;
             result.failureCount += batchResult.failureCount;
             result.skippedCount += batchResult.skippedCount;
             result.deletedPaths.push(...batchResult.deletedPaths);
+            completedBeforeBatch += batch.length;
         }
         return result;
     }
 
-    async _deleteBatch(paths) {
+    async _deleteBatch(paths, onBatchProgress = () => undefined) {
         if (!paths.length) {
             return { successCount: 0, failureCount: 0, skippedCount: 0, deletedPaths: [] };
         }
@@ -531,9 +543,21 @@ export class WaveformCacheManager {
             resolveCompletion = resolve;
             rejectCompletion = reject;
         });
-        const onProgress = payload => {
+        const publishProgress = (payload) => {
+            if (!expectedOperationId || payload?.operationId !== expectedOperationId) return;
+            onBatchProgress({
+                operationId: expectedOperationId,
+                phase: 'deleting',
+                done: Number(payload.done) || 0,
+                total: Number(payload.total) || paths.length
+            });
+        };
+        const onSdkProgress = payload => {
             if (!expectedOperationId || payload?.operationId === expectedOperationId) {
                 progressBatches.push(payload);
+                if (expectedOperationId && payload?.operationId === expectedOperationId) {
+                    publishProgress(payload);
+                }
             }
         };
         const onComplete = payload => {
@@ -546,8 +570,8 @@ export class WaveformCacheManager {
         };
 
         const offProgress = normalizeUnsubscribe(
-            this.sdk, 'file:opProgress', onProgress,
-            this.sdk.on('file:opProgress', onProgress)
+            this.sdk, 'file:opProgress', onSdkProgress,
+            this.sdk.on('file:opProgress', onSdkProgress)
         );
         const offComplete = normalizeUnsubscribe(
             this.sdk, 'file:opComplete', onComplete,
@@ -563,6 +587,9 @@ export class WaveformCacheManager {
             if (!expectedOperationId) {
                 throw new Error('La limpieza waveform no devolvió un identificador de operación.');
             }
+            progressBatches
+                .filter(payload => payload?.operationId === expectedOperationId)
+                .forEach(publishProgress);
 
             const earlyCompletion = completionEvents.find(
                 payload => payload?.operationId === expectedOperationId
@@ -576,6 +603,14 @@ export class WaveformCacheManager {
             }
 
             const final = await completionPromise;
+            onBatchProgress({
+                operationId: expectedOperationId,
+                phase: 'completed',
+                done: paths.length,
+                total: paths.length,
+                successCount: Number(final.successCount) || 0,
+                failureCount: Number(final.failureCount) || 0
+            });
             const successfulPaths = progressBatches
                 .filter(batch => batch?.operationId === expectedOperationId)
                 .flatMap(batch => Array.isArray(batch.results) ? batch.results : [])
@@ -591,6 +626,14 @@ export class WaveformCacheManager {
             if (timeoutId) clearTimeout(timeoutId);
             offProgress();
             offComplete();
+        }
+    }
+
+    _notifyProgress(progress) {
+        try {
+            this.onProgress(progress);
+        } catch {
+            // Progress observers must not interfere with deletion or cache bookkeeping.
         }
     }
 
