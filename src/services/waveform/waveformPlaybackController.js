@@ -1,15 +1,41 @@
 import { getFooSdk } from '../fooSdk.js';
 import { WaveformEngine } from './waveformEngine.js';
 
+function convertFileUrlToWindowsPath(value) {
+    if (!/^file:\/\//i.test(value)) return '';
+
+    try {
+        const parsed = new URL(value);
+        if (parsed.protocol !== 'file:') return '';
+
+        const pathname = decodeURIComponent(parsed.pathname || '');
+        if (parsed.hostname) {
+            const uncPath = '\\\\' + parsed.hostname + pathname.replace(/\//g, '\\');
+            return /^\\\\[^\\]+\\[^\\]+/.test(uncPath) ? uncPath : '';
+        }
+
+        const windowsPath = pathname
+            .replace(/^\/([a-z]:\/)/i, '$1')
+            .replace(/\//g, '\\');
+        return /^[a-z]:\\/i.test(windowsPath) ? windowsPath : '';
+    } catch {
+        return '';
+    }
+}
+
 function getNativeTrackPath(track) {
     const candidates = [track?.handle, track?.absolutePath, track?.path]
         .map(value => String(value || '').trim())
         .filter(Boolean);
 
-    return candidates.find((candidate) => {
+    const directPath = candidates.find((candidate) => {
         const path = candidate.replace(/\|subsong:\d+$/i, '');
         return /^[a-z]:\\/i.test(path) || /^\\\\[^\\]+\\[^\\]+/.test(path);
-    }) || '';
+    });
+    if (directPath) return directPath;
+
+    const fileUrl = candidates.find(candidate => /^file:\/\//i.test(candidate));
+    return fileUrl ? convertFileUrlToWindowsPath(fileUrl) : '';
 }
 
 function isUsableLocalTrack(track) {
