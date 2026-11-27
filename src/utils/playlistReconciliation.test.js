@@ -106,6 +106,14 @@ test('fails instead of silently dropping a row when hydration is missing', () =>
     }), /new track|nueva pista/i);
 });
 
+test('rejects hydrated data from a different playlist snapshot', () => {
+    assert.throws(() => reconcilePlaylistItems({
+        currentItems: [track(0, 'old-track')],
+        identityRows: [{ index: 0, handle: 'new-track' }],
+        hydratedItems: [track(0, 'stale-track')]
+    }), (error) => error.code === 'STALE_SNAPSHOT');
+});
+
 test('prefers the playing row over saved focus during startup restoration', () => {
     assert.equal(resolveInitialSelectionIndex({
         playingIndex: 8,
