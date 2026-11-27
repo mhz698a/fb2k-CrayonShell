@@ -1,5 +1,6 @@
 import { getFooSdk } from '../fooSdk.js';
 import { WaveformCache } from './waveformCache.js';
+import { WaveformCacheManager, DEFAULT_WAVEFORM_CACHE_MAX_BYTES } from './waveformCacheManager.js';
 import { WaveformScheduler } from './waveformScheduler.js';
 import {
     buildWaveformTrackIdentity,
@@ -84,6 +85,14 @@ export class WaveformEngine {
         this.segmentDurationOptions = options.segmentDurationOptions || {};
         this.workerFactory = options.workerFactory;
         this.cacheRoot = options.cacheRoot;
+        this.cacheManager = options.cacheManager || new WaveformCacheManager({
+            sdk: this.sdk,
+            root: this.cacheRoot,
+            maxBytes: options.cacheMaxBytes || options.cacheManagerOptions?.maxBytes || DEFAULT_WAVEFORM_CACHE_MAX_BYTES,
+            ...(options.cacheManagerOptions || {}),
+            onError: error => this._safeNotify(this.onError, error, { source: 'cache-manager' })
+        });
+        this.cacheManagerEnabled = Boolean(this.cacheManager);
         this.onSegment = options.onSegment || (() => undefined);
         this.onState = options.onState || (() => undefined);
         this.onError = options.onError || (() => undefined);
@@ -135,13 +144,28 @@ export class WaveformEngine {
             descriptor,
             this.segmentDurationOptions
         );
+
+        if (this.cacheManagerEnabled) {
+            this.cacheManager.setActiveTrackKey(descriptor.key);
+            try {
+                await this.cacheManager.maintain({ activeTrackKey: descriptor.key });
+            } catch (error) {
+                this.cacheManagerEnabled = false;
+                this._safeNotify(this.onError, error, { source: 'cache-maintenance' });
+            }
+        }
+
         const cache = await WaveformCache.open({
             sdk: this.sdk,
             identity: descriptor,
             duration: descriptor.duration,
             segmentSeconds,
             resolution: this.resolution,
-            ...(this.cacheRoot ? { root: this.cacheRoot } : {})
+            ...(this.cacheRoot ? { root: this.cacheRoot } : {}),
+            ...(this.cacheManagerEnabled ? {
+                cacheManager: this.cacheManager,
+                onManagerError: error => this._safeNotify(this.onError, error, { source: 'cache-index' })
+            } : {})
         });
         if (requestGeneration !== this.requestGeneration || this.disposed) return { cancelled: true };
 
@@ -172,13 +196,26 @@ export class WaveformEngine {
         this.requestGeneration += 1;
         this.currentTrack = null;
         this.cache = null;
+        this.cacheManager?.setActiveTrackKey(null);
         this.scheduler.clear();
+    }
+
+    getCacheSnapshot() {
+        return this.cacheManager?.getSnapshot?.() || null;
+    }
+
+    maintainCache(options = {}) {
+        if (!this.cacheManagerEnabled || !this.cacheManager) {
+            return Promise.resolve(this.getCacheSnapshot());
+        }
+        return this.cacheManager.maintain(options);
     }
 
     getSnapshot() {
         return {
             ...this.scheduler.getSnapshot(),
-            trackKey: this.currentTrack?.key || null
+            trackKey: this.currentTrack?.key || null,
+            cache: this.getCacheSnapshot()
         };
     }
 
@@ -187,6 +224,7 @@ export class WaveformEngine {
         this.requestGeneration += 1;
         this.currentTrack = null;
         this.cache = null;
+        this.cacheManager?.setActiveTrackKey(null);
         this.scheduler.dispose();
         this.disposed = true;
     }
