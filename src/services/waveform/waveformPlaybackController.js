@@ -62,6 +62,9 @@ function createUnavailableWaveformEngine(error) {
         async setTrack() {
             throw error;
         },
+        async setCacheMaxBytes() {
+            throw error;
+        },
         setPosition() {
             return false;
         },
@@ -253,6 +256,13 @@ export class WaveformPlaybackController {
 
     clearInactiveCache() {
         return this.engine.clearInactiveCache?.() || Promise.resolve(null);
+    }
+
+    setCacheMaxBytes(maxBytes) {
+        if (typeof this.engine.setCacheMaxBytes !== 'function') {
+            return Promise.reject(new Error('La administración de presupuesto de caché no está disponible.'));
+        }
+        return this.engine.setCacheMaxBytes(maxBytes);
     }
 
     async resync() {
