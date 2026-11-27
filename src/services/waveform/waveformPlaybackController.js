@@ -38,15 +38,15 @@ function getNativeTrackPath(track) {
     return fileUrl ? convertFileUrlToWindowsPath(fileUrl) : '';
 }
 
-function isUsableLocalTrack(track) {
+function isWaveformSourceTrack(track) {
     const path = getNativeTrackPath(track);
     const mediaPath = path.replace(/\|subsong:\d+$/i, '');
-    const isAudioPath = /\.(?:aac|aif|aiff|alac|ape|dff|dsf|flac|m4a|m4b|mka|mp3|mpc|oga|ogg|opus|tak|tta|wav|wave|wma|wv)$/i.test(mediaPath);
+    const supportedContainer = /\.(?:aac|aif|aiff|alac|ape|asf|avi|dff|divx|dsf|f4v|flac|flv|m2ts|m2v|m4a|m4b|m4v|mka|mkv|mov|mp2|mp3|mp4|mpeg|mpg|mpe|mpv|m2p|mts|mxf|oga|ogg|ogv|opus|qt|rm|rmvb|tak|ts|tta|vob|wav|wave|webm|wma|wmv|wv|3g2|3gp)$/i.test(mediaPath);
 
     return Boolean(
         track
         && path
-        && isAudioPath
+        && supportedContainer
         && Number.isFinite(Number(track.duration))
         && Number(track.duration) > 0
     );
@@ -201,9 +201,11 @@ export class WaveformPlaybackController {
             playbackState: this.playbackState || this.clock?.state || 'stopped',
             canSeek: this.canSeek,
             position: this.getPosition(),
-            duration: clockDuration > 0 ? clockDuration : waveform.duration,
+            duration: clockDuration > 0
+                ? clockDuration
+                : Number(this.currentTrack?.duration) || waveform.duration,
             trackKey: this.trackKey || null,
-            trackPath: this.currentTrack?.absolutePath || null,
+            trackPath: this.currentTrack?.absolutePath || this.currentTrack?.path || null,
             trackTitle: this.currentTrack?.title || '',
             trackArtist: this.currentTrack?.artist || '',
             lastError: this.lastError,
@@ -344,37 +346,73 @@ export class WaveformPlaybackController {
                 return { cancelled: true };
             }
 
-            if (!isUsableLocalTrack(resolvedTrack)) {
+            if (!resolvedTrack || typeof resolvedTrack !== 'object') {
                 this._clearTrack();
                 this._emit('track-unavailable');
-                return { available: false };
+                return { available: false, waveform: false };
+            }
+
+            // The playback track and seek timeline exist independently of whether
+            // a local decoder can provide PCM samples for a waveform.
+            this.currentTrack = resolvedTrack;
+            this.canSeek = this.hostCanSeek;
+
+            if (!isWaveformSourceTrack(resolvedTrack)) {
+                this.engine.clear();
+                this.trackKey = null;
+                this.lastPrioritySegment = null;
+                this.canSeek = this.hostCanSeek && Boolean(this.currentTrack);
+                this._emit('waveform-unavailable', {
+                    reason: 'No hay una ruta local compatible para extraer PCM.'
+                });
+                return { available: true, waveform: false, reason: 'source-not-local-or-supported' };
             }
 
             const nativePath = getNativeTrackPath(resolvedTrack);
             const waveformTrack = resolvedTrack.absolutePath === nativePath
                 ? resolvedTrack
                 : { ...resolvedTrack, absolutePath: nativePath };
-            const result = await this.engine.setTrack(waveformTrack, this.getPosition());
+            this.currentTrack = waveformTrack;
+            this.canSeek = this.hostCanSeek;
+
+            let result;
+            try {
+                result = await this.engine.setTrack(waveformTrack, this.getPosition());
+            } catch (error) {
+                if (revision !== this.trackRevision || !this.started) {
+                    return { cancelled: true };
+                }
+
+                // A video may contain no audio stream, or a local input decoder may
+                // not support its audio codec. Keep the player's timeline seekable.
+                this.engine.clear();
+                this.trackKey = null;
+                this.lastPrioritySegment = null;
+                this.canSeek = this.hostCanSeek && Boolean(this.currentTrack);
+                this._reportError(error, { source: 'waveform-decode' });
+                return { available: true, waveform: false, error };
+            }
+
             if (revision !== this.trackRevision || !this.started || result?.cancelled) {
                 return { cancelled: true };
             }
 
-            this.currentTrack = waveformTrack;
             this.trackKey = result.trackKey || null;
-            this.canSeek = this.hostCanSeek && Boolean(this.trackKey);
+            this.canSeek = this.hostCanSeek && Boolean(this.currentTrack);
             this.lastPrioritySegment = this._getPrioritySegment(
                 this.getPosition(),
                 this.engine.getSnapshot()
             );
             this.lastError = null;
             this._emit('track-loaded', result);
-            return result;
+            return { ...result, available: true, waveform: Boolean(this.trackKey) };
         } catch (error) {
             if (revision === this.trackRevision && this.started) {
                 this.engine.clear();
                 this.currentTrack = null;
                 this.trackKey = null;
                 this.lastPrioritySegment = null;
+                this.canSeek = false;
                 this._reportError(error, { source: 'track-change' });
             }
             return { cancelled: revision !== this.trackRevision, error };
@@ -386,6 +424,7 @@ export class WaveformPlaybackController {
         this.currentTrack = null;
         this.trackKey = null;
         this.lastPrioritySegment = null;
+        this.hostCanSeek = false;
         this.canSeek = false;
     }
 
@@ -408,7 +447,7 @@ export class WaveformPlaybackController {
         if (payload.state) this.playbackState = payload.state;
         if (typeof payload.canSeek === 'boolean') {
             this.hostCanSeek = payload.canSeek;
-            this.canSeek = this.hostCanSeek && Boolean(this.trackKey);
+            this.canSeek = this.hostCanSeek && Boolean(this.currentTrack);
         }
         if (emit) this._emit('playback-state', payload);
     }
