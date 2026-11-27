@@ -90,6 +90,7 @@ function getStatusText(snapshot, error, isSeeking) {
 export default function WaveformSeekbar() {
     const canvasRef = useRef(null);
     const controllerRef = useRef(null);
+    const mountedRef = useRef(false);
     const segmentsRef = useRef({ trackKey: null, items: new Map() });
     const pointerRef = useRef(null);
     const pendingSeekRef = useRef(null);
@@ -119,21 +120,24 @@ export default function WaveformSeekbar() {
         setError('');
         try {
             await controller.seek(target);
+            if (!mountedRef.current) return;
             const nextSnapshot = controller.getSnapshot();
             setSnapshot(nextSnapshot);
             setDisplayPosition(nextSnapshot.position);
         } catch (failure) {
+            if (!mountedRef.current) return;
             setError(failure?.message || 'No se pudo cambiar la posición de reproducción.');
             setDisplayPosition(controller.getPosition());
         } finally {
             pendingSeekRef.current = null;
-            setIsSeeking(false);
+            if (mountedRef.current) setIsSeeking(false);
         }
     }, []);
 
     useEffect(() => {
         let active = true;
         let controller = null;
+        mountedRef.current = true;
 
         const updateSnapshot = (nextSnapshot) => {
             if (!active || !nextSnapshot) return;
@@ -206,6 +210,7 @@ export default function WaveformSeekbar() {
 
         return () => {
             active = false;
+            mountedRef.current = false;
             pointerRef.current = null;
             controllerRef.current = null;
             controller?.dispose();
