@@ -34,6 +34,17 @@ El índice nativo se valida contra los elementos realmente cargados en la playli
 - El desplazamiento automático por sí solo no modifica el filtro ni la selección; la sincronización de selección ocurre únicamente al activar una playlist con la pista actual presente.
 - Si el filtro oculta la pista actual, el seguimiento automático no cambia el filtro. La acción manual Active Now Playing de la Playback Bar se implementará en una etapa posterior.
 
+## Inicialización y sincronización incremental
+
+- Al montar CrayonShell se hace una sola lectura completa de la playlist activa. La restauración de selección y foco no dispara una segunda lectura de contenido.
+- Al iniciar, la selección prioriza la pista en reproducción si pertenece a la playlist activa; después usa la última pista enfocada persistida y, como último recurso, el foco nativo.
+- Los eventos de selección y foco actualizan el estado de navegación sin recargar los elementos.
+- Los eventos de reproducción consultan únicamente el estado de reproducción y la pista actual. No vuelven a leer el contenido de la playlist.
+- Los eventos de altas, bajas, reordenamientos y reemplazos ejecutan una reconciliación incremental: se consulta el identificador `handle` y se conserva cada fila que continúa presente, actualizando su índice.
+- Solo las filas nuevas o sustituidas se hidratan mediante `playlist.getTracksAt` para recuperar sus formatos y metadatos.
+- La reconciliación verifica `contentVersion` entre la lectura de identificadores y la hidratación. Si el contenido cambia durante el proceso, descarta esa instantánea y la vuelve a leer en lugar de mezclar versiones.
+- El botón **Actualizar playlist** conserva la recarga completa explícita. La carga inicial y los eventos ordinarios no invocan esa operación completa.
+
 ## Fuera de alcance
 
 - No se agrega todavía el botón Active Now Playing.
@@ -43,3 +54,5 @@ El índice nativo se valida contra los elementos realmente cargados en la playli
 ## Pruebas
 
 `src/utils/trackIdentity.test.js` cubre rutas Windows, file URLs, UNC, subsongs, índice nativo prioritario, fallback entre playlists, handles duplicados y estado Stopped.
+
+`src/utils/playlistReconciliation.test.js` cubre conservación de filas sin cambios, altas, bajas, sustituciones, handles repetidos, snapshots obsoletos y prioridad de selección inicial.
