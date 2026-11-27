@@ -68,18 +68,17 @@ export class WaveformPlaybackController {
         }
         if (this.started) return this.getSnapshot();
 
-        this.clock = this.clockFactory(this.sdk);
-        if (!this.clock
-            || typeof this.clock.position !== 'function'
-            || typeof this.clock.onChange !== 'function'
-            || !this.clock.ready
-            || typeof this.clock.dispose !== 'function') {
-            this.clock = null;
-            throw new TypeError('La implementación PlaybackClock no cumple el contrato del SDK.');
-        }
-
         this.started = true;
         try {
+            this.clock = this.clockFactory(this.sdk);
+            if (!this.clock
+                || typeof this.clock.position !== 'function'
+                || typeof this.clock.onChange !== 'function'
+                || !this.clock.ready
+                || typeof this.clock.dispose !== 'function') {
+                throw new TypeError('La implementación PlaybackClock no cumple el contrato del SDK.');
+            }
+
             this.clockUnsubscribe = this.clock.onChange((change) => {
                 this._onClockChange(change);
             });
@@ -142,7 +141,7 @@ export class WaveformPlaybackController {
             playbackState: this.clock?.state || 'stopped',
             position: this.getPosition(),
             duration: clockDuration > 0 ? clockDuration : waveform.duration,
-            trackKey: this.trackKey || waveform.trackKey || null,
+            trackKey: this.trackKey || null,
             trackPath: this.currentTrack?.absolutePath || null,
             lastError: this.lastError,
             waveform
@@ -202,10 +201,13 @@ export class WaveformPlaybackController {
     }
 
     _onTrackChanged(track) {
+        if (!this.started || this.disposed) return Promise.resolve({ cancelled: true });
+
         const revision = ++this.trackRevision;
         this.currentTrack = null;
         this.trackKey = null;
         this.lastPrioritySegment = null;
+        this.engine.clear();
 
         this.pendingTrackTask = this._loadTrack(track, revision);
         return this.pendingTrackTask;
