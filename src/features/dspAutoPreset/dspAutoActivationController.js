@@ -243,6 +243,10 @@ export function createDspAutoActivationController({
             trackPath
         );
 
+        if (result.success !== true) {
+            // Let playback continue; the post-open track event will retry the rule.
+            expectedTrackPath = '';
+        }
         return { ...result, resolved, prepared: result.success === true };
     }
 

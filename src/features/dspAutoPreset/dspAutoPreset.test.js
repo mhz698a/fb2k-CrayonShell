@@ -110,6 +110,9 @@ test('controller skips repeat activation and restores the default on stop', asyn
     assert.deepEqual(applications, ['Classical']);
     assert.equal(controller.getState().activePreset, 'Classical');
 
+    handlers.get('playback:trackChanged')({
+        path: 'D:\\Music\\Classical\\Symphony.flac'
+    });
     handlers.get('playback:stopped')({ reason: 'user' });
     await new Promise((resolve) => setImmediate(resolve));
     assert.deepEqual(applications, ['Classical', 'Default']);
