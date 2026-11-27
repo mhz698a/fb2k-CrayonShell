@@ -288,6 +288,7 @@ test('start reports an explicit error when the SDK does not expose PlaybackClock
 
 test('seek delegates to the host, clamps to duration and resynchronizes PlaybackClock', async () => {
     const { controller, sdk, getClock } = createController({ position: 12 });
+    await controller.start();
     const clock = getClock();
     let resyncCalls = 0;
     const originalResync = clock.resync.bind(clock);
@@ -296,7 +297,6 @@ test('seek delegates to the host, clamps to duration and resynchronizes Playback
         return originalResync();
     };
 
-    await controller.start();
     const result = await controller.seek(130);
 
     assert.deepEqual(sdk.seekCalls, [100]);
