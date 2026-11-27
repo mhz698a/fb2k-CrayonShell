@@ -53,10 +53,16 @@ export function usePlaylist() {
     const [sessionReady, setSessionReady] = useState(false);
 
     const mountedRef = useRef(true);
-    const refreshControlRef = useRef({ running: false, queued: false, waiters: [] });
+    const refreshControlRef = useRef({
+        running: false,
+        queued: false,
+        waiters: [],
+        selectPlayingQueued: false
+    });
     const refreshTimerRef = useRef(null);
     const scrollRequestVersionRef = useRef(0);
     const pendingScrollTargetRef = useRef(null);
+    const pendingPlayingSelectionRef = useRef(false);
     const selectionQueueRef = useRef(Promise.resolve());
     const sessionRestoreAttemptedRef = useRef(false);
     const sessionSnapshotRef = useRef(null);
@@ -105,7 +111,7 @@ export function usePlaylist() {
         return nextItems;
     }, []);
 
-    const refreshPlaylistOnce = useCallback(async () => {
+    const refreshPlaylistOnce = useCallback(async ({ selectPlaying = false } = {}) => {
         const result = await invoke('playlist.getAll');
         const nextPlaylists = Array.isArray(result.playlists)
             ? result.playlists
@@ -162,6 +168,14 @@ export function usePlaylist() {
 
         if (!mountedRef.current) return;
 
+        const nextPlayingIndex = resolvePlayingTrackIndex({
+            items: nextItems,
+            playingTrackIndex: playingTrack,
+            currentTrackResponse,
+            activePlaylistGuid: active.guid,
+            playbackState: playback.state || 'stopped'
+        });
+
         let nextFocusedIndex = Number.isInteger(focus.index) ? focus.index : -1;
         if (savedSession?.playlistGuid === active.guid) {
             const restoredIndex = resolveSavedFocusIndex(
@@ -188,24 +202,35 @@ export function usePlaylist() {
             }
         }
 
+        if (selectPlaying && nextPlayingIndex >= 0) {
+            try {
+                await invoke('playlist.setSelection', {
+                    playlistGuid: active.guid,
+                    indices: [nextPlayingIndex],
+                    clearOthers: true
+                });
+                await invoke('playlist.setFocusedTrack', {
+                    playlistGuid: active.guid,
+                    index: nextPlayingIndex
+                });
+                nextFocusedIndex = nextPlayingIndex;
+            } catch (error) {
+                setStatusMessage('No se pudo seleccionar la pista en reproducción', error);
+            }
+        }
+
         if (!mountedRef.current) return;
 
         setActivePlaylistGuid(active.guid);
         setItems(nextItems);
         setFocusedItem(nextFocusedIndex);
         setPlaybackState(playback.state || 'stopped');
-        setPlayingItemIndex(resolvePlayingTrackIndex({
-            items: nextItems,
-            playingTrackIndex: playingTrack,
-            currentTrackResponse,
-            activePlaylistGuid: active.guid,
-            playbackState: playback.state || 'stopped'
-        }));
+        setPlayingItemIndex(nextPlayingIndex);
         setSessionReady(true);
         setStatusMessage('Playlist: ' + active.name);
     }, [readPlaylistItems, setStatusMessage]);
 
-    const refreshPlaylist = useCallback(async () => {
+    const refreshPlaylist = useCallback(async ({ selectPlaying = false } = {}) => {
         if (!hasBridge()) {
             setStatusMessage('Abre la versión de desarrollo o carga CrayonShell desde foobar2000.');
             return;
@@ -215,17 +240,21 @@ export function usePlaylist() {
 
         if (control.running) {
             control.queued = true;
+            control.selectPlayingQueued = control.selectPlayingQueued || selectPlaying;
             return new Promise((resolve) => {
                 control.waiters.push(resolve);
             });
         }
 
         control.running = true;
+        let selectPlayingThisPass = selectPlaying;
 
         try {
             do {
                 control.queued = false;
-                await refreshPlaylistOnce();
+                await refreshPlaylistOnce({ selectPlaying: selectPlayingThisPass });
+                selectPlayingThisPass = control.selectPlayingQueued;
+                control.selectPlayingQueued = false;
             } while (control.queued && mountedRef.current);
         } catch (error) {
             setStatusMessage('No se pudo leer la playlist', error);
@@ -236,15 +265,20 @@ export function usePlaylist() {
         }
     }, [refreshPlaylistOnce, setStatusMessage]);
 
-    const schedulePlaylistRefresh = useCallback((scrollTarget = null) => {
+    const schedulePlaylistRefresh = useCallback((scrollTarget = null, { selectPlaying = false } = {}) => {
         if (scrollTarget === 'playing' || scrollTarget === 'focused') {
             pendingScrollTargetRef.current = scrollTarget;
+        }
+        if (selectPlaying) {
+            pendingPlayingSelectionRef.current = true;
         }
 
         window.clearTimeout(refreshTimerRef.current);
         refreshTimerRef.current = window.setTimeout(async () => {
             refreshTimerRef.current = null;
-            await refreshPlaylist();
+            const shouldSelectPlaying = pendingPlayingSelectionRef.current;
+            pendingPlayingSelectionRef.current = false;
+            await refreshPlaylist({ selectPlaying: shouldSelectPlaying });
 
             const target = pendingScrollTargetRef.current;
             pendingScrollTargetRef.current = null;
@@ -306,7 +340,9 @@ export function usePlaylist() {
                     : eventName === 'playlist:focusChanged'
                         ? 'focused'
                         : null;
-                schedulePlaylistRefresh(scrollTarget);
+                schedulePlaylistRefresh(scrollTarget, {
+                    selectPlaying: eventName === 'playlist:activated'
+                });
             })
         );
 
