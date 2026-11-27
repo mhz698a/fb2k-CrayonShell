@@ -501,3 +501,23 @@ test('a local video or audio track remains seekable when PCM decoding yields no 
     assert.deepEqual(sdk.seekCalls, [37]);
     controller.dispose();
 });
+
+
+test('seek remains usable when the SDK has no PCM decode API', async () => {
+    const track = createTrack('without-pcm-api');
+    const sdk = createFakeSdk(track);
+    const controller = new WaveformPlaybackController({
+        sdk,
+        clockFactory: () => new FakeClock(8, track.duration)
+    });
+
+    const snapshot = await controller.start();
+
+    assert.equal(snapshot.trackKey, null);
+    assert.equal(snapshot.canSeek, true);
+    assert.equal(snapshot.duration, track.duration);
+
+    await controller.seek(42);
+    assert.deepEqual(sdk.seekCalls, [42]);
+    controller.dispose();
+});
