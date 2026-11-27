@@ -17,8 +17,9 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     Promise.all([
         import('./services/waveform/stage0Probe.js'),
         import('./services/waveform/waveformEngine.js'),
+        import('./services/waveform/waveformPlaybackController.js'),
         import('./services/fooSdk.js')
-    ]).then(([stage0, stage1, sdkModule]) => {
+    ]).then(([stage0, stage1, stage2, sdkModule]) => {
         Object.defineProperty(window, '__crayonshellWaveformStage0', {
             configurable: true,
             enumerable: false,
@@ -33,6 +34,8 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 
         let engine = null;
         let segmentLog = [];
+        let playbackController = null;
+        let playbackSegmentLog = [];
 
         async function resolveCurrentTrack(sdk, explicitTrack) {
             if (explicitTrack) return explicitTrack;
@@ -59,6 +62,12 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
         }
 
         async function startWaveformEngine(options = {}) {
+            if (playbackController) {
+                playbackController.dispose();
+                playbackController = null;
+                playbackSegmentLog = [];
+            }
+
             const sdk = options.sdk || sdkModule.getFooSdk();
             const track = await resolveCurrentTrack(sdk, options.track);
             const position = await resolvePosition(sdk, options.positionSeconds);
@@ -98,6 +107,55 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
             };
         }
 
+        async function startWaveformPlayback(options = {}) {
+            const sdk = options.sdk || sdkModule.getFooSdk();
+
+            if (engine) {
+                engine.dispose();
+                engine = null;
+                segmentLog = [];
+            }
+
+            if (!playbackController) {
+                playbackController = new stage2.WaveformPlaybackController({
+                    sdk,
+                    engineOptions: {
+                        resolution: options.resolution || 4096,
+                        segmentDurationOptions: options.segmentDurationOptions
+                    },
+                    onSegment(segment) {
+                        const entry = {
+                            index: segment.index,
+                            start: segment.start,
+                            end: segment.end,
+                            peaks: segment.peaks.length,
+                            cached: segment.cached === true,
+                            splitDepth: segment.splitDepth || 0
+                        };
+                        playbackSegmentLog.push(entry);
+                        if (playbackSegmentLog.length > 500) {
+                            playbackSegmentLog = playbackSegmentLog.slice(-500);
+                        }
+                        console.info('[CrayonShell Waveform Stage 2] segment ready', entry);
+                    },
+                    onUpdate(update) {
+                        if (update.type === 'analysis-priority') {
+                            console.debug('[CrayonShell Waveform Stage 2] priority', update.detail);
+                        }
+                    },
+                    onError(error, context) {
+                        console.error('[CrayonShell Waveform Stage 2] error', context, error);
+                    }
+                });
+            }
+
+            const result = await playbackController.start();
+            return {
+                ...result,
+                recentSegments: playbackSegmentLog.slice(-20)
+            };
+        }
+
         Object.defineProperty(window, '__crayonshellWaveformStage1', {
             configurable: true,
             enumerable: false,
@@ -127,7 +185,34 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
             })
         });
 
-        console.info('[CrayonShell] Waveform stage-0 and stage-1 diagnostics ready.');
+        Object.defineProperty(window, '__crayonshellWaveformStage2', {
+            configurable: true,
+            enumerable: false,
+            writable: false,
+            value: Object.freeze({
+                start: startWaveformPlayback,
+                status() {
+                    return {
+                        snapshot: playbackController?.getSnapshot() || null,
+                        recentSegments: playbackSegmentLog.slice(-20)
+                    };
+                },
+                position() {
+                    return playbackController?.getPosition() ?? 0;
+                },
+                resync() {
+                    return playbackController?.resync() || Promise.resolve(null);
+                },
+                stop() {
+                    playbackController?.dispose();
+                    playbackController = null;
+                    playbackSegmentLog = [];
+                    return { stopped: true };
+                }
+            })
+        });
+
+        console.info('[CrayonShell] Waveform stage-0, stage-1 and stage-2 diagnostics ready.');
     }).catch((error) => {
         console.error('[CrayonShell] Could not load waveform diagnostics.', error);
     });
