@@ -392,8 +392,9 @@ export default function App() {
     }
 
     return (
-        <div
-            ref={containerRef}
+        <div className="app-shell">
+            <div
+                ref={containerRef}
             className={'cui-container'
                 + (sidebarCollapsed ? ' sidebar-collapsed' : '')
                 + (propertiesCollapsed ? ' properties-collapsed' : '')}
@@ -526,7 +527,6 @@ export default function App() {
                     </div>
 
                     <PlaylistStatus message={status} />
-                    <WaveformSeekbar />
                 </section>
             </main>
 
@@ -561,6 +561,8 @@ export default function App() {
                 fileMetadataLoading={windowsFileMetadataLoading}
                 fileMetadataError={windowsFileMetadataError}
             />
+            </div>
+            <WaveformSeekbar />
         </div>
     );
 }
