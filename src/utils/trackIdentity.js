@@ -86,6 +86,10 @@ export function resolvePlayingTrackIndex({
 } = {}) {
     if (playbackState === 'stopped') return -1;
 
+    const currentTrack = currentTrackResponse?.track
+        || currentTrackResponse?.currentTrack
+        || (currentTrackResponse && currentTrackResponse.found === true ? currentTrackResponse : null);
+
     if (
         playingTrackIndex?.found === true
         && playingTrackIndex.playlistGuid === activePlaylistGuid
@@ -95,12 +99,27 @@ export function resolvePlayingTrackIndex({
         && Number.isInteger(Number(playingTrackIndex.index))
     ) {
         const indexedItem = items.find((item) => item.index === Number(playingTrackIndex.index));
-        if (indexedItem) return indexedItem.index;
-    }
+        if (indexedItem) {
+            const itemHandle = indexedItem.handle === null || indexedItem.handle === undefined
+                ? ''
+                : String(indexedItem.handle);
+            const currentHandle = currentTrack?.handle === null || currentTrack?.handle === undefined
+                ? ''
+                : String(currentTrack.handle);
+            const itemPath = getTrackPath(indexedItem);
+            const currentPath = getTrackPath(currentTrack);
 
-    const currentTrack = currentTrackResponse?.track
-        || currentTrackResponse?.currentTrack
-        || (currentTrackResponse && currentTrackResponse.found === true ? currentTrackResponse : null);
+            const handleConflict = itemHandle && currentHandle && itemHandle !== currentHandle;
+            const pathConflict = itemPath && currentPath && !trackPathsMatch(
+                itemPath,
+                currentPath,
+                indexedItem.subsong,
+                currentTrack.subsong
+            );
+
+            if (!handleConflict && !pathConflict) return indexedItem.index;
+        }
+    }
 
     if (!currentTrack) return -1;
 
