@@ -224,6 +224,65 @@ export class WaveformCacheManager {
         });
     }
 
+    async clearInactive() {
+        await this.initialize();
+        return this._enqueue(async () => {
+            const candidates = Array.from(this.entries.values())
+                .filter(entry => entry.key !== this.activeTrackKey)
+                .sort((a, b) => a.lastAccessAt - b.lastAccessAt);
+            let removedTracks = 0;
+            let deletedFiles = 0;
+            let failedFiles = 0;
+
+            for (const entry of candidates) {
+                const paths = [
+                    ...entry.segments.map(segment => joinWindowsPath(
+                        this.rootPath,
+                        getSegmentName(entry.key, segment.index)
+                    )),
+                    entry.manifestPath
+                ];
+                const result = await this._deletePaths(paths);
+                const deleted = new Set(result.deletedPaths);
+                deletedFiles += result.successCount;
+                failedFiles += result.failureCount + result.skippedCount;
+
+                const remainingSegments = entry.segments.filter(segment => !deleted.has(
+                    joinWindowsPath(this.rootPath, getSegmentName(entry.key, segment.index)).toLowerCase()
+                ));
+                const manifestDeleted = deleted.has(entry.manifestPath.toLowerCase());
+
+                if (manifestDeleted && remainingSegments.length === 0) {
+                    this.entries.delete(entry.key);
+                    removedTracks += 1;
+                } else if (deleted.size > 0) {
+                    const segmentBytes = remainingSegments.reduce(
+                        (total, segment) => total + segment.sizeBytes,
+                        0
+                    );
+                    const manifestBytes = manifestDeleted
+                        ? 0
+                        : Math.max(0, entry.sizeBytes
+                            - entry.segments.reduce((total, segment) => total + segment.sizeBytes, 0));
+                    this.entries.set(entry.key, {
+                        ...entry,
+                        segments: remainingSegments,
+                        segmentCount: remainingSegments.length,
+                        sizeBytes: segmentBytes + manifestBytes
+                    });
+                }
+                await this._writeIndex();
+            }
+
+            return {
+                ...this.getSnapshot(),
+                removedTracks,
+                deletedFiles,
+                failedFiles
+            };
+        });
+    }
+
     async _buildEntry(manifest, manifestPath, rootPath) {
         const key = String(manifest.key).toLowerCase();
         const indexes = Array.from(new Set(manifest.segments || [])).sort((a, b) => a - b);
