@@ -109,3 +109,19 @@ export function resolveInitialSelectionIndex({
     if (isValid(focusedIndex)) return focusedIndex;
     return -1;
 }
+
+/**
+ * Keep an automatically restored playing row stable against delayed native
+ * focus notifications. Explicit user selection releases the pin in usePlaylist.
+ */
+export function shouldIgnorePinnedFocusChange({
+    pinnedSelection = null,
+    playlistGuid = '',
+    nextIndex = -1
+} = {}) {
+    return Boolean(
+        pinnedSelection
+        && pinnedSelection.playlistGuid === playlistGuid
+        && Number(nextIndex) !== pinnedSelection.index
+    );
+}
