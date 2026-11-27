@@ -95,7 +95,7 @@ La identidad incluye la ruta normalizada, el subsong, la duración, el tamaño y
 
 ## Límites de la etapa 1
 
-- La caché todavía no tiene presupuesto LRU ni limpieza automática; se implementará antes de considerarla terminada.
+- El inventario global, la reconciliación de archivos huérfanos, el presupuesto de almacenamiento y la evicción LRU se implementan en la etapa 4, documentada en `docs/waveform-stage4.md`.
 - No se muestra todavía la seekbar ni el cursor de reproducción.
 - La integración con PlaybackClock y eventos automáticos se implementa en `docs/waveform-stage2.md`; el controlador todavía no se monta en la interfaz de producción.
 - La persistencia de etapa 0 fue comprobada manualmente; la etapa 1 añade recuperación de múltiples segmentos independientes.
