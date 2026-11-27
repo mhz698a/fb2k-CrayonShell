@@ -268,6 +268,8 @@ export class WaveformPlaybackController {
         this.currentTrack = null;
         this.trackKey = null;
         this.lastPrioritySegment = null;
+        this.hostCanSeek = false;
+        this.canSeek = false;
         this._emit('disposed');
     }
 
