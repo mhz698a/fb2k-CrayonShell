@@ -204,6 +204,13 @@ export class WaveformEngine {
         return this.cacheManager?.getSnapshot?.() || null;
     }
 
+    clearInactiveCache() {
+        if (!this.cacheManagerEnabled || !this.cacheManager) {
+            return Promise.resolve(this.getCacheSnapshot());
+        }
+        return this.cacheManager.clearInactive();
+    }
+
     maintainCache(options = {}) {
         if (!this.cacheManagerEnabled || !this.cacheManager) {
             return Promise.resolve(this.getCacheSnapshot());
