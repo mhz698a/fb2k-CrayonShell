@@ -69,7 +69,13 @@ export function trackPathsMatch(left, right, leftSubsong = null, rightSubsong = 
 }
 
 function getTrackPath(track) {
-    return String(track?.absolutePath || track?.path || '');
+    return String(
+        track?.absolutePath
+        || track?.fullPath
+        || track?.path
+        || track?.id
+        || ''
+    );
 }
 
 /**
@@ -82,17 +88,42 @@ export function resolvePlayingTrackIndex({
     playingTrackIndex = null,
     currentTrackResponse = null,
     activePlaylistGuid = '',
+    playlists = [],
     playbackState = 'stopped'
 } = {}) {
     if (playbackState === 'stopped') return -1;
 
-    const currentTrack = currentTrackResponse?.track
-        || currentTrackResponse?.currentTrack
-        || (currentTrackResponse && currentTrackResponse.found === true ? currentTrackResponse : null);
+    const currentTrack = currentTrackResponse?.found === false
+        ? null
+        : (
+            currentTrackResponse?.track
+            || currentTrackResponse?.currentTrack
+            || (
+                currentTrackResponse && (
+                    currentTrackResponse.found === true
+                    || currentTrackResponse.handle
+                    || currentTrackResponse.id
+                    || currentTrackResponse.fullPath
+                    || currentTrackResponse.absolutePath
+                    || currentTrackResponse.path
+                )
+                    ? currentTrackResponse
+                    : null
+            )
+        );
+
+    const playingPlaylistIndex = playingTrackIndex?.playlist
+        ?? playingTrackIndex?.playlistIndex;
+    const playingPlaylist = playingPlaylistIndex !== null
+        && playingPlaylistIndex !== undefined
+        && playingPlaylistIndex !== ''
+        ? playlists.find((playlist) => Number(playlist.index) === Number(playingPlaylistIndex))
+        : null;
+    const playingPlaylistGuid = playingTrackIndex?.playlistGuid || playingPlaylist?.guid || '';
 
     if (
         playingTrackIndex?.found === true
-        && playingTrackIndex.playlistGuid === activePlaylistGuid
+        && playingPlaylistGuid === activePlaylistGuid
         && playingTrackIndex.index !== null
         && playingTrackIndex.index !== undefined
         && playingTrackIndex.index !== ''

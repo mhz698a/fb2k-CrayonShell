@@ -125,22 +125,25 @@ export const demoBridge = {
 
             case 'playback.getCurrentTrack': {
                 const current = demoTracks.find((track) => track.index === playingIndex);
+                if (!current) return { found: false, playing: false };
+
                 return {
-                    found: Boolean(current),
-                    track: current ? {
-                        path: current.path,
-                        absolutePath: current.path,
-                        title: current.formats.title,
-                        artist: current.formats.artist
-                    } : null
+                    found: true,
+                    id: current.path + '|subsong:0',
+                    path: current.path,
+                    absolutePath: current.path,
+                    fullPath: current.path + '|subsong:0',
+                    subsong: 0,
+                    title: current.formats.title,
+                    artist: current.formats.artist
                 };
             }
 
             case 'playback.getCurrentTrackIndex':
                 return {
                     found: playingIndex >= 0,
-                    playlistGuid: activePlaylistGuid,
-                    index: playingIndex
+                    playlist: playingIndex >= 0 ? 0 : null,
+                    index: playingIndex >= 0 ? playingIndex : null
                 };
 
             case 'playback.getState':

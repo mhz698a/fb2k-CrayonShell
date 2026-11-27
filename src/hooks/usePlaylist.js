@@ -87,10 +87,12 @@ export function usePlaylist() {
     const [sessionReady, setSessionReady] = useState(false);
 
     const mountedRef = useRef(false);
+    const playlistsRef = useRef(playlists);
     const itemsRef = useRef(items);
     const focusedItemRef = useRef(focusedItem);
     const playingItemIndexRef = useRef(playingItemIndex);
     const activePlaylistGuidRef = useRef(activePlaylistGuid);
+    playlistsRef.current = playlists;
     itemsRef.current = items;
     focusedItemRef.current = focusedItem;
     playingItemIndexRef.current = playingItemIndex;
@@ -288,6 +290,7 @@ export function usePlaylist() {
                 playingTrackIndex: playingTrack,
                 currentTrackResponse,
                 activePlaylistGuid: playlistGuid,
+                playlists: playlistsRef.current,
                 playbackState: playback.state || 'stopped'
             });
 
@@ -376,6 +379,7 @@ export function usePlaylist() {
             playingTrackIndex: playingTrack,
             currentTrackResponse,
             activePlaylistGuid: active.guid,
+            playlists: nextPlaylists,
             playbackState: playback.state || 'stopped'
         });
 
@@ -532,6 +536,7 @@ export function usePlaylist() {
                 playingTrackIndex: playingTrack,
                 currentTrackResponse,
                 activePlaylistGuid: playlistGuid,
+                playlists: nextPlaylists,
                 playbackState: playback.state || 'stopped'
             });
 

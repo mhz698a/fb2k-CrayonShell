@@ -120,3 +120,41 @@ test('does not mark a track after Stop or when no path can be matched', () => {
     assert.equal(resolvePlayingTrackIndex({ ...input, playbackState: 'stopped' }), -1);
     assert.equal(resolvePlayingTrackIndex({ ...input, playbackState: 'playing' }), -1);
 });
+
+test('resolves the flat SDK track response and its numeric playing-playlist index', () => {
+    assert.equal(resolvePlayingTrackIndex({
+        items: [{
+            index: 9,
+            path: 'D:\\Music\\Current.flac',
+            absolutePath: 'D:\\Music\\Current.flac',
+            subsong: 1
+        }],
+        playingTrackIndex: { found: true, playlist: 2, index: 9 },
+        playlists: [{ index: 2, guid: 'active' }],
+        currentTrackResponse: {
+            id: 'D:\\Music\\Current.flac|subsong:1',
+            path: 'file:///D:/Music/Current.flac',
+            absolutePath: 'D:\\Music\\Current.flac',
+            fullPath: 'D:\\Music\\Current.flac|subsong:1',
+            subsong: 1
+        },
+        activePlaylistGuid: 'active',
+        playbackState: 'playing'
+    }), 9);
+});
+
+test('matches the flat SDK track identity when its playing playlist is different', () => {
+    assert.equal(resolvePlayingTrackIndex({
+        items: [
+            { index: 0, path: 'D:\\Music\\Other.flac' },
+            { index: 8, path: 'D:\\Music\\Current.flac', subsong: 0 }
+        ],
+        playingTrackIndex: { found: true, playlist: 0, index: 3 },
+        playlists: [{ index: 0, guid: 'playing-playlist' }],
+        currentTrackResponse: {
+            id: 'D:\\Music\\Current.flac|subsong:0'
+        },
+        activePlaylistGuid: 'active-playlist',
+        playbackState: 'playing'
+    }), 8);
+});
