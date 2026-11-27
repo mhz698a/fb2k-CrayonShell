@@ -88,6 +88,7 @@ export class WaveformCache {
             manifest: null, cacheManager, onManagerError
         });
         await cache._openManifest();
+        await cache._hydrateSegmentSizes();
         await cache.touch(true);
         return cache;
     }
@@ -221,6 +222,51 @@ export class WaveformCache {
             updatedAt: Date.now()
         };
         await this._writeManifest();
+    }
+
+    async _hydrateSegmentSizes() {
+        const segmentBytes = { ...(this.manifest.segmentBytes || {}) };
+        const retainedSegments = [];
+        let changed = false;
+
+        for (const index of this.manifest.segments) {
+            if (Number.isSafeInteger(Number(segmentBytes[String(index)]))
+                && Number(segmentBytes[String(index)]) >= 0) {
+                retainedSegments.push(index);
+                continue;
+            }
+
+            if (typeof this.sdk.file?.getInfo !== 'function') {
+                retainedSegments.push(index);
+                continue;
+            }
+
+            try {
+                const info = assertSuccess(
+                    await this.sdk.file.getInfo(this.getSegmentPath(index)),
+                    'No se pudo consultar el tamaño de un segmento waveform'
+                );
+                if (info?.exists !== true || info?.isFile !== true) {
+                    changed = true;
+                    continue;
+                }
+                segmentBytes[String(index)] = Number(info.size) || 0;
+                retainedSegments.push(index);
+                changed = true;
+            } catch {
+                // Keep the manifest usable if a metadata read is temporarily unavailable.
+                retainedSegments.push(index);
+            }
+        }
+
+        if (changed || !this.manifest.segmentBytes) {
+            this.manifest = {
+                ...this.manifest,
+                segments: retainedSegments,
+                segmentBytes,
+                updatedAt: Date.now()
+            };
+        }
     }
 
     async _writeManifest() {
