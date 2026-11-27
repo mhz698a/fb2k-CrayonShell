@@ -191,17 +191,19 @@ export function usePlaylist() {
                 fields: ['handle']
             });
 
-            if (page.playlistGuid && page.playlistGuid !== playlistGuid) {
-                throw new Error('La playlist cambió mientras se sincronizaban sus pistas.');
+            if (page.playlistGuid !== playlistGuid || !page.contentVersion) {
+                const error = new Error('La playlist dejó de estar disponible durante la sincronización.');
+                error.code = 'STALE_SNAPSHOT';
+                throw error;
             }
 
-            const pageVersion = page.contentVersion ? String(page.contentVersion) : '';
-            if (expectedVersion && pageVersion && expectedVersion !== pageVersion) {
+            const pageVersion = String(page.contentVersion);
+            if (expectedVersion && expectedVersion !== pageVersion) {
                 const error = new Error('La playlist cambió durante la lectura incremental.');
                 error.code = 'STALE_SNAPSHOT';
                 throw error;
             }
-            if (!expectedVersion && pageVersion) expectedVersion = pageVersion;
+            expectedVersion = pageVersion;
 
             total = Math.max(0, Number(page.total) || 0);
             const tracks = Array.isArray(page.tracks) ? page.tracks : [];
@@ -228,10 +230,10 @@ export function usePlaylist() {
             throw error;
         }
 
-        return identityRows;
+        return { rows: identityRows, contentVersion: expectedVersion, total };
     }, []);
 
-    const readPlaylistRowsAt = useCallback(async (playlistGuid, rows) => {
+    const readPlaylistRowsAt = useCallback(async (playlistGuid, rows, expectedVersion) => {
         const hydratedItems = [];
 
         for (let start = 0; start < rows.length; start += PAGE_SIZE) {
@@ -242,7 +244,22 @@ export function usePlaylist() {
                 formats: PLAYLIST_FORMATS
             });
 
+            if (
+                page.playlistGuid !== playlistGuid
+                || String(page.contentVersion || '') !== expectedVersion
+            ) {
+                const error = new Error('La playlist cambió antes de completar la lectura de los elementos nuevos.');
+                error.code = 'STALE_SNAPSHOT';
+                throw error;
+            }
+
             const tracks = Array.isArray(page.tracks) ? page.tracks : [];
+            if (tracks.length !== batch.length) {
+                const error = new Error('La lectura de los elementos nuevos quedó incompleta.');
+                error.code = 'STALE_SNAPSHOT';
+                throw error;
+            }
+
             tracks.forEach((track) => hydratedItems.push(normalizePlaylistTrack(track)));
         }
 
@@ -377,7 +394,7 @@ export function usePlaylist() {
             });
 
         let nextFocusedIndex = restoredIndex;
-        if (initial && restoredIndex >= 0) {
+        if (restoredIndex >= 0) {
             try {
                 await invoke('playlist.setSelection', {
                     playlistGuid: active.guid,
@@ -561,11 +578,18 @@ export function usePlaylist() {
 
         for (let attempt = 0; attempt < 2; attempt += 1) {
             try {
-                identityRows = await readPlaylistIdentityRows(playlistGuid);
-                const rowsToHydrate = findUnmatchedPlaylistRows(currentItems, identityRows);
-                hydratedItems = rowsToHydrate.length
-                    ? await readPlaylistRowsAt(playlistGuid, rowsToHydrate)
+                const snapshot = await readPlaylistIdentityRows(playlistGuid);
+                const rowsToHydrate = findUnmatchedPlaylistRows(currentItems, snapshot.rows);
+                const nextHydratedItems = rowsToHydrate.length
+                    ? await readPlaylistRowsAt(
+                        playlistGuid,
+                        rowsToHydrate,
+                        snapshot.contentVersion
+                    )
                     : [];
+
+                identityRows = snapshot.rows;
+                hydratedItems = nextHydratedItems;
                 break;
             } catch (error) {
                 if (error.code !== 'STALE_SNAPSHOT' || attempt > 0) throw error;
