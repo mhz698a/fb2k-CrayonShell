@@ -395,173 +395,173 @@ export default function App() {
         <div className="app-shell">
             <div
                 ref={containerRef}
-            className={'cui-container'
-                + (sidebarCollapsed ? ' sidebar-collapsed' : '')
-                + (propertiesCollapsed ? ' properties-collapsed' : '')}
-            style={{
-                '--sidebar-width': sidebarWidth + 'px',
-                '--properties-width': propertiesWidth + 'px'
-            }}
-        >
-            <ActivityBar
-                buttons={activityBarConfig.buttons}
-                actionCatalog={activityBarActionCatalog}
-                onExecuteAction={executeActivityBarAction}
-                onOpenSettingsBackup={openSettingsBackup}
-            />
-
-            <ExternalToolsDialog
-                open={externalToolsSettingsOpen}
-                config={externalToolsConfig}
-                onClose={closeExternalToolsSettings}
-                onSave={saveExternalToolsConfig}
-            />
-            <SettingsBackupDialog
-                open={settingsBackupOpen}
-                onClose={closeSettingsBackup}
-            />
-            <ActivityBarManagerDialog
-                open={activityBarManagerOpen}
-                buttons={activityBarConfig.buttons}
-                actionCatalog={activityBarActionCatalog}
-                onClose={closeActivityBarManager}
-                onAddButton={addActivityBarButton}
-                onRemoveButton={removeActivityBarButton}
-                onUpdateButton={updateActivityBarButton}
-                onMoveButton={moveActivityBarButton}
-                onRestoreDefaults={restoreActivityBarDefaults}
-                onExportConfig={() => JSON.stringify(activityBarConfig, null, 2)}
-                onImportConfig={(json) => {
-                    replaceActivityBarConfig(json);
-                    setActivityActionError('');
+                className={'cui-container'
+                    + (sidebarCollapsed ? ' sidebar-collapsed' : '')
+                    + (propertiesCollapsed ? ' properties-collapsed' : '')}
+                style={{
+                    '--sidebar-width': sidebarWidth + 'px',
+                    '--properties-width': propertiesWidth + 'px'
                 }}
-            />
+            >
+                <ActivityBar
+                    buttons={activityBarConfig.buttons}
+                    actionCatalog={activityBarActionCatalog}
+                    onExecuteAction={executeActivityBarAction}
+                    onOpenSettingsBackup={openSettingsBackup}
+                />
 
-            <Sidebar
-                visible={!sidebarCollapsed}
-                activeView={sidebarView}
-                externalTools={externalToolsConfig}
-                onOpenSettings={openExternalToolsSettings}
-            />
+                <ExternalToolsDialog
+                    open={externalToolsSettingsOpen}
+                    config={externalToolsConfig}
+                    onClose={closeExternalToolsSettings}
+                    onSave={saveExternalToolsConfig}
+                />
+                <SettingsBackupDialog
+                    open={settingsBackupOpen}
+                    onClose={closeSettingsBackup}
+                />
+                <ActivityBarManagerDialog
+                    open={activityBarManagerOpen}
+                    buttons={activityBarConfig.buttons}
+                    actionCatalog={activityBarActionCatalog}
+                    onClose={closeActivityBarManager}
+                    onAddButton={addActivityBarButton}
+                    onRemoveButton={removeActivityBarButton}
+                    onUpdateButton={updateActivityBarButton}
+                    onMoveButton={moveActivityBarButton}
+                    onRestoreDefaults={restoreActivityBarDefaults}
+                    onExportConfig={() => JSON.stringify(activityBarConfig, null, 2)}
+                    onImportConfig={(json) => {
+                        replaceActivityBarConfig(json);
+                        setActivityActionError('');
+                    }}
+                />
 
-            <div
-                className="sidebar-resizer"
-                role="separator"
-                aria-label="Cambiar ancho del panel lateral"
-                aria-orientation="vertical"
-                aria-valuemin={MIN_SIDEBAR_WIDTH}
-                aria-valuemax={MAX_SIDEBAR_WIDTH}
-                aria-valuenow={sidebarWidth}
-                tabIndex={sidebarCollapsed ? -1 : 0}
-                title="Arrastrar para cambiar el ancho"
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={stopDragging}
-                onPointerCancel={stopDragging}
-                onLostPointerCapture={() => {
-                    draggingRef.current = false;
-                    containerRef.current?.classList.remove('resizing');
-                }}
-                onKeyDown={handleResizerKeyDown}
-                onDoubleClick={handleResizerDoubleClick}
-            />
+                <Sidebar
+                    visible={!sidebarCollapsed}
+                    activeView={sidebarView}
+                    externalTools={externalToolsConfig}
+                    onOpenSettings={openExternalToolsSettings}
+                />
 
-            {activityActionError && (
-                <div className="activitybar-action-error" role="alert">
-                    <span>{activityActionError}</span>
-                    <button
-                        type="button"
-                        aria-label="Cerrar aviso de error"
-                        onClick={() => setActivityActionError('')}
-                    >
-                        ×
-                    </button>
-                </div>
-            )}
+                <div
+                    className="sidebar-resizer"
+                    role="separator"
+                    aria-label="Cambiar ancho del panel lateral"
+                    aria-orientation="vertical"
+                    aria-valuemin={MIN_SIDEBAR_WIDTH}
+                    aria-valuemax={MAX_SIDEBAR_WIDTH}
+                    aria-valuenow={sidebarWidth}
+                    tabIndex={sidebarCollapsed ? -1 : 0}
+                    title="Arrastrar para cambiar el ancho"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={stopDragging}
+                    onPointerCancel={stopDragging}
+                    onLostPointerCapture={() => {
+                        draggingRef.current = false;
+                        containerRef.current?.classList.remove('resizing');
+                    }}
+                    onKeyDown={handleResizerKeyDown}
+                    onDoubleClick={handleResizerDoubleClick}
+                />
 
-            <main className="main-playlist">
-                <section id="PlaylistPanel" aria-label="Playlist">
-                    <PlaylistToolbar
-                        playlists={playlists}
-                        activePlaylistGuid={activePlaylistGuid}
-                        filter={filter}
-                        summary={summary}
-                        onFilterChange={setFilter}
-                        onPlaylistChange={changePlaylist}
-                        contentView={contentView}
-                        propertiesVisible={!propertiesCollapsed}
-                        onToggleProperties={() => setPropertiesCollapsed((value) => !value)}
-                        onExecuteAction={executeActivityBarAction}
-                    />
-
-
-                    {isDemoMode && (
-                        <div className="demo-notice">
-                            Modo de demostración: los datos no proceden de foobar2000.
-                        </div>
-                    )}
-
-                    <div className="playlist-content">
-                        <div
-                            className={'playlist-list-view' + (contentView === 'playlist' ? '' : ' is-hidden')}
-                            aria-hidden={contentView !== 'playlist'}
+                {activityActionError && (
+                    <div className="activitybar-action-error" role="alert">
+                        <span>{activityActionError}</span>
+                        <button
+                            type="button"
+                            aria-label="Cerrar aviso de error"
+                            onClick={() => setActivityActionError('')}
                         >
-                            <PlaylistTable
-                                items={visibleItems}
-                                totalItems={items.length}
-                                focusedItem={focusedItem}
-                                playingItemIndex={playingItemIndex}
-                                playbackState={playbackState}
-                                playlistGuid={activePlaylistGuid}
-                                scrollRequest={scrollRequest}
-                                onSelect={selectItem}
-                                onPlay={playItem}
-                                onContextMenu={openNativeContextMenu}
+                            ×
+                        </button>
+                    </div>
+                )}
+
+                <main className="main-playlist">
+                    <section id="PlaylistPanel" aria-label="Playlist">
+                        <PlaylistToolbar
+                            playlists={playlists}
+                            activePlaylistGuid={activePlaylistGuid}
+                            filter={filter}
+                            summary={summary}
+                            onFilterChange={setFilter}
+                            onPlaylistChange={changePlaylist}
+                            contentView={contentView}
+                            propertiesVisible={!propertiesCollapsed}
+                            onToggleProperties={() => setPropertiesCollapsed((value) => !value)}
+                            onExecuteAction={executeActivityBarAction}
+                        />
+
+
+                        {isDemoMode && (
+                            <div className="demo-notice">
+                                Modo de demostración: los datos no proceden de foobar2000.
+                            </div>
+                        )}
+
+                        <div className="playlist-content">
+                            <div
+                                className={'playlist-list-view' + (contentView === 'playlist' ? '' : ' is-hidden')}
+                                aria-hidden={contentView !== 'playlist'}
+                            >
+                                <PlaylistTable
+                                    items={visibleItems}
+                                    totalItems={items.length}
+                                    focusedItem={focusedItem}
+                                    playingItemIndex={playingItemIndex}
+                                    playbackState={playbackState}
+                                    playlistGuid={activePlaylistGuid}
+                                    scrollRequest={scrollRequest}
+                                    onSelect={selectItem}
+                                    onPlay={playItem}
+                                    onContextMenu={openNativeContextMenu}
+                                />
+                            </div>
+                            <MediaPlaybackProbe
+                                viewMode={contentView}
+                                diagnosticsOpen={diagnosticsOpen}
+                                onCloseDiagnostics={() => setDiagnosticsOpen(false)}
                             />
                         </div>
-                        <MediaPlaybackProbe
-                            viewMode={contentView}
-                            diagnosticsOpen={diagnosticsOpen}
-                            onCloseDiagnostics={() => setDiagnosticsOpen(false)}
-                        />
-                    </div>
 
-                    <PlaylistStatus message={status} />
-                </section>
-            </main>
+                        <PlaylistStatus message={status} />
+                    </section>
+                </main>
 
-            <div
-                className="properties-resizer"
-                role="separator"
-                aria-label="Cambiar ancho del panel de propiedades"
-                aria-orientation="vertical"
-                aria-valuemin={MIN_PROPERTIES_WIDTH}
-                aria-valuemax={MAX_PROPERTIES_WIDTH}
-                aria-valuenow={propertiesWidth}
-                tabIndex={propertiesCollapsed ? -1 : 0}
-                title="Arrastrar para cambiar el ancho"
-                onPointerDown={handlePropertiesPointerDown}
-                onPointerMove={handlePropertiesPointerMove}
-                onPointerUp={stopPropertiesDragging}
-                onPointerCancel={stopPropertiesDragging}
-                onLostPointerCapture={() => {
-                    propertiesDraggingRef.current = false;
-                    containerRef.current?.classList.remove('resizing-properties');
-                }}
-                onKeyDown={handlePropertiesResizerKeyDown}
-                onDoubleClick={handlePropertiesResizerDoubleClick}
-            />
+                <div
+                    className="properties-resizer"
+                    role="separator"
+                    aria-label="Cambiar ancho del panel de propiedades"
+                    aria-orientation="vertical"
+                    aria-valuemin={MIN_PROPERTIES_WIDTH}
+                    aria-valuemax={MAX_PROPERTIES_WIDTH}
+                    aria-valuenow={propertiesWidth}
+                    tabIndex={propertiesCollapsed ? -1 : 0}
+                    title="Arrastrar para cambiar el ancho"
+                    onPointerDown={handlePropertiesPointerDown}
+                    onPointerMove={handlePropertiesPointerMove}
+                    onPointerUp={stopPropertiesDragging}
+                    onPointerCancel={stopPropertiesDragging}
+                    onLostPointerCapture={() => {
+                        propertiesDraggingRef.current = false;
+                        containerRef.current?.classList.remove('resizing-properties');
+                    }}
+                    onKeyDown={handlePropertiesResizerKeyDown}
+                    onDoubleClick={handlePropertiesResizerDoubleClick}
+                />
 
-            <PropertiesPanel
-                selectedItem={selectedItem}
-                properties={trackProperties}
-                loading={propertiesLoading}
-                error={propertiesError}
-                fileMetadata={windowsFileMetadata}
-                fileMetadataLoading={windowsFileMetadataLoading}
-                fileMetadataError={windowsFileMetadataError}
-            />
-            </div>
+                <PropertiesPanel
+                    selectedItem={selectedItem}
+                    properties={trackProperties}
+                    loading={propertiesLoading}
+                    error={propertiesError}
+                    fileMetadata={windowsFileMetadata}
+                    fileMetadataLoading={windowsFileMetadataLoading}
+                    fileMetadataError={windowsFileMetadataError}
+                />
+                </div>
             <WaveformSeekbar />
         </div>
     );
