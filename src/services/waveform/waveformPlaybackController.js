@@ -247,6 +247,14 @@ export class WaveformPlaybackController {
         };
     }
 
+    maintainCache(options = {}) {
+        return this.engine.maintainCache?.(options) || Promise.resolve(null);
+    }
+
+    clearInactiveCache() {
+        return this.engine.clearInactiveCache?.() || Promise.resolve(null);
+    }
+
     async resync() {
         if (!this.started || !this.clock) {
             throw new Error('WaveformPlaybackController no está iniciado.');
