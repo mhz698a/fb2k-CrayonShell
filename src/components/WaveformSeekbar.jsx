@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getFooSdk } from '../services/fooSdk.js';
+import { readWaveformCacheSettings } from '../features/waveform/waveformCacheSettings.js';
 import { WaveformPlaybackController } from '../services/waveform/waveformPlaybackController.js';
 import {
     clampWaveformPosition,
@@ -91,7 +92,7 @@ function getStatusText(snapshot, error, isSeeking) {
     return 'Generando waveform…';
 }
 
-export default function WaveformSeekbar() {
+export default function WaveformSeekbar({ onCacheControllerChange }) {
     const canvasRef = useRef(null);
     const controllerRef = useRef(null);
     const mountedRef = useRef(false);
@@ -167,9 +168,13 @@ export default function WaveformSeekbar() {
 
         try {
             const sdk = getFooSdk();
+            const cacheSettings = readWaveformCacheSettings();
             controller = new WaveformPlaybackController({
                 sdk,
-                engineOptions: { resolution: 4096 },
+                engineOptions: {
+                    resolution: 4096,
+                    cacheMaxBytes: cacheSettings.maxBytes
+                },
                 onSegment(segment) {
                     if (!active || !segment?.trackKey || !segment.peaks) return;
 
@@ -202,6 +207,12 @@ export default function WaveformSeekbar() {
             });
 
             controllerRef.current = controller;
+            onCacheControllerChange?.({
+                getSnapshot: () => controller.getSnapshot()?.waveform?.cache || null,
+                maintain: (options) => controller.maintainCache(options),
+                clearInactive: () => controller.clearInactiveCache(),
+                setMaxBytes: (maxBytes) => controller.setCacheMaxBytes(maxBytes)
+            });
             if (import.meta.env.DEV) {
                 window.__crayonshellWaveformPlaybackController = controller;
             }
@@ -220,13 +231,14 @@ export default function WaveformSeekbar() {
             mountedRef.current = false;
             pointerRef.current = null;
             controllerRef.current = null;
+            onCacheControllerChange?.(null);
             if (import.meta.env.DEV
                 && window.__crayonshellWaveformPlaybackController === controller) {
                 delete window.__crayonshellWaveformPlaybackController;
             }
             controller?.dispose();
         };
-    }, []);
+    }, [onCacheControllerChange]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
