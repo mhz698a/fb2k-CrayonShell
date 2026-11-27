@@ -3,7 +3,7 @@
     --bg-sidebar: #252526;
     --texto-color: #ffffff;
     --accent-color: #007acc;
-    --activitybar-width: 52px;
+    --activitybar-width: 54px;
     --sidebar-width: 250px;
     --waveform-seekbar-height: 25px;
 }
@@ -2949,6 +2949,7 @@ button.play-btn {
     line-height: 1;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+    padding-inline: 6px;
 }
 
 .waveform-seekbar-current {
