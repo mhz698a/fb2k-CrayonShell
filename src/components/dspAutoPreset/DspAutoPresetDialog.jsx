@@ -95,7 +95,9 @@ export default function DspAutoPresetDialog({
                 const [presetResult, chainResult, currentTrackResult] = await Promise.all([
                     sdk.dsp.getPresets(),
                     sdk.dsp.getChain(),
-                    sdk.playback.getCurrentTrack().catch(() => null)
+                    typeof sdk.player?.getCurrentTrack === 'function'
+                        ? sdk.player.getCurrentTrack().catch(() => null)
+                        : Promise.resolve(null)
                 ]);
                 if (presetResult?.success === false) {
                     throw new Error(presetResult.error || 'No se pudieron consultar los DSP Presets.');
