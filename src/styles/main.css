@@ -37,6 +37,16 @@ select {
     font: inherit;
 }
 
+.app-shell {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .cui-container {
     display: grid;
     grid-template-columns:
@@ -44,8 +54,11 @@ select {
         minmax(0, var(--sidebar-width))
         6px
         minmax(0, 1fr);
-    height: 100vh;
+    height: auto;
+    flex: 1 1 0;
+    width: 100%;
     min-height: 0;
+    overflow: hidden;
 }
 
 .activitybar {
@@ -2910,26 +2923,27 @@ button.play-btn {
 
 
 
-/* Single-row waveform seekbar pinned to the bottom of the playlist panel. */
+/* Full-width waveform seekbar below the complete CrayonShell workspace. */
 .waveform-seekbar {
-    display: flex;
+    display: grid;
     flex: 0 0 auto;
-    flex-direction: row;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
     align-items: center;
     gap: 10px;
+    box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    min-height: calc(var(--waveform-seekbar-height, 34px) + 10px);
-    padding: 0px 8px;
+    min-height: calc(var(--waveform-seekbar-height, 25px) + 10px);
+    padding: 0 10px;
     background: #222224;
     border-top: 1px solid rgba(128, 128, 128, .28);
 }
 
 .waveform-seekbar-time {
     display: flex;
-    flex: 0 0 auto;
     align-items: center;
     gap: 6px;
+    min-width: 0;
     color: #d5d5d5;
     font-size: 10px;
     line-height: 1;
@@ -2939,12 +2953,15 @@ button.play-btn {
 
 .waveform-seekbar-current {
     justify-content: flex-start;
-    min-width: 30px;
 }
 
 .waveform-seekbar-end {
+    display: flex;
+    align-items: center;
     justify-content: flex-end;
-    min-width: max-content;
+    gap: 4px;
+    min-width: 0;
+    white-space: nowrap;
 }
 
 .waveform-seekbar-remaining {
@@ -2958,10 +2975,10 @@ button.play-btn {
 
 .waveform-seekbar-canvas {
     display: block;
-    flex: 1 1 0;
-    width: 0;
-    height: var(--waveform-seekbar-height, 34px);
+    width: 100%;
+    height: var(--waveform-seekbar-height, 25px);
     min-width: 0;
+    box-sizing: border-box;
     overflow: hidden;
     background: rgba(0, 0, 0, .12);
     border-radius: 2px;
@@ -2988,11 +3005,11 @@ button.play-btn {
     }
 
     .waveform-seekbar-time {
-        gap: 4px;
+        gap: 3px;
         font-size: 9px;
     }
 
-    .waveform-seekbar-current {
-        min-width: 43px;
+    .waveform-seekbar-end {
+        gap: 3px;
     }
 }
