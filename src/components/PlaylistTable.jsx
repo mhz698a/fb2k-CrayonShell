@@ -72,9 +72,9 @@ export default function PlaylistTable({
 
         const viewportBounds = viewport.getBoundingClientRect();
         const rowBounds = row.getBoundingClientRect();
-        const centerPlayingRow = playingChanged
-            || (requestChanged && scrollRequest.target === 'playing')
-            || (playlistChanged && playingItemIndex >= 0);
+        const centerPlayingRow = requestChanged
+            ? scrollRequest.target === 'playing'
+            : playingChanged || (playlistChanged && playingItemIndex >= 0);
 
         if (centerPlayingRow) {
             const rowCenter = rowBounds.top + rowBounds.height / 2;
