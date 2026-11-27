@@ -80,6 +80,9 @@ export function resolvePlayingTrackIndex({
     if (
         playingTrackIndex?.found === true
         && playingTrackIndex.playlistGuid === activePlaylistGuid
+        && playingTrackIndex.index !== null
+        && playingTrackIndex.index !== undefined
+        && playingTrackIndex.index !== ''
         && Number.isInteger(Number(playingTrackIndex.index))
     ) {
         const indexedItem = items.find((item) => item.index === Number(playingTrackIndex.index));
@@ -92,7 +95,9 @@ export function resolvePlayingTrackIndex({
 
     if (!currentTrack) return -1;
 
-    const currentHandle = String(currentTrack.handle || '');
+    const currentHandle = currentTrack.handle === null || currentTrack.handle === undefined
+        ? ''
+        : String(currentTrack.handle);
     if (currentHandle) {
         const handleMatch = items.find((item) => item.handle && String(item.handle) === currentHandle);
         if (handleMatch) return handleMatch.index;
