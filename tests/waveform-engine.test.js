@@ -647,7 +647,7 @@ test('cache manager rebuilds inventory and removes orphan and invalid cache file
     assert.equal(storage.files.has(invalidManifestPath), false);
     assert.equal(storage.files.has(invalidSegmentPath), false);
     assert.equal(storage.files.has(orphanSegmentPath), false);
-    assert.equal(storage.files.has(root + '\\\\index.wfi'), true);
+    assert.equal(storage.files.has(root + '\\index.wfi'), true);
     manager.setActiveTrackKey(null);
 });
 
