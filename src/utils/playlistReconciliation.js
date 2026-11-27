@@ -1,4 +1,4 @@
-function getTrackIdentity(track) {
+export function getTrackIdentity(track) {
     if (track?.handle) return String(track.handle);
 
     const path = String(track?.absolutePath || track?.path || '').trim();
@@ -8,6 +8,27 @@ function getTrackIdentity(track) {
         ? null
         : Number(track.subsong);
     return path.toLocaleLowerCase('en-US') + (subsong === null ? '' : '|subsong:' + subsong);
+}
+
+export function findUnmatchedPlaylistRows(currentItems = [], identityRows = []) {
+    const available = new Map();
+
+    currentItems.forEach((item) => {
+        const identity = getTrackIdentity(item);
+        if (identity) available.set(identity, (available.get(identity) || 0) + 1);
+    });
+
+    return identityRows.filter((row) => {
+        const identity = getTrackIdentity(row);
+        if (!identity) return true;
+
+        const count = available.get(identity) || 0;
+        if (count > 0) {
+            available.set(identity, count - 1);
+            return false;
+        }
+        return true;
+    });
 }
 
 /**
