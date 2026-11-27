@@ -91,6 +91,7 @@ export default function WaveformSeekbar() {
     const controllerRef = useRef(null);
     const segmentsRef = useRef({ trackKey: null, items: new Map() });
     const pointerRef = useRef(null);
+    const pendingSeekRef = useRef(null);
     const snapshotRef = useRef(null);
     const lastDisplayedSecondRef = useRef(-1);
 
@@ -107,10 +108,14 @@ export default function WaveformSeekbar() {
         const controller = controllerRef.current;
         if (!controller) return;
 
+        const target = clampWaveformPosition(position, snapshotRef.current?.duration);
+        pendingSeekRef.current = target;
+        setPreviewPosition(target);
+        setDisplayPosition(target);
         setIsSeeking(true);
         setError('');
         try {
-            await controller.seek(position);
+            await controller.seek(target);
             const nextSnapshot = controller.getSnapshot();
             setSnapshot(nextSnapshot);
             setDisplayPosition(nextSnapshot.position);
@@ -118,6 +123,7 @@ export default function WaveformSeekbar() {
             setError(failure?.message || 'No se pudo cambiar la posición de reproducción.');
             setDisplayPosition(controller.getPosition());
         } finally {
+            pendingSeekRef.current = null;
             setIsSeeking(false);
         }
     }, []);
@@ -136,7 +142,9 @@ export default function WaveformSeekbar() {
                     items: new Map()
                 };
                 pointerRef.current = null;
+                pendingSeekRef.current = null;
                 setIsDragging(false);
+                setIsSeeking(false);
                 setPreviewPosition(0);
             }
 
@@ -215,9 +223,11 @@ export default function WaveformSeekbar() {
             const clockPosition = controller?.getPosition();
             const position = pointerRef.current
                 ? pointerRef.current.position
-                : Number.isFinite(clockPosition)
-                    ? clockPosition
-                    : Number(currentSnapshot?.position) || 0;
+                : pendingSeekRef.current !== null
+                    ? pendingSeekRef.current
+                    : Number.isFinite(clockPosition)
+                        ? clockPosition
+                        : Number(currentSnapshot?.position) || 0;
 
             drawWaveform(
                 canvasRef.current,
@@ -226,7 +236,7 @@ export default function WaveformSeekbar() {
                 position
             );
 
-            if (!pointerRef.current) {
+            if (!pointerRef.current && pendingSeekRef.current === null) {
                 const wholeSecond = Math.floor(Math.max(0, position));
                 if (wholeSecond !== lastDisplayedSecondRef.current) {
                     lastDisplayedSecondRef.current = wholeSecond;
@@ -247,7 +257,7 @@ export default function WaveformSeekbar() {
     const currentDuration = Number(snapshot?.duration)
         || Number(snapshot?.waveform?.duration)
         || 0;
-    const currentPosition = isDragging
+    const currentPosition = isDragging || isSeeking
         ? previewPosition
         : clampWaveformPosition(displayPosition, currentDuration);
     const canSeek = Boolean(snapshot?.trackKey && snapshot?.canSeek && currentDuration > 0);
