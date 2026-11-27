@@ -919,11 +919,54 @@ select {
 }
 
 #PlaylistStatus {
+    display: flex;
     flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
     padding: 4px 9px;
     color: GrayText;
     font-size: 10px;
     border-top: 1px solid rgba(128, 128, 128, .35);
+}
+
+.playlist-status-message {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playlist-status-dsp {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 52%;
+    overflow: hidden;
+    padding-left: 10px;
+    border-left: 1px solid rgba(128, 128, 128, .28);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.playlist-status-dsp.is-active {
+    color: #a9d9ae;
+}
+
+.playlist-status-dsp.is-queued,
+.playlist-status-dsp.is-applying,
+.playlist-status-dsp.is-verifying {
+    color: #d0bd8b;
+}
+
+.playlist-status-dsp.is-error {
+    color: #e6a09a;
+}
+
+.playlist-status-dsp.is-idle {
+    color: #929292;
 }
 
 button.play-btn {
