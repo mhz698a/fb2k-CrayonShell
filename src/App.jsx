@@ -81,6 +81,7 @@ export default function App() {
     const [settingsBackupOpen, setSettingsBackupOpen] = useState(false);
     const [waveformCacheSettingsOpen, setWaveformCacheSettingsOpen] = useState(false);
     const [waveformCacheActions, setWaveformCacheActions] = useState(null);
+    const [waveformCacheProgress, setWaveformCacheProgress] = useState(null);
     const { config: externalToolsConfig, saveConfig: saveExternalToolsConfig } = useExternalToolsConfig();
     const {
         config: activityBarConfig,
@@ -153,6 +154,10 @@ export default function App() {
 
     const handleWaveformCacheActionsChange = useCallback((actions) => {
         setWaveformCacheActions(actions);
+    }, []);
+
+    const handleWaveformCacheProgressChange = useCallback((progress) => {
+        setWaveformCacheProgress(progress);
     }, []);
 
     const reportActivityActionError = useCallback((failure) => {
@@ -439,6 +444,7 @@ export default function App() {
                 <WaveformCacheSettingsDialog
                     open={waveformCacheSettingsOpen}
                     cacheActions={waveformCacheActions}
+                    progress={waveformCacheProgress}
                     onClose={closeWaveformCacheSettings}
                 />
                 <ActivityBarManagerDialog
@@ -583,7 +589,10 @@ export default function App() {
                     fileMetadataError={windowsFileMetadataError}
                 />
             </div>
-            <WaveformSeekbar onCacheControllerChange={handleWaveformCacheActionsChange} />
+            <WaveformSeekbar
+                onCacheControllerChange={handleWaveformCacheActionsChange}
+                onCacheProgressChange={handleWaveformCacheProgressChange}
+            />
         </div>
     );
 }
