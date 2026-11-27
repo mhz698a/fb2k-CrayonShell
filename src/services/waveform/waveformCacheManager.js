@@ -50,6 +50,11 @@ function getSegmentKey(name) {
     return match ? match[1].toLowerCase() : null;
 }
 
+function getCacheKeyFromPath(path) {
+    const name = String(path || '').split(/[\\/]/).pop();
+    return getKeyFromManifestName(name) || getSegmentKey(name);
+}
+
 function isValidManifest(manifest, fileKey) {
     if (!manifest || manifest.format !== 'CrayonShellWaveformCache'
         || manifest.version !== 1 || String(manifest.key || '').toLowerCase() !== fileKey
@@ -235,6 +240,7 @@ export class WaveformCacheManager {
             let failedFiles = 0;
 
             for (const entry of candidates) {
+                if (entry.key === this.activeTrackKey) continue;
                 const paths = [
                     ...entry.segments.map(segment => joinWindowsPath(
                         this.rootPath,
@@ -423,8 +429,9 @@ export class WaveformCacheManager {
     }
 
     async _deleteOrphans(paths) {
-        if (!paths.length) return { successCount: 0, failureCount: 0, skippedCount: 0 };
-        return this._deletePaths(paths);
+        const safePaths = paths.filter(path => getCacheKeyFromPath(path) !== this.activeTrackKey);
+        if (!safePaths.length) return { successCount: 0, failureCount: 0, skippedCount: 0 };
+        return this._deletePaths(safePaths);
     }
 
     async _evictToBudget() {
@@ -437,6 +444,7 @@ export class WaveformCacheManager {
 
         for (const entry of candidates) {
             if (usedBytes <= this.maxBytes) break;
+            if (entry.key === this.activeTrackKey) continue;
             const paths = [
                 ...entry.segments.map(segment => joinWindowsPath(this.rootPath, getSegmentName(entry.key, segment.index))),
                 entry.manifestPath
