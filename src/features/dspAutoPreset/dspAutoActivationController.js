@@ -1,10 +1,26 @@
 import { getFooSdk } from '../../services/fooSdk.js';
-import {
-    hasBridge,
-    isDemoMode,
-    subscribe
-} from '../../services/foobarApi.js';
 import { readDspAutoPresetSettings } from './dspAutoPresetSettings.js';
+
+function hasNativePlaybackBridge() {
+    return typeof window !== 'undefined'
+        && Boolean(window.fb2k)
+        && typeof window.fb2k.invoke === 'function';
+}
+
+function subscribePlaybackEvent(eventName, handler) {
+    if (!hasNativePlaybackBridge() || typeof window.fb2k.on !== 'function') {
+        return () => {};
+    }
+
+    const unsubscribe = window.fb2k.on(eventName, handler);
+    if (typeof unsubscribe === 'function') return unsubscribe;
+
+    return () => {
+        if (typeof window.fb2k.off === 'function') {
+            window.fb2k.off(eventName, handler);
+        }
+    };
+}
 import { resolveDspPresetForTrack } from './dspPresetResolver.js';
 
 export function normalizePlaybackPath(path) {
@@ -14,8 +30,8 @@ export function normalizePlaybackPath(path) {
 export function createDspAutoActivationController({
     getSettings = readDspAutoPresetSettings,
     getSdk = getFooSdk,
-    subscribeEvents = subscribe,
-    isAvailable = () => !isDemoMode && hasBridge()
+    subscribeEvents = subscribePlaybackEvent,
+    isAvailable = hasNativePlaybackBridge
 } = {}) {
     let state = {
         status: 'idle',
