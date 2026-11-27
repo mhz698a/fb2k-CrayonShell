@@ -39,6 +39,11 @@ import {
     readWaveformCacheSettings,
     writeWaveformCacheSettings
 } from '../../waveform/waveformCacheSettings.js';
+import {
+    normalizeDspAutoPresetSettings,
+    readDspAutoPresetSettings,
+    writeDspAutoPresetSettings
+} from '../../dspAutoPreset/dspAutoPresetSettings.js';
 
 function getStorage(storage) {
     return resolveSettingsStorage(storage);
@@ -159,6 +164,16 @@ export function createCoreSettingsProviders(storageOverride) {
             readSettings: () => readWaveformCacheSettings(storage),
             validateSettings: normalizeWaveformCacheSettings,
             applySettings: (value) => writeWaveformCacheSettings(value, storage)
+        },
+        {
+            id: 'dsp.auto-preset',
+            label: 'DSP Auto Presets',
+            description: 'Preset predeterminado y reglas automáticas por carpeta y canción.',
+            version: 1,
+            order: 80,
+            readSettings: () => readDspAutoPresetSettings(storage),
+            validateSettings: normalizeDspAutoPresetSettings,
+            applySettings: (value) => writeDspAutoPresetSettings(value, storage)
         }
     ];
 }
