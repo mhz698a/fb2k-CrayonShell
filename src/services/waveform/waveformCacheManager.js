@@ -37,7 +37,7 @@ function getFileNames(response) {
 }
 
 function getKeyFromManifestName(name) {
-    const match = String(name || '').match(/^([a-f0-9]{16})\\.wfm$/i);
+    const match = String(name || '').match(/^([a-f0-9]{16})\.wfm$/i);
     return match ? match[1].toLowerCase() : null;
 }
 
@@ -46,7 +46,7 @@ function getSegmentName(key, index) {
 }
 
 function getSegmentKey(name) {
-    const match = String(name || '').match(/^([a-f0-9]{16})\\.(\\d{6})\\.wfs$/i);
+    const match = String(name || '').match(/^([a-f0-9]{16})\.(\d{6})\.wfs$/i);
     return match ? match[1].toLowerCase() : null;
 }
 
