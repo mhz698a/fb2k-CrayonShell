@@ -105,6 +105,7 @@ export class WaveformPlaybackController {
         this.lastPrioritySegment = null;
         this.lastError = null;
         this.playbackState = null;
+        this.hostCanSeek = false;
         this.canSeek = false;
         this.stateRevision = 0;
     }
@@ -300,6 +301,7 @@ export class WaveformPlaybackController {
         this.currentTrack = null;
         this.trackKey = null;
         this.lastPrioritySegment = null;
+        this.hostCanSeek = false;
         this.canSeek = false;
         this.engine.clear();
 
@@ -359,6 +361,7 @@ export class WaveformPlaybackController {
 
             this.currentTrack = waveformTrack;
             this.trackKey = result.trackKey || null;
+            this.canSeek = this.hostCanSeek && Boolean(this.trackKey);
             this.lastPrioritySegment = this._getPrioritySegment(
                 this.getPosition(),
                 this.engine.getSnapshot()
@@ -401,9 +404,13 @@ export class WaveformPlaybackController {
 
     _onStateChanged(state = {}, emit = true) {
         this.stateRevision += 1;
-        if (state.state) this.playbackState = state.state;
-        if (typeof state.canSeek === 'boolean') this.canSeek = state.canSeek;
-        if (emit) this._emit('playback-state', state);
+        const payload = state || {};
+        if (payload.state) this.playbackState = payload.state;
+        if (typeof payload.canSeek === 'boolean') {
+            this.hostCanSeek = payload.canSeek;
+            this.canSeek = this.hostCanSeek && Boolean(this.trackKey);
+        }
+        if (emit) this._emit('playback-state', payload);
     }
 
     _onHighResolutionTime() {
