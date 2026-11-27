@@ -3,10 +3,10 @@ import { WaveformEngine } from './waveformEngine.js';
 
 function isUsableLocalTrack(track) {
     const path = String(track?.absolutePath || '').trim();
-    const mediaPath = path.replace(/\\|subsong:\\d+$/i, '');
-    const isWindowsPath = /^[a-z]:\\\\/i.test(mediaPath)
-        || /^\\\\\\\\[^\\\\]+\\\\[^\\\\]+/.test(mediaPath);
-    const isAudioPath = /\\.(?:aac|aif|aiff|alac|ape|dff|dsf|flac|m4a|m4b|mka|mp3|mpc|oga|ogg|opus|tak|tta|wav|wave|wma|wv)$/i.test(mediaPath);
+    const mediaPath = path.replace(/\|subsong:\d+$/i, '');
+    const isWindowsPath = /^[a-z]:\\/i.test(mediaPath)
+        || /^\\\\[^\\]+\\[^\\]+/.test(mediaPath);
+    const isAudioPath = /\.(?:aac|aif|aiff|alac|ape|dff|dsf|flac|m4a|m4b|mka|mp3|mpc|oga|ogg|opus|tak|tta|wav|wave|wma|wv)$/i.test(mediaPath);
 
     return Boolean(
         track
