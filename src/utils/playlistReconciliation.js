@@ -145,15 +145,18 @@ export function resolveActivatedPlaylistGuid(payload = {}, playlists = []) {
         return explicitGuid.trim();
     }
 
-    const active = playlists.find((playlist) => playlist.isActive);
-    if (typeof active?.guid === 'string' && active.guid) return active.guid;
-
+    // The SDK event's newIndex identifies the activation target. The isActive
+    // flag can still reflect the previous playlist in a snapshot taken during
+    // event dispatch, so use that flag only as a fallback.
     const rawIndex = payload.newIndex ?? payload.index;
     const index = Number(rawIndex);
-    if (!Number.isInteger(index) || index < 0) return '';
+    if (Number.isInteger(index) && index >= 0) {
+        const indexed = playlists.find((playlist) => Number(playlist.index) === index);
+        if (typeof indexed?.guid === 'string' && indexed.guid) return indexed.guid;
+    }
 
-    const indexed = playlists.find((playlist) => Number(playlist.index) === index);
-    return typeof indexed?.guid === 'string' ? indexed.guid : '';
+    const active = playlists.find((playlist) => playlist.isActive);
+    return typeof active?.guid === 'string' ? active.guid : '';
 }
 
 /**

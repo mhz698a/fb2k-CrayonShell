@@ -219,7 +219,7 @@ test('resolves legacy activation GUIDs and index-only events against a fresh pla
     assert.equal(resolveActivatedPlaylistGuid({
         newIndex: 0,
         oldIndex: 2
-    }, playlists), 'playlist-c');
+    }, playlists), 'playlist-a');
 });
 
 test('does not guess an activated playlist when the event and fresh list provide no target', () => {
@@ -243,4 +243,17 @@ test('prefers the stable playlist GUID when a focus event also includes an index
         from: 1,
         to: 8
     }, [{ index: 0, guid: 'playlist-a' }]), 'playlist-b');
+});
+
+
+test('prefers the activation event newIndex when getAll still marks the previous playlist active', () => {
+    const staleSnapshot = [
+        { index: 0, guid: 'playlist-a', isActive: false },
+        { index: 1, guid: 'playlist-b', isActive: true }
+    ];
+
+    assert.equal(resolveActivatedPlaylistGuid({
+        oldIndex: 1,
+        newIndex: 0
+    }, staleSnapshot), 'playlist-a');
 });

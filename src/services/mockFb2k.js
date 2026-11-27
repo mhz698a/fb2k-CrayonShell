@@ -67,6 +67,26 @@ export const demoBridge = {
             case 'playlist.getAll':
                 return { playlists: getPlaylists() };
 
+            case 'playlist.getActive':
+                return {
+                    found: true,
+                    index: 0,
+                    guid: demoPlaylistGuid,
+                    name: 'CrayonShell - Demo',
+                    trackCount: demoTracks.length,
+                    isActive: true
+                };
+
+            case 'playlist.getPlaying':
+                return playingIndex >= 0
+                    ? {
+                        found: true,
+                        index: 0,
+                        guid: demoPlaylistGuid,
+                        isPlaying: true
+                    }
+                    : { found: false };
+
             case 'playlist.getTracks': {
                 const start = Number(params.start) || 0;
                 const count = Number(params.count) || demoTracks.length;
@@ -167,6 +187,7 @@ export const demoBridge = {
                 selectedIndices = Array.isArray(params.indices)
                     ? params.indices.map(Number).filter(Number.isInteger)
                     : [];
+                emit('playlist:selectionChanged', { playlist: 0 });
                 return { success: true };
 
             case 'playlist.setFocusedTrack': {

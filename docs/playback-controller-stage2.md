@@ -59,3 +59,13 @@ El índice nativo se valida contra los elementos realmente cargados en la playli
 `src/utils/trackIdentity.test.js` cubre rutas Windows, file URLs, UNC, subsongs, índice nativo prioritario, fallback entre playlists, handles duplicados y estado Stopped.
 
 `src/utils/playlistReconciliation.test.js` cubre conservación de filas sin cambios, altas, bajas, sustituciones, handles repetidos, snapshots obsoletos y prioridad de selección inicial.
+
+
+## Refactor de activación y restauración nativa
+
+- La restauración al cambiar de playlist usa la ubicación exacta de `playback.getCurrentTrackIndex`: GUID de origen e índice de fila. No hace coincidencias por ruta/handle entre playlists para decidir la selección de activación.
+- Antes de escribir, comprueba con `playlist.getActive` que el GUID solicitado sigue siendo la playlist activa.
+- La selección y el foco nativos se escriben por separado y se leen de vuelta por separado; un resultado discrepante queda registrado en la consola con el prefijo `[CrayonShell][playlist-activation]`.
+- La protección automática observa tanto `playlist:focusChanged` como `playlist:selectionChanged`. Si foobar2000 restaura una selección/foco anterior, ambos estados se vuelven a reconciliar con la pista protegida.
+- El evento `playlist:activated` se resuelve primero por su `newIndex`; el indicador `isActive` queda como fallback para evitar elegir la playlist anterior si la lectura llega durante el despacho del evento.
+- La selección manual desde CrayonShell libera la protección automática.
