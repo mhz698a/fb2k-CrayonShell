@@ -12,6 +12,7 @@ import PlaylistTable from './components/PlaylistTable.jsx';
 import PlaylistStatus from './components/PlaylistStatus.jsx';
 import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
+import WaveformSeekbar from './components/WaveformSeekbar.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
 import { useTrackProperties } from './hooks/useTrackProperties.js';
 import { useWindowsFileMetadata } from './hooks/useWindowsFileMetadata.js';
@@ -491,6 +492,8 @@ export default function App() {
                         onToggleProperties={() => setPropertiesCollapsed((value) => !value)}
                         onExecuteAction={executeActivityBarAction}
                     />
+
+                    <WaveformSeekbar />
 
                     {isDemoMode && (
                         <div className="demo-notice">
