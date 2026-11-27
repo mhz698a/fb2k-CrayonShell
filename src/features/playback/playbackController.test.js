@@ -146,6 +146,7 @@ test('all transport and playback-setting actions call the corresponding SDK meth
     await controller.stopPlayback();
     await controller.next();
     await controller.playRandom();
+    await controller.setPlaybackOrder('repeat-playlist');
     await controller.setPlaybackOrder('repeat-track');
     await controller.setStopAfterCurrent(true);
     await controller.toggleStopAfterCurrent();
@@ -172,7 +173,10 @@ test('all transport and playback-setting actions call the corresponding SDK meth
         'volumeUp',
         'volumeDown'
     ]);
-    assert.deepEqual(sdk.calls.find((call) => call.method === 'setOrder').args, ['repeat-track']);
+    assert.deepEqual(
+        sdk.calls.filter((call) => call.method === 'setOrder').map((call) => call.args[0]),
+        ['repeat-playlist', 'repeat-track']
+    );
     assert.deepEqual(sdk.calls.find((call) => call.method === 'setVolume').args, [100]);
     assert.deepEqual(sdk.calls.find((call) => call.method === 'mute').args, [false]);
     assert.equal(controller.getState().volume, 100);
