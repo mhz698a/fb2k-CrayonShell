@@ -418,3 +418,32 @@ test('remote audio URLs do not enter the local PCM decoder', async () => {
     assert.equal(controller.getSnapshot().canSeek, false);
     controller.dispose();
 });
+
+
+test('refreshes seek capability when the active track changes', async () => {
+    let canSeek = true;
+    let stateReads = 0;
+    const sdk = createFakeSdk(createTrack('seekable'), {
+        getState: async () => {
+            stateReads += 1;
+            return {
+                success: true,
+                state: 'playing',
+                canPause: true,
+                canSeek
+            };
+        }
+    });
+    const { controller } = createController({ sdk });
+
+    await controller.start();
+    assert.equal(controller.getSnapshot().canSeek, true);
+
+    canSeek = false;
+    sdk.emit('playback:trackChanged', createTrack('stream'));
+    await controller.whenTrackChangeSettled();
+
+    assert.equal(stateReads, 2);
+    assert.equal(controller.getSnapshot().canSeek, false);
+    controller.dispose();
+});
