@@ -43,10 +43,26 @@ test('prefers a native index belonging to the active playlist', () => {
     assert.equal(resolvePlayingTrackIndex({
         items: [{ index: 5, path: 'D:\\Music\\A.flac' }],
         playingTrackIndex: { found: true, playlistGuid: 'active', index: 5 },
-        currentTrackResponse: { found: true, track: { path: 'D:\\Music\\Other.flac' } },
+        currentTrackResponse: { found: true, track: { path: 'D:\\Music\\A.flac' } },
         activePlaylistGuid: 'active',
         playbackState: 'playing'
     }), 5);
+});
+
+test('rejects a stale native index when its row path conflicts with the current track', () => {
+    assert.equal(resolvePlayingTrackIndex({
+        items: [
+            { index: 0, path: 'D:\\Music\\Previous.flac' },
+            { index: 1, path: 'D:\\Music\\Current.flac' }
+        ],
+        playingTrackIndex: { found: true, playlistGuid: 'active', index: 0 },
+        currentTrackResponse: {
+            found: true,
+            track: { path: 'D:\\Music\\Current.flac' }
+        },
+        activePlaylistGuid: 'active',
+        playbackState: 'playing'
+    }), 1);
 });
 
 test('falls back to a route match when the native index belongs to another playlist', () => {
