@@ -107,7 +107,20 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
             };
         }
 
+        function getDiagnosticPlaybackController() {
+            return window.__crayonshellWaveformPlaybackController || playbackController;
+        }
+
         async function startWaveformPlayback(options = {}) {
+            const attachedController = window.__crayonshellWaveformPlaybackController;
+            if (attachedController) {
+                return {
+                    ...attachedController.getSnapshot(),
+                    recentSegments: playbackSegmentLog.slice(-20),
+                    attachedToUi: true
+                };
+            }
+
             const sdk = options.sdk || sdkModule.getFooSdk();
 
             if (engine) {
@@ -192,24 +205,40 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
             value: Object.freeze({
                 start: startWaveformPlayback,
                 status() {
+                    const controller = getDiagnosticPlaybackController();
                     return {
-                        snapshot: playbackController?.getSnapshot() || null,
+                        initialized: Boolean(controller),
+                        attachedToUi: Boolean(window.__crayonshellWaveformPlaybackController),
+                        snapshot: controller?.getSnapshot() || null,
+                        cache: controller?.getSnapshot()?.waveform?.cache || null,
                         recentSegments: playbackSegmentLog.slice(-20)
                     };
                 },
                 position() {
-                    return playbackController?.getPosition() ?? 0;
+                    return getDiagnosticPlaybackController()?.getPosition() ?? 0;
                 },
                 resync() {
-                    return playbackController?.resync() || Promise.resolve(null);
+                    const controller = getDiagnosticPlaybackController();
+                    return controller
+                        ? controller.resync()
+                        : Promise.reject(new Error('El controlador waveform aún no está disponible.'));
                 },
                 maintainCache(options = {}) {
-                    return playbackController?.maintainCache(options) || Promise.resolve(null);
+                    const controller = getDiagnosticPlaybackController();
+                    return controller
+                        ? controller.maintainCache(options)
+                        : Promise.reject(new Error('El controlador waveform aún no está disponible.'));
                 },
                 clearInactiveCache() {
-                    return playbackController?.clearInactiveCache() || Promise.resolve(null);
+                    const controller = getDiagnosticPlaybackController();
+                    return controller
+                        ? controller.clearInactiveCache()
+                        : Promise.reject(new Error('El controlador waveform aún no está disponible.'));
                 },
                 stop() {
+                    if (window.__crayonshellWaveformPlaybackController) {
+                        return { stopped: false, attachedToUi: true };
+                    }
                     playbackController?.dispose();
                     playbackController = null;
                     playbackSegmentLog = [];
