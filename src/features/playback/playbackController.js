@@ -266,7 +266,7 @@ export function createPlaybackController({
         ];
 
         const results = await Promise.allSettled(
-            reads.map(([, method]) => readMethod(sdk, method)())
+            reads.map(([, method]) => Promise.resolve().then(() => readMethod(sdk, method)()))
         );
 
         if (!started || expectedGeneration !== generation) return;
@@ -518,11 +518,11 @@ export function createPlaybackController({
     });
 
     async function refresh() {
-        const sdk = activeSdk || getSdk();
-        const currentGeneration = generation;
         if (!started) {
             return { success: false, error: 'Playback Controller no está iniciado.' };
         }
+        const sdk = activeSdk || getSdk();
+        const currentGeneration = generation;
         await readInitialSnapshot(currentGeneration, sdk);
         return { success: true, state: getState() };
     }
