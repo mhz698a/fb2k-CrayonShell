@@ -47,13 +47,13 @@ Las rutas de la pista activa están protegidas durante la reconciliación. La li
 - Nunca elimina la identidad de la pista activa.
 - Si la pista activa por sí sola supera el presupuesto, se conserva y el diagnóstico informa overBudget: true. Las pistas inactivas se eliminan primero.
 
-El límite es configurable al crear el motor mediante cacheMaxBytes o cacheManagerOptions.maxBytes. La interfaz de preferencias para cambiarlo se implementará en la etapa de ajustes.
+El límite es configurable al crear el motor mediante cacheMaxBytes o cacheManagerOptions.maxBytes. La interfaz para cambiarlo está disponible en Administración de caché waveform.
 
 ## Diagnóstico y mantenimiento manual
 
-En DevTools, consulta el snapshot de la caché:
+En DevTools, consulta el estado de la caché:
 
-    window.__crayonshellWaveformStage2.status().snapshot.waveform.cache
+    window.__crayonshellWaveformStage2.status().cache
 
 El resultado informa usedBytes, maxBytes, availableBytes, overBudget, cachedTracks, cachedSegments y el tamaño/fecha de acceso por pista.
 
@@ -67,7 +67,8 @@ Para borrar todas las cachés inactivas y conservar la que se está reproduciend
 
 ## Límites conocidos
 
+- La interfaz de Ajustes permite cambiar el presupuesto y ejecutar mantenimiento; la última versión de esta configuración se aplica al iniciar el controlador waveform.
 - El índice global es local a una instancia del panel. No existe un bloqueo interproceso para dos ventanas de CrayonShell escribiendo simultáneamente en el mismo perfil; por eso el índice es reconstruible y los manifiestos siguen siendo la autoridad.
 - La protección de pista activa aplica a la instancia actual del motor. No coordina dos instancias independientes.
-- La interfaz gráfica de administración y el control del presupuesto desde Ajustes corresponden a la siguiente etapa.
+- El botón de administración de caché está en la parte inferior de ActivityBar.
 - La eliminación física de una caché no es reversible; solo afecta a waveform regenerable y no toca los archivos multimedia originales.
