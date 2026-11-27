@@ -521,3 +521,21 @@ test('seek remains usable when the SDK has no PCM decode API', async () => {
     assert.deepEqual(sdk.seekCalls, [42]);
     controller.dispose();
 });
+
+
+test('uses the normalized native path for PCM decoding when handle is a file URL', async () => {
+    const track = createTrack('uri-handle');
+    track.handle = 'file:///C:/Music/uri-handle.flac';
+    track.path = 'file:///C:/Music/uri-handle.flac';
+
+    const sdk = createFakeSdk(track);
+    const engine = createFakeEngine();
+    const { controller } = createController({ sdk, engine });
+
+    await controller.start();
+
+    assert.equal(engine.setTrackCalls.length, 1);
+    assert.equal(engine.setTrackCalls[0].track.absolutePath, track.absolutePath);
+    assert.equal(engine.setTrackCalls[0].track.handle, track.absolutePath);
+    controller.dispose();
+});
