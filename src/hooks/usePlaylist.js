@@ -202,6 +202,7 @@ export function usePlaylist() {
             }
         }
 
+        let selectionError = null;
         if (selectPlaying && nextPlayingIndex >= 0) {
             try {
                 await invoke('playlist.setSelection', {
@@ -209,13 +210,13 @@ export function usePlaylist() {
                     indices: [nextPlayingIndex],
                     clearOthers: true
                 });
+                nextFocusedIndex = nextPlayingIndex;
                 await invoke('playlist.setFocusedTrack', {
                     playlistGuid: active.guid,
                     index: nextPlayingIndex
                 });
-                nextFocusedIndex = nextPlayingIndex;
             } catch (error) {
-                setStatusMessage('No se pudo seleccionar la pista en reproducción', error);
+                selectionError = error;
             }
         }
 
@@ -227,7 +228,12 @@ export function usePlaylist() {
         setPlaybackState(playback.state || 'stopped');
         setPlayingItemIndex(nextPlayingIndex);
         setSessionReady(true);
-        setStatusMessage('Playlist: ' + active.name);
+        setStatusMessage(
+            selectionError
+                ? 'No se pudo seleccionar la pista en reproducción'
+                : 'Playlist: ' + active.name,
+            selectionError
+        );
     }, [readPlaylistItems, setStatusMessage]);
 
     const refreshPlaylist = useCallback(async ({ selectPlaying = false } = {}) => {
