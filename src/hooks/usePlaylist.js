@@ -9,6 +9,7 @@ import { PLAYLIST_FORMATS } from '../services/playlistFormats.js';
 import { resolvePlayingTrackIndex } from '../utils/trackIdentity.js';
 import {
     findUnmatchedPlaylistRows,
+    getTrackIdentity,
     reconcilePlaylistItems,
     resolveInitialSelectionIndex
 } from '../utils/playlistReconciliation.js';
@@ -103,6 +104,7 @@ export function usePlaylist() {
     const activationRequestRef = useRef(0);
     const activationTargetGuidRef = useRef('');
     const focusRevisionRef = useRef(0);
+    const pinnedSelectionRef = useRef(null);
 
     const fullRefreshControlRef = useRef({
         running: false,
@@ -394,6 +396,17 @@ export function usePlaylist() {
             });
 
         let nextFocusedIndex = restoredIndex;
+        if (initial) {
+            const playingItem = nextItems.find((item) => item.index === nextPlayingIndex);
+            pinnedSelectionRef.current = nextPlayingIndex >= 0 && playingItem
+                ? {
+                    playlistGuid: active.guid,
+                    identity: getTrackIdentity(playingItem),
+                    index: nextPlayingIndex
+                }
+                : null;
+        }
+
         if (restoredIndex >= 0) {
             try {
                 await invoke('playlist.setSelection', {
@@ -406,6 +419,9 @@ export function usePlaylist() {
                     index: restoredIndex
                 });
             } catch (error) {
+                if (initial && pinnedSelectionRef.current?.playlistGuid === active.guid) {
+                    pinnedSelectionRef.current = null;
+                }
                 setStatusMessage('No se pudo restaurar la selección de la playlist', error);
             }
         }
@@ -512,6 +528,14 @@ export function usePlaylist() {
 
             let nextFocusedIndex = normalizeIndex(focus.index);
             let selectionError = null;
+            const playingItem = nextItems.find((item) => item.index === nextPlayingIndex);
+            pinnedSelectionRef.current = nextPlayingIndex >= 0 && playingItem
+                ? {
+                    playlistGuid,
+                    identity: getTrackIdentity(playingItem),
+                    index: nextPlayingIndex
+                }
+                : null;
             activePlaylistGuidRef.current = playlistGuid;
             commitItems(nextItems);
 
@@ -528,6 +552,7 @@ export function usePlaylist() {
                         index: nextPlayingIndex
                     });
                 } catch (error) {
+                    pinnedSelectionRef.current = null;
                     selectionError = error;
                 }
             }
@@ -611,15 +636,31 @@ export function usePlaylist() {
                 : playlist
         )));
 
-        const focusRevision = focusRevisionRef.current;
-        const focus = await invoke('playlist.getFocusedTrack', { playlistGuid }).catch(() => null);
-        if (
-            mountedRef.current
-            && activePlaylistGuidRef.current === playlistGuid
-            && focusRevision === focusRevisionRef.current
-            && focus
-        ) {
-            commitFocusedItem(normalizeIndex(focus.index));
+        const pinnedSelection = pinnedSelectionRef.current;
+        if (pinnedSelection?.playlistGuid === playlistGuid) {
+            const nextPinnedIndex = nextItems.findIndex(
+                (item) => getTrackIdentity(item) === pinnedSelection.identity
+            );
+
+            if (nextPinnedIndex >= 0) {
+                pinnedSelection.index = nextPinnedIndex;
+                commitFocusedItem(nextPinnedIndex);
+            } else {
+                pinnedSelectionRef.current = null;
+            }
+        }
+
+        if (pinnedSelectionRef.current?.playlistGuid !== playlistGuid) {
+            const focusRevision = focusRevisionRef.current;
+            const focus = await invoke('playlist.getFocusedTrack', { playlistGuid }).catch(() => null);
+            if (
+                mountedRef.current
+                && activePlaylistGuidRef.current === playlistGuid
+                && focusRevision === focusRevisionRef.current
+                && focus
+            ) {
+                commitFocusedItem(normalizeIndex(focus.index));
+            }
         }
 
         await refreshPlaybackSnapshot();
@@ -756,6 +797,7 @@ export function usePlaylist() {
             });
 
             if (mountedRef.current && activePlaylistGuidRef.current === requestedPlaylistGuid) {
+                pinnedSelectionRef.current = null;
                 commitFocusedItem(index);
             }
         };
@@ -892,7 +934,19 @@ export function usePlaylist() {
                 initializationInProgressRef.current
                 || payload.playlistGuid !== activePlaylistGuidRef.current
             ) return;
-            commitFocusedItem(normalizeIndex(payload.to));
+
+            const nextIndex = normalizeIndex(payload.to);
+            const pinnedSelection = pinnedSelectionRef.current;
+            if (
+                pinnedSelection?.playlistGuid === payload.playlistGuid
+                && nextIndex !== pinnedSelection.index
+            ) {
+                // Ignore late native focus notifications that would undo the
+                // selected playing row restored during startup or activation.
+                return;
+            }
+
+            commitFocusedItem(nextIndex);
         }));
 
         unsubscribers.push(subscribe('playlist:activated', (payload = {}) => {
