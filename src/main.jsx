@@ -203,6 +203,12 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
                 resync() {
                     return playbackController?.resync() || Promise.resolve(null);
                 },
+                maintainCache(options = {}) {
+                    return playbackController?.maintainCache(options) || Promise.resolve(null);
+                },
+                clearInactiveCache() {
+                    return playbackController?.clearInactiveCache() || Promise.resolve(null);
+                },
                 stop() {
                     playbackController?.dispose();
                     playbackController = null;
