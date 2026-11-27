@@ -11,7 +11,8 @@ import {
     findUnmatchedPlaylistRows,
     getTrackIdentity,
     reconcilePlaylistItems,
-    resolveInitialSelectionIndex
+    resolveInitialSelectionIndex,
+    shouldIgnorePinnedFocusChange
 } from '../utils/playlistReconciliation.js';
 import {
     prepareDspPresetForTrack,
@@ -936,11 +937,11 @@ export function usePlaylist() {
             ) return;
 
             const nextIndex = normalizeIndex(payload.to);
-            const pinnedSelection = pinnedSelectionRef.current;
-            if (
-                pinnedSelection?.playlistGuid === payload.playlistGuid
-                && nextIndex !== pinnedSelection.index
-            ) {
+            if (shouldIgnorePinnedFocusChange({
+                pinnedSelection: pinnedSelectionRef.current,
+                playlistGuid: payload.playlistGuid,
+                nextIndex
+            })) {
                 // Ignore late native focus notifications that would undo the
                 // selected playing row restored during startup or activation.
                 return;
