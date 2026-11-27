@@ -407,7 +407,7 @@ export class WaveformPlaybackController {
             const nativePath = getNativeTrackPath(resolvedTrack);
             const waveformTrack = {
                 ...resolvedTrack,
-                absolutePath: nativePath.replace(/\\|subsong:\\d+$/i, ''),
+                absolutePath: nativePath.replace(/\|subsong:\d+$/i, ''),
                 // waveformIdentity prefers handle as decodePath. Keep it native
                 // even when the SDK's handle/path fields contain a file:// URI.
                 handle: nativePath
