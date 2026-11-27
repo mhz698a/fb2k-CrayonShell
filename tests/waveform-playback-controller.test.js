@@ -340,3 +340,22 @@ test('stateChanged updates canSeek without discarding the current waveform', asy
     assert.equal(engine.clearCalls, 0);
     controller.dispose();
 });
+
+
+test('video and remote tracks do not enter the PCM audio decoder', async () => {
+    const videoTrack = {
+        ...createTrack('clip'),
+        absolutePath: 'C:\\Media\\clip.mp4',
+        handle: 'C:\\Media\\clip.mp4'
+    };
+    const { controller, sdk, engine } = createController();
+    await controller.start();
+
+    sdk.emit('playback:trackChanged', videoTrack);
+    await controller.whenTrackChangeSettled();
+
+    assert.equal(engine.setTrackCalls.length, 1);
+    assert.equal(controller.getSnapshot().trackKey, null);
+    assert.equal(controller.getSnapshot().canSeek, false);
+    controller.dispose();
+});
