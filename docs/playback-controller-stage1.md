@@ -30,7 +30,7 @@ Centralizar el estado y las operaciones de reproducción de CrayonShell mediante
 - `setVolume(volume)`, `setMuted(muted)`, `toggleMute()`, `volumeUp()`, `volumeDown()`.
 - `refresh()` para volver a consultar el snapshot nativo.
 
-Las órdenes admitidas por este contrato inicial son `default`, `repeat`, `repeat-track` y `random`. Los modos Shuffle adicionales del host no se incluyen en el selector de cuatro alternativas planeado.
+Las órdenes admitidas por este contrato inicial son `default`, `repeat-playlist`, `repeat-track` y `random`. Los modos Shuffle adicionales del host no se incluyen en el selector de cuatro alternativas planeado.
 
 ## Sincronización y ciclo de vida
 
