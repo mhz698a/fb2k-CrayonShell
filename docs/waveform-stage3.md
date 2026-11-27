@@ -25,7 +25,7 @@ La seekbar se monta debajo de `PlaylistToolbar` en la vista Playlist. No aparece
 
 ## Fuentes compatibles
 
-El análisis PCM automático se limita a archivos locales de audio con ruta absoluta Windows y extensión reconocida por el controlador. No se intenta decodificar video ni flujos remotos como si fueran archivos de audio locales. Los formatos no admitidos dejan la zona de waveform sin datos y no bloquean la reproducción.
+El análisis PCM automático se limita a archivos locales de audio con ruta Windows y extensión reconocida por el controlador. Primero se resuelve la ruta nativa del handle o de `absolutePath`; si el SDK solo entrega un URI `file://`, se convierte a una ruta local Windows validada. No se intenta decodificar video ni flujos remotos como si fueran archivos de audio locales. Los formatos no admitidos dejan la zona de waveform sin datos y no bloquean la reproducción.
 
 ## Prueba en foobar2000
 
