@@ -285,8 +285,11 @@ export function createDspAutoActivationController({
         return requestPreset(defaultPreset, 'default', '');
     }
 
-    async function cancelPreparedTrack() {
+    async function cancelPreparedTrack(fallbackTrackPath = '') {
         expectedTrackPath = '';
+        if (fallbackTrackPath) {
+            return syncTrack(fallbackTrackPath);
+        }
         return restoreDefault();
     }
 
@@ -387,6 +390,6 @@ export function syncDspAutoPresetTrack(path) {
     return dspAutoActivationController.syncTrack(path);
 }
 
-export function cancelPreparedDspPresetTrack() {
-    return dspAutoActivationController.cancelPreparedTrack();
+export function cancelPreparedDspPresetTrack(fallbackTrackPath = '') {
+    return dspAutoActivationController.cancelPreparedTrack(fallbackTrackPath);
 }

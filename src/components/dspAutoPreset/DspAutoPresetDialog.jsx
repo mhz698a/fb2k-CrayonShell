@@ -27,6 +27,11 @@ function RuleRow({ rule, presets, onChange, onRemove }) {
                 onChange={(event) => onChange({ presetName: event.currentTarget.value })}
             >
                 <option value="">Sin asignar</option>
+                {rule.presetName && !presets.some((preset) => preset.name === rule.presetName) && (
+                    <option value={rule.presetName}>
+                        {rule.presetName} (no disponible)
+                    </option>
+                )}
                 {presets.map((preset) => (
                     <option key={preset.name} value={preset.name}>{preset.name}</option>
                 ))}
@@ -245,6 +250,11 @@ export default function DspAutoPresetDialog({
                         }))}
                     >
                         <option value="">Seleccionar DSP Preset predeterminado</option>
+                        {config.defaultPreset && !presetNames.includes(config.defaultPreset) && (
+                            <option value={config.defaultPreset}>
+                                {config.defaultPreset} (no disponible)
+                            </option>
+                        )}
                         {presets.map((preset) => (
                             <option key={preset.name} value={preset.name}>{preset.name}</option>
                         ))}
@@ -279,7 +289,7 @@ export default function DspAutoPresetDialog({
                         disabled={isDisabled}
                         onClick={addFolderRule}
                     >
-                        <FaIcon name="folder-plus"/> Agregar subcarpeta
+                        <FaIcon name="folder-open"/> Agregar subcarpeta
                     </button>
                 </section>
 

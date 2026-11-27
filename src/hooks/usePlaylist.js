@@ -378,11 +378,12 @@ export function usePlaylist() {
             schedulePlaylistRefresh();
         } catch (error) {
             if (preparedDsp) {
-                await cancelPreparedDspPresetTrack();
+                const currentTrack = items.find((item) => item.index === playingItemIndex);
+                await cancelPreparedDspPresetTrack(currentTrack?.path || '');
             }
             setStatusMessage('No se pudo reproducir la pista', error);
         }
-    }, [activePlaylistGuid, items, isDemoMode, schedulePlaylistRefresh, setSelectedItem, setStatusMessage]);
+    }, [activePlaylistGuid, items, isDemoMode, playingItemIndex, schedulePlaylistRefresh, setSelectedItem, setStatusMessage]);
 
     const openNativeContextMenu = useCallback(async (index) => {
         if (!activePlaylistGuid) return;
