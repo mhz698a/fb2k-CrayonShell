@@ -360,3 +360,25 @@ test('video and remote tracks do not enter the PCM audio decoder', async () => {
     assert.equal(controller.getSnapshot().canSeek, false);
     controller.dispose();
 });
+
+
+test('resolves a native track path from handle before a file URL path', async () => {
+    const track = createTrack('native-handle');
+    delete track.absolutePath;
+    track.handle = 'C:\\Music\\native-handle.flac';
+    track.path = 'file:///C:/Music/native-handle.flac';
+
+    const sdk = createFakeSdk(track);
+    const engine = createFakeEngine();
+    const { controller } = createController({ sdk, engine });
+
+    await controller.start();
+
+    assert.equal(engine.setTrackCalls.length, 1);
+    assert.equal(
+        engine.setTrackCalls[0].track.absolutePath,
+        track.handle
+    );
+    assert.equal(controller.getSnapshot().trackPath, track.handle);
+    controller.dispose();
+});
