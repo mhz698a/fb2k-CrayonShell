@@ -258,6 +258,9 @@ test('waveform segments persist independently and are recovered by a new cache i
     const first = await WaveformCache.open(options);
     await first.saveSegment(makeSegment(1, 2, 4));
     assert.deepEqual(first.getCompletedIndexes(), [1]);
+    const firstManifest = JSON.parse(storage.files.get(first.manifestPath));
+    assert.equal(firstManifest.segmentBytes['1'], storage.files.get(first.getSegmentPath(1)).byteLength);
+    assert.ok(firstManifest.lastAccessAt > 0);
 
     const reopened = await WaveformCache.open(options);
     const recovered = await reopened.readSegment(1);
@@ -590,6 +593,12 @@ test('WaveformEngine decodes, persists and publishes sequential segments', async
     assert.deepEqual(published.map(segment => segment.index), [0, 1]);
     assert.ok(Array.from(storage.files.keys()).some(path => path.endsWith('.000000.wfs')));
     assert.ok(Array.from(storage.files.keys()).some(path => path.endsWith('.000001.wfs')));
+    const indexPath = Array.from(storage.files.keys()).find(path => path.endsWith('index.wfi'));
+    assert.ok(indexPath);
+    const cacheIndex = JSON.parse(storage.files.get(indexPath));
+    assert.equal(cacheIndex.entries.length, 1);
+    assert.equal(cacheIndex.entries[0].segmentCount, 2);
+    assert.ok(cacheIndex.entries[0].sizeBytes > 0);
     engine.dispose();
 });
 
