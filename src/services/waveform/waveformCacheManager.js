@@ -225,7 +225,7 @@ export class WaveformCacheManager {
     }
 
     async clearInactive() {
-        await this.initialize();
+        await this.maintain({ force: true });
         return this._enqueue(async () => {
             const candidates = Array.from(this.entries.values())
                 .filter(entry => entry.key !== this.activeTrackKey)
