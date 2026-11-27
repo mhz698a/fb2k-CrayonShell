@@ -7,7 +7,7 @@ import {
     getWaveformPositionFromPointer
 } from '../services/waveform/waveformDisplay.js';
 
-function drawWaveform(canvas, segmentMap, duration, position) {
+function drawWaveform(canvas, segmentMap, duration, position, accentColor) {
     if (!canvas) return;
 
     const bounds = canvas.getBoundingClientRect();
@@ -29,7 +29,7 @@ function drawWaveform(canvas, segmentMap, duration, position) {
     context.clearRect(0, 0, width, height);
 
     const center = height / 2;
-    const accent = getComputedStyle(canvas).getPropertyValue('--accent-color').trim() || '#007acc';
+    const accent = accentColor || '#007acc';
     const safeDuration = Number(duration) > 0 ? Number(duration) : 0;
     const safePosition = clampWaveformPosition(position, safeDuration);
     const cursorX = safeDuration > 0 ? (safePosition / safeDuration) * width : 0;
@@ -95,6 +95,7 @@ export default function WaveformSeekbar() {
     const pendingSeekRef = useRef(null);
     const snapshotRef = useRef(null);
     const lastDisplayedSecondRef = useRef(-1);
+    const accentColorRef = useRef('#007acc');
 
     const [snapshot, setSnapshot] = useState(null);
     const [displayPosition, setDisplayPosition] = useState(0);
@@ -213,6 +214,13 @@ export default function WaveformSeekbar() {
 
     useEffect(() => {
         const canvas = canvasRef.current;
+        if (!canvas) return;
+        const color = getComputedStyle(canvas).getPropertyValue('--accent-color').trim();
+        if (color) accentColorRef.current = color;
+    }, []);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
         if (!canvas || typeof ResizeObserver !== 'function') return undefined;
 
         const observer = new ResizeObserver(() => {
@@ -252,7 +260,8 @@ export default function WaveformSeekbar() {
                 canvasRef.current,
                 segmentsRef.current.items,
                 duration,
-                position
+                position,
+                accentColorRef.current
             );
 
             if (!pointerRef.current && pendingSeekRef.current === null) {
