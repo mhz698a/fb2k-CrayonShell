@@ -56,9 +56,8 @@ La consola registra segmentos mediante `[CrayonShell Waveform Stage 2]`. El mét
 
 ## Límites de esta etapa
 
-- El controlador y sus diagnósticos quedan disponibles, pero todavía no se montan automáticamente en `App.jsx`. El montaje de producción se hará junto con la seekbar visual para no iniciar una decodificación PCM de fondo antes de que exista un consumidor.
-- La seekbar aún no dibuja segmentos, cursor ni tiempos.
-- La prioridad de reproducción solo cambia al cruzar segmentos o al producirse un seek/resync. La lectura fluida para el cursor debe usar `PlaybackClock.position()` directamente desde la futura capa visual.
+- La etapa 2 entrega el controlador, pero no contiene todavía la capa visual. La seekbar y su montaje se implementan en `docs/waveform-stage3.md`.
+- La prioridad de reproducción solo cambia al cruzar segmentos o al producirse un seek/resync. La interfaz de etapa 3 lee `PlaybackClock.position()` directamente para mover el cursor, sin solicitar posiciones adicionales al host.
 - La política LRU y el presupuesto global de la caché continúan pendientes.
 
 
