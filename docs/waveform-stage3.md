@@ -1,10 +1,10 @@
 # Waveform — etapa 3: seekbar inferior en una sola fila
 
-La etapa 3 conecta el controlador con una barra de reproducción compacta, ubicada al fondo del panel principal y disponible en las vistas Playlist y Video.
+La etapa 3 conecta el controlador con una barra de reproducción compacta, ubicada fuera y debajo de `.cui-container`. Ocupa todo el ancho de la ventana y permanece disponible en las vistas Playlist y Video.
 
 ## Disposición
 
-La fila se monta después de `PlaylistStatus`, debajo de todo el contenido principal del panel. No muestra título ni artista.
+La seekbar se monta como hermana de `.cui-container`, dentro de `.app-shell`, por lo que queda debajo de toda el área de trabajo: ActivityBar, sidebar, panel principal e inspector de propiedades. No muestra título ni artista.
 
 De izquierda a derecha:
 
@@ -16,7 +16,7 @@ La altura del canvas se controla desde la variable CSS global:
 
 ```css
 :root {
-    --waveform-seekbar-height: 34px;
+    --waveform-seekbar-height: 25px;
 }
 ```
 
@@ -45,7 +45,7 @@ Un video sin pista de audio no puede producir una waveform de audio. La barra, s
 
 ## Prueba en foobar2000
 
-1. Reproduce un archivo local FLAC o WAV. Confirma que la fila aparece al fondo de la interfaz y el waveform se llena por segmentos.
+1. Reproduce un archivo local FLAC o WAV. Confirma que la fila aparece debajo de toda la interfaz, ocupa el ancho completo de la ventana y el waveform se llena por segmentos.
 2. Comprueba que a la izquierda avanza el tiempo actual y a la derecha se muestran el restante y la duración total.
 3. Arrastra el centro de la fila y verifica que la reproducción salta al soltar.
 4. Prueba el teclado, pausa y reanudación.
