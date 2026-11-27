@@ -28,7 +28,7 @@ function createMemoryStorage(initial = {}) {
     };
 }
 
-test('registers seven real providers in stable order and exports all current configuration areas', () => {
+test('registers eight real providers in stable order and exports all current configuration areas', () => {
     const storage = createMemoryStorage();
     const registry = createSettingsRegistry();
     registerCoreSettingsProviders(registry, storage);
@@ -49,8 +49,14 @@ test('registers seven real providers in stable order and exports all current con
         'yearbook.explorer',
         'refacets',
         'spectrum',
-        'waveform.cache'
+        'waveform.cache',
+        'dsp.auto-preset'
     ]);
+    assert.deepEqual(backup.providers['dsp.auto-preset'].settings, {
+        defaultPreset: '',
+        folderRules: [],
+        trackRules: []
+    });
     assert.equal(backup.providers['core.ui'].settings.sidebar.width, 320);
     assert.equal(backup.providers['activitybar'].settings.version, 1);
     assert.equal(backup.providers['yearbook.explorer'].settings.expandedRelativePaths.length, 0);
@@ -190,12 +196,12 @@ test('is idempotent when the bootstrap is evaluated again', () => {
     registerCoreSettingsProviders(registry, storage);
 
     assert.doesNotThrow(() => registerCoreSettingsProviders(registry, storage));
-    assert.equal(registry.getProviders().length, 7);
+    assert.equal(registry.getProviders().length, 8);
 });
 
 test('provider factories are usable with injected storage without browser globals', () => {
     const providers = createCoreSettingsProviders(createMemoryStorage());
-    assert.equal(providers.length, 7);
+    assert.equal(providers.length, 8);
     assert.deepEqual(providers.map((provider) => provider.id), [
         'core.ui',
         'activitybar',
@@ -203,6 +209,7 @@ test('provider factories are usable with injected storage without browser global
         'yearbook.explorer',
         'refacets',
         'spectrum',
-        'waveform.cache'
+        'waveform.cache',
+        'dsp.auto-preset'
     ]);
 });
