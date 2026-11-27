@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     reducePcmChannelsToPeaks,
-    copyPcmChannels
+    copyPcmChannels,
+    reducePcmToPeaksInWorker,
+    setDefaultPeakReducerWorkerFactory
 } from '../src/services/waveform/peakReducer.js';
 import {
     decodeWaveformProbe,
@@ -92,6 +94,23 @@ test('PCM copies are independent of SDK read-only views', () => {
     const copies = copyPcmChannels(pcm);
     copies[0][0] = 0.9;
     assert.ok(Math.abs(pcm.getChannelView(0)[0] - 0.2) < 1e-6);
+});
+
+test('uses the registered default Worker factory when no per-call factory is provided', async () => {
+    const pcm = makePcm([
+        new Float32Array([0.1, -0.8, 0.2, 0.1]),
+        new Float32Array([-0.9, 0.1, 0.7, -0.2])
+    ]);
+    setDefaultPeakReducerWorkerFactory(makeWorkerFactory());
+
+    try {
+        const peaks = await reducePcmToPeaksInWorker(pcm, 2);
+        assert.ok(Math.abs(peaks[0] - 0.9) < 1e-6);
+        assert.ok(Math.abs(peaks[1] - 0.7) < 1e-6);
+        assert.equal(pcm.wasReleased(), true);
+    } finally {
+        setDefaultPeakReducerWorkerFactory(null);
+    }
 });
 
 test('binary probe codec round-trips validated waveform data', () => {

@@ -63,6 +63,15 @@ export function copyPcmChannels(pcm) {
     return channels;
 }
 
+let defaultPeakReducerWorkerFactory = null;
+
+export function setDefaultPeakReducerWorkerFactory(workerFactory) {
+    if (workerFactory !== null && typeof workerFactory !== 'function') {
+        throw new TypeError('El constructor del Worker de waveform debe ser una función o null.');
+    }
+    defaultPeakReducerWorkerFactory = workerFactory;
+}
+
 let nextWorkerRequestId = 1;
 
 export async function reducePcmToPeaksInWorker(pcm, bucketCount, options = {}) {
@@ -78,14 +87,13 @@ export async function reducePcmToPeaksInWorker(pcm, bucketCount, options = {}) {
         pcm?.release?.();
     }
 
-    const workerFactory = options.workerFactory || (() => {
-        if (typeof Worker !== 'function') {
-            throw new Error('Web Workers no están disponibles en este WebView2.');
-        }
-        return new Worker(new URL('./peakReducer.worker.js', import.meta.url), {
-            type: 'module'
-        });
-    });
+    const workerFactory = options.workerFactory || defaultPeakReducerWorkerFactory;
+    if (typeof workerFactory !== 'function') {
+        throw new Error(
+            'No se registró el constructor del Worker de waveform. ' +
+            'Comprueba que la entrada de CrayonShell haya inicializado el worker.'
+        );
+    }
 
     const worker = workerFactory();
     const requestId = nextWorkerRequestId++;

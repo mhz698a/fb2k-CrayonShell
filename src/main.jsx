@@ -1,5 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import PeakReducerWorker from './services/waveform/peakReducer.worker.js?worker&inline';
+import { setDefaultPeakReducerWorkerFactory } from './services/waveform/peakReducer.js';
 import 'font-awesome/css/font-awesome.min.css';
 import './styles/main.css';
 
@@ -8,6 +10,10 @@ const rootElement = document.getElementById('root');
 if (!rootElement) {
     throw new Error('No se encontró el elemento raíz de CrayonShell.');
 }
+
+// Vite embeds the worker into the IIFE bundle. This avoids import.meta.url,
+// which is not available in the production IIFE output format.
+setDefaultPeakReducerWorkerFactory(() => new PeakReducerWorker());
 
 createRoot(rootElement).render(<App />);
 

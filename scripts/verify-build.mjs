@@ -66,4 +66,12 @@ if (/\bprocess\.env\.NODE_ENV\b/.test(bundle)) {
 }
 
 console.log('OK  bundle sin referencias a process.env.NODE_ENV');
+
+if (/\bimport\.meta(?:\.url|\.ROLLDOWN_FILE_URL_[A-Za-z0-9_$]*)/.test(bundle)) {
+    throw new Error(
+        'El bundle IIFE conserva import.meta.url o una URL de recurso Rolldown incompatible.'
+    );
+}
+
+console.log('OK  bundle IIFE sin referencias import.meta incompatibles');
 console.log('\nArchivos de producción verificados en: ' + outputDirectory);

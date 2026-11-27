@@ -14,6 +14,18 @@ Esta prueba técnica validó las capacidades reales de foo_ui_webview2. La persi
 - readBinary() permite verificar la lectura; inspect() comprueba el archivo tras reiniciar.
 - Los buffers PCM truncados se rechazan y no se guardan.
 
+## Worker en desarrollo y producción
+
+La entrada de la aplicación registra el constructor importado desde
+peakReducer.worker.js?worker&inline. Vite compila el worker junto con sus
+dependencias y lo incorpora al bundle, por lo que la salida IIFE no necesita
+resolver import.meta.url ni cargar un archivo worker adicional desde disco.
+
+scripts/verify-build.mjs comprueba que el bundle de producción no conserve
+referencias a import.meta.url ni a URLs de recursos Rolldown incompatibles
+con IIFE. La misma ruta de creación del worker se utiliza desde Vite en
+desarrollo y desde el bundle de producción.
+
 ## Ejecutar dentro de foobar2000
 
 1. Abre WebView2 UI → Developer → Use development server y carga CrayonShell desde Vite.
