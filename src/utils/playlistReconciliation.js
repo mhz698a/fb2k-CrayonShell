@@ -125,3 +125,11 @@ export function shouldIgnorePinnedFocusChange({
         && Number(nextIndex) !== pinnedSelection.index
     );
 }
+
+export function resolvePinnedSelectionIndex(items = [], pinnedSelection = null, playlistGuid = '') {
+    if (!pinnedSelection || pinnedSelection.playlistGuid !== playlistGuid || !pinnedSelection.identity) {
+        return -1;
+    }
+
+    return items.findIndex((item) => getTrackIdentity(item) === pinnedSelection.identity);
+}
