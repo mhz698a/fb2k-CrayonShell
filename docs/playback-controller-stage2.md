@@ -20,15 +20,18 @@ El índice nativo se valida contra los elementos realmente cargados en la playli
 
 - `usePlaylist` consulta `playback.getCurrentTrack()` además del índice y el estado nativos.
 - Una falla de `getCurrentTrack` no interrumpe la lectura de la playlist; el índice nativo sigue disponible como fallback.
-- El resultado resuelto alimenta `playingItemIndex`, por lo que la fila usa el indicador `playing` existente y no altera la selección del usuario.
+- El resultado resuelto alimenta `playingItemIndex`, por lo que la fila usa el indicador `playing` existente.
+- Al recibir `playlist:activated`, si la pista actual pertenece a la playlist activada, CrayonShell también la selecciona y establece el foco nativo sobre esa fila.
+- La selección se sincroniza al regresar o activar una playlist; los cambios normales de canción no sobrescriben una selección manual que el usuario esté realizando en la playlist activa.
+- Mantener la pista seleccionada y enfocada permite conservar la posición de la lista cuando la reproducción termina y el estado deja de ser `playing`.
 - El mock de desarrollo expone la misma consulta para permitir validación en Vite.
 
 ## Seguimiento del viewport
 
 - Cuando cambia la pista en reproducción, la fila se centra verticalmente en el viewport de la playlist.
-- La activación de otra playlist conserva el seguimiento de la pista si está presente.
+- La activación de otra playlist centra la fila de la pista en reproducción y, si existe en esa playlist, la selecciona y enfoca.
 - Los cambios de foco continúan usando el desplazamiento mínimo que mantiene visible la fila enfocada.
-- El desplazamiento no modifica el foco, selección ni filtro de la playlist.
+- El desplazamiento automático por sí solo no modifica el filtro ni la selección; la sincronización de selección ocurre únicamente al activar una playlist con la pista actual presente.
 - Si el filtro oculta la pista actual, el seguimiento automático no cambia el filtro. La acción manual Active Now Playing de la Playback Bar se implementará en una etapa posterior.
 
 ## Fuera de alcance
