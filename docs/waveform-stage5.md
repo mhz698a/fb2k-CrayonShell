@@ -27,6 +27,7 @@ El diálogo muestra:
 - Porcentaje de utilización y límite efectivo.
 - Fecha del último mantenimiento.
 - Ruta de almacenamiento actual.
+- Barra de utilización del presupuesto y aviso `overBudget`.
 - Advertencia cuando el presupuesto se excede por una pista protegida.
 
 El botón **Reconciliar** fuerza la reconstrucción del inventario desde los manifiestos y los archivos existentes, elimina huérfanos y aplica el presupuesto.
@@ -35,7 +36,7 @@ El botón **Reconciliar** fuerza la reconstrucción del inventario desde los man
 
 La limpieza manual requiere una segunda confirmación. Conserva la pista activa y elimina permanentemente solo los manifiestos y segmentos inactivos de waveform. No modifica archivos multimedia originales.
 
-Al finalizar informa pistas retiradas, archivos eliminados y operaciones fallidas u omitidas. La actividad se ejecuta mediante las operaciones asíncronas del SDK; la interfaz de reproducción no se bloquea.
+Durante la eliminación, el diálogo refleja los eventos `file:opProgress` como archivos completados frente al total. El indicador es porcentual cuando el SDK reporta avance y permanece indeterminado durante la reconciliación o la espera de finalización. Al terminar informa pistas retiradas, archivos eliminados y operaciones fallidas u omitidas. La actividad se ejecuta mediante las operaciones asíncronas del SDK; la interfaz de reproducción no se bloquea.
 
 ## Arquitectura
 
@@ -45,7 +46,7 @@ Al finalizar informa pistas retiradas, archivos eliminados y operaciones fallida
 - `WaveformEngine.setCacheMaxBytes()`: puente entre el administrador y el motor.
 - `WaveformPlaybackController.setCacheMaxBytes()`: API consumida por la interfaz.
 - `WaveformSeekbar`: entrega una interfaz limitada para consultar y administrar la caché sin exponer el objeto interno del controlador.
-- `WaveformCacheSettingsDialog.jsx`: controles, confirmación, resultados y estadísticas.
+- `WaveformCacheSettingsDialog.jsx`: controles, confirmación, resultados, estadísticas y avance de eliminación por lotes.
 
 ## Límites
 
