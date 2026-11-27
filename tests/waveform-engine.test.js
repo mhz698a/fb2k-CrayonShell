@@ -690,10 +690,12 @@ test('cache manager evicts least-recently-used tracks and protects the active tr
 
 test('manual cache cleanup removes inactive tracks but keeps the active track', async () => {
     const storage = makeMemorySdk('D:\\\\Profiles\\\\ManualCleanup');
+    const progressUpdates = [];
     const manager = new WaveformCacheManager({
         sdk: storage.sdk,
         maxBytes: 1024 * 1024,
-        maintenanceIntervalMs: 0
+        maintenanceIntervalMs: 0,
+        onProgress: (progress) => progressUpdates.push(progress)
     });
     const initial = await manager.initialize();
     const inactiveKey = '0000000000000033';
@@ -711,6 +713,8 @@ test('manual cache cleanup removes inactive tracks but keeps the active track', 
     assert.equal(storage.files.has(inactive.segmentPath), false);
     assert.equal(storage.files.has(active.manifestPath), true);
     assert.equal(storage.files.has(active.segmentPath), true);
+    assert.ok(progressUpdates.some(progress => progress.phase === 'deleting'));
+    assert.ok(progressUpdates.some(progress => progress.phase === 'completed'));
 });
 
 
