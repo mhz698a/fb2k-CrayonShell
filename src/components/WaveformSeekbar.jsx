@@ -92,7 +92,7 @@ function getStatusText(snapshot, error, isSeeking) {
     return 'Generando waveform…';
 }
 
-export default function WaveformSeekbar({ onCacheControllerChange }) {
+export default function WaveformSeekbar({ onCacheControllerChange, onCacheProgressChange }) {
     const canvasRef = useRef(null);
     const controllerRef = useRef(null);
     const mountedRef = useRef(false);
@@ -173,7 +173,8 @@ export default function WaveformSeekbar({ onCacheControllerChange }) {
                 sdk,
                 engineOptions: {
                     resolution: 4096,
-                    cacheMaxBytes: cacheSettings.maxBytes
+                    cacheMaxBytes: cacheSettings.maxBytes,
+                    onCacheProgress: (progress) => onCacheProgressChange?.(progress)
                 },
                 onSegment(segment) {
                     if (!active || !segment?.trackKey || !segment.peaks) return;
@@ -232,13 +233,14 @@ export default function WaveformSeekbar({ onCacheControllerChange }) {
             pointerRef.current = null;
             controllerRef.current = null;
             onCacheControllerChange?.(null);
+            onCacheProgressChange?.(null);
             if (import.meta.env.DEV
                 && window.__crayonshellWaveformPlaybackController === controller) {
                 delete window.__crayonshellWaveformPlaybackController;
             }
             controller?.dispose();
         };
-    }, [onCacheControllerChange]);
+    }, [onCacheControllerChange, onCacheProgressChange]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
