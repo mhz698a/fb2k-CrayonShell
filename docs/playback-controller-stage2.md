@@ -38,6 +38,9 @@ El índice nativo se valida contra los elementos realmente cargados en la playli
 
 - Al montar CrayonShell se hace una sola lectura completa de la playlist activa. La restauración de selección y foco no dispara una segunda lectura de contenido.
 - Al iniciar, la selección prioriza la pista en reproducción si pertenece a la playlist activa; después usa la última pista enfocada persistida y, como último recurso, el foco nativo.
+- La selección automática de la pista en reproducción queda protegida por identidad hasta que el usuario elige otra fila desde CrayonShell.
+- Los eventos nativos de foco que contradicen esa selección protegida no pueden reemplazarla con un índice obsoleto; la protección sigue a la misma pista si la playlist se reordena y se libera si la pista desaparece.
+- Los cambios manuales de selección liberan la protección y vuelven a sincronizar el foco normalmente.
 - Los eventos de selección y foco actualizan el estado de navegación sin recargar los elementos.
 - Los eventos de reproducción consultan únicamente el estado de reproducción y la pista actual. No vuelven a leer el contenido de la playlist.
 - Los eventos de altas, bajas, reordenamientos y reemplazos ejecutan una reconciliación incremental: se consulta el identificador `handle` y se conserva cada fila que continúa presente, actualizando su índice.
