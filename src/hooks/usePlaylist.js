@@ -13,6 +13,8 @@ import {
     reconcilePlaylistItems,
     resolveInitialSelectionIndex,
     resolvePinnedSelectionIndex,
+    resolveActivatedPlaylistGuid,
+    resolvePlaylistGuidFromEvent,
     shouldIgnorePinnedFocusChange
 } from '../utils/playlistReconciliation.js';
 import {
@@ -106,6 +108,7 @@ export function usePlaylist() {
     const pendingActivatedGuidRef = useRef('');
     const pendingContentSyncRef = useRef(false);
     const activationRequestRef = useRef(0);
+    const activationEventRequestRef = useRef(0);
     const activationTargetGuidRef = useRef('');
     const focusRevisionRef = useRef(0);
     const pinnedSelectionRef = useRef(null);
@@ -890,12 +893,10 @@ export function usePlaylist() {
 
         try {
             await invoke('playlist.setActive', { playlistGuid });
-            if (
-                activePlaylistGuidRef.current !== playlistGuid
-                && activationTargetGuidRef.current !== playlistGuid
-            ) {
-                await loadActivatedPlaylist(playlistGuid);
-            }
+            // Always request reconciliation after the command. If the event
+            // listener already started it, loadActivatedPlaylist's in-flight
+            // guard prevents duplicate work.
+            await loadActivatedPlaylist(playlistGuid);
         } catch (error) {
             setStatusMessage('No se pudo cambiar la playlist', error);
         }
@@ -949,15 +950,17 @@ export function usePlaylist() {
         });
 
         unsubscribers.push(subscribe('playlist:focusChanged', (payload = {}) => {
+            const playlistGuid = resolvePlaylistGuidFromEvent(payload, playlistsRef.current);
             if (
                 initializationInProgressRef.current
-                || payload.playlistGuid !== activePlaylistGuidRef.current
+                || !playlistGuid
+                || playlistGuid !== activePlaylistGuidRef.current
             ) return;
 
             const nextIndex = normalizeIndex(payload.to);
             if (shouldIgnorePinnedFocusChange({
                 pinnedSelection: pinnedSelectionRef.current,
-                playlistGuid: payload.playlistGuid,
+                playlistGuid,
                 nextIndex
             })) {
                 // Ignore late native focus notifications that would undo the
@@ -969,14 +972,57 @@ export function usePlaylist() {
         }));
 
         unsubscribers.push(subscribe('playlist:activated', (payload = {}) => {
-            const playlistGuid = String(payload.playlistGuid || '');
-            if (!playlistGuid) return;
+            const eventRequest = ++activationEventRequestRef.current;
+            const requestedIndex = Number(payload.newIndex ?? payload.index);
 
-            if (initializationInProgressRef.current) {
-                pendingActivatedGuidRef.current = playlistGuid;
-                return;
-            }
-            loadActivatedPlaylist(playlistGuid);
+            const resolveAndLoadActivatedPlaylist = async () => {
+                let playlistGuid = String(payload.newGuid || payload.playlistGuid || '');
+
+                // Some bridge versions publish only oldIndex/newIndex. Resolve
+                // that payload against a fresh list, not a stale cached index map.
+                if (!playlistGuid && Number.isInteger(requestedIndex) && requestedIndex >= 0) {
+                    const result = await invoke('playlist.getAll');
+                    const nextPlaylists = Array.isArray(result.playlists) ? result.playlists : [];
+                    if (
+                        !mountedRef.current
+                        || eventRequest !== activationEventRequestRef.current
+                    ) return;
+
+                    playlistGuid = resolveActivatedPlaylistGuid(payload, nextPlaylists);
+                    playlistsRef.current = nextPlaylists;
+                    setPlaylists(mapPlaylistList(nextPlaylists, playlistGuid));
+                }
+
+                if (
+                    !mountedRef.current
+                    || eventRequest !== activationEventRequestRef.current
+                ) return;
+
+                if (!playlistGuid && requestedIndex === -1) {
+                    activePlaylistGuidRef.current = '';
+                    setActivePlaylistGuid('');
+                    setPlaylists((previous) => mapPlaylistList(previous, ''));
+                    commitItems([]);
+                    commitFocusedItem(-1);
+                    commitPlayingItem(-1);
+                    setPlaybackState('stopped');
+                    setSessionReady(true);
+                    return;
+                }
+
+                if (!playlistGuid) return;
+
+                if (initializationInProgressRef.current) {
+                    pendingActivatedGuidRef.current = playlistGuid;
+                    return;
+                }
+
+                loadActivatedPlaylist(playlistGuid);
+            };
+
+            resolveAndLoadActivatedPlaylist().catch((error) => {
+                setStatusMessage('No se pudo resolver la playlist activada', error);
+            });
         }));
 
         ['playlist:created', 'playlist:removed', 'playlist:reordered', 'playlist:renamed']

@@ -4,6 +4,8 @@ import {
     reconcilePlaylistItems,
     resolveInitialSelectionIndex,
     resolvePinnedSelectionIndex,
+    resolveActivatedPlaylistGuid,
+    resolvePlaylistGuidFromEvent,
     shouldIgnorePinnedFocusChange
 } from './playlistReconciliation.js';
 
@@ -194,4 +196,41 @@ test('returns no pinned index after the pinned track is removed', () => {
     };
 
     assert.equal(resolvePinnedSelectionIndex([track(0, 'track-a')], pinnedSelection, 'active'), -1);
+});
+
+
+test('resolves current playlist activation events through newGuid', () => {
+    assert.equal(resolveActivatedPlaylistGuid({
+        newGuid: 'playlist-b',
+        newIndex: 1,
+        oldIndex: 0
+    }), 'playlist-b');
+});
+
+test('resolves legacy activation GUIDs and index-only events against a fresh playlist list', () => {
+    const playlists = [
+        { index: 0, guid: 'playlist-a', isActive: false },
+        { index: 2, guid: 'playlist-c', isActive: true }
+    ];
+
+    assert.equal(resolveActivatedPlaylistGuid({
+        playlistGuid: 'playlist-a'
+    }, playlists), 'playlist-a');
+    assert.equal(resolveActivatedPlaylistGuid({
+        newIndex: 0,
+        oldIndex: 2
+    }, playlists), 'playlist-c');
+});
+
+test('does not guess an activated playlist when the event and fresh list provide no target', () => {
+    assert.equal(resolveActivatedPlaylistGuid({ newIndex: -1 }, []), '');
+});
+
+test('resolves focus-change events that identify their playlist by numeric index', () => {
+    assert.equal(resolvePlaylistGuidFromEvent({
+        playlist: 1,
+        from: 2,
+        to: 8
+    }, [{ index: 0, guid: 'playlist-a' }, { index: 1, guid: 'playlist-b' }]), 'playlist-b');
+    assert.equal(resolvePlaylistGuidFromEvent({ playlist: -1 }, []), '');
 });

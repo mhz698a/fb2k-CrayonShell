@@ -159,17 +159,23 @@ export const demoBridge = {
                 const previous = focusedIndex;
                 focusedIndex = Number(params.index);
                 emit('playlist:focusChanged', {
-                    playlistGuid: demoPlaylistGuid,
+                    playlist: 0,
                     from: previous,
                     to: focusedIndex
                 });
                 return { success: true };
             }
 
-            case 'playlist.setActive':
+            case 'playlist.setActive': {
+                const oldIndex = 0;
                 activePlaylistGuid = params.playlistGuid;
-                emit('playlist:activated', { playlistGuid: activePlaylistGuid });
+                emit('playlist:activated', {
+                    newGuid: activePlaylistGuid,
+                    newIndex: 0,
+                    oldIndex
+                });
                 return { success: true };
+            }
 
             case 'playlist.playTrack':
                 playingIndex = Number(params.index);

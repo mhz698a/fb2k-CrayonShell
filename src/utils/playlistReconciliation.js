@@ -133,3 +133,42 @@ export function resolvePinnedSelectionIndex(items = [], pinnedSelection = null, 
 
     return items.findIndex((item) => getTrackIdentity(item) === pinnedSelection.identity);
 }
+
+
+/**
+ * Resolve playlist:activated across the current and legacy event payloads.
+ * Index-only events must be matched against a fresh playlist.getAll snapshot.
+ */
+export function resolveActivatedPlaylistGuid(payload = {}, playlists = []) {
+    const explicitGuid = payload.newGuid || payload.playlistGuid;
+    if (typeof explicitGuid === 'string' && explicitGuid.trim()) {
+        return explicitGuid.trim();
+    }
+
+    const active = playlists.find((playlist) => playlist.isActive);
+    if (typeof active?.guid === 'string' && active.guid) return active.guid;
+
+    const rawIndex = payload.newIndex ?? payload.index;
+    const index = Number(rawIndex);
+    if (!Number.isInteger(index) || index < 0) return '';
+
+    const indexed = playlists.find((playlist) => Number(playlist.index) === index);
+    return typeof indexed?.guid === 'string' ? indexed.guid : '';
+}
+
+/**
+ * Focus events identify their playlist by numeric playlist index, not by GUID.
+ */
+export function resolvePlaylistGuidFromEvent(payload = {}, playlists = []) {
+    const explicitGuid = payload.playlistGuid || payload.newGuid;
+    if (typeof explicitGuid === 'string' && explicitGuid.trim()) {
+        return explicitGuid.trim();
+    }
+
+    const rawIndex = payload.playlist ?? payload.index;
+    const index = Number(rawIndex);
+    if (!Number.isInteger(index) || index < 0) return '';
+
+    const playlist = playlists.find((item) => Number(item.index) === index);
+    return typeof playlist?.guid === 'string' ? playlist.guid : '';
+}
