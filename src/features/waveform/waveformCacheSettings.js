@@ -8,6 +8,7 @@ export const WAVEFORM_CACHE_SETTINGS_VERSION = 1;
 export const MEBIBYTE = 1024 * 1024;
 export const DEFAULT_WAVEFORM_CACHE_MAX_BYTES = 1024 * MEBIBYTE;
 export const MIN_WAVEFORM_CACHE_MAX_BYTES = 64 * MEBIBYTE;
+export const WAVEFORM_CACHE_BUDGET_STEP_BYTES = 64 * MEBIBYTE;
 export const MAX_WAVEFORM_CACHE_MAX_BYTES = 64 * 1024 * MEBIBYTE;
 
 export function normalizeWaveformCacheSettings(value = {}) {
@@ -17,7 +18,7 @@ export function normalizeWaveformCacheSettings(value = {}) {
     const candidate = Number(source.maxBytes);
     const valid = Number.isFinite(candidate) && candidate > 0;
     const rounded = valid
-        ? Math.round(candidate / MEBIBYTE) * MEBIBYTE
+        ? Math.round(candidate / WAVEFORM_CACHE_BUDGET_STEP_BYTES) * WAVEFORM_CACHE_BUDGET_STEP_BYTES
         : DEFAULT_WAVEFORM_CACHE_MAX_BYTES;
 
     return {
