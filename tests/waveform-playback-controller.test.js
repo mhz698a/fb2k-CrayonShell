@@ -83,6 +83,10 @@ function createFakeEngine() {
                 status: this.trackKey ? 'loading' : 'idle'
             };
         },
+        async setCacheMaxBytes(maxBytes) {
+            this.cacheMaxBytes = maxBytes;
+            return { maxBytes };
+        },
         clear() {
             this.clearCalls += 1;
             this.track = null;
@@ -537,5 +541,17 @@ test('uses the normalized native path for PCM decoding when handle is a file URL
     assert.equal(engine.setTrackCalls.length, 1);
     assert.equal(engine.setTrackCalls[0].track.absolutePath, track.absolutePath);
     assert.equal(engine.setTrackCalls[0].track.handle, track.absolutePath);
+    controller.dispose();
+});
+
+
+test('controller applies cache budget through the active waveform engine', async () => {
+    const { controller, engine } = createController();
+    await controller.start();
+
+    const result = await controller.setCacheMaxBytes(2 * 1024 * 1024);
+
+    assert.equal(result.maxBytes, 2 * 1024 * 1024);
+    assert.equal(engine.cacheMaxBytes, 2 * 1024 * 1024);
     controller.dispose();
 });
