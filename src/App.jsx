@@ -4,6 +4,7 @@ import ActivityBarManagerDialog from './components/activitybar/ActivityBarManage
 import ExternalToolsDialog from './components/activitybar/ExternalToolsDialog.jsx';
 import SettingsBackupDialog from './components/settings/SettingsBackupDialog.jsx';
 import WaveformCacheSettingsDialog from './components/settings/WaveformCacheSettingsDialog.jsx';
+import DspAutoPresetDialog from './components/dspAutoPreset/DspAutoPresetDialog.jsx';
 import { useExternalToolsConfig } from './features/activitybar/hooks/useExternalToolsConfig.js';
 import { useActivityBarConfig } from './features/activitybar/hooks/useActivityBarConfig.js';
 import { useActivityBarActions } from './features/activitybar/hooks/useActivityBarActions.js';
@@ -38,6 +39,10 @@ import {
 } from './features/settings/providers/coreUiSettings.js';
 import { settingsRegistry } from './features/settings/index.js';
 import { registerCoreSettingsProviders } from './features/settings/providers/coreSettingsProviders.js';
+import {
+    startDspAutoActivationController,
+    syncDspAutoPresetTrack
+} from './features/dspAutoPreset/index.js';
 
 registerCoreSettingsProviders(settingsRegistry);
 
@@ -82,6 +87,7 @@ export default function App() {
     const [waveformCacheSettingsOpen, setWaveformCacheSettingsOpen] = useState(false);
     const [waveformCacheActions, setWaveformCacheActions] = useState(null);
     const [waveformCacheProgress, setWaveformCacheProgress] = useState(null);
+    const [dspAutoPresetManagerOpen, setDspAutoPresetManagerOpen] = useState(false);
     const { config: externalToolsConfig, saveConfig: saveExternalToolsConfig } = useExternalToolsConfig();
     const {
         config: activityBarConfig,
@@ -151,6 +157,16 @@ export default function App() {
     const closeWaveformCacheSettings = useCallback(() => {
         setWaveformCacheSettingsOpen(false);
     }, []);
+
+    const openDspAutoPresetManager = useCallback(() => {
+        setDspAutoPresetManagerOpen(true);
+    }, []);
+
+    const closeDspAutoPresetManager = useCallback(() => {
+        setDspAutoPresetManagerOpen(false);
+    }, []);
+
+    useEffect(() => startDspAutoActivationController(), []);
 
     const handleWaveformCacheActionsChange = useCallback((actions) => {
         setWaveformCacheActions(actions);
@@ -223,6 +239,15 @@ export default function App() {
         openNativeContextMenu
     } = usePlaylist();
 
+    const playingItem = items.find((item) => item.index === playingItemIndex) || null;
+    const playingTrackPath = playingItem?.path || '';
+
+    useEffect(() => {
+        if (playbackState !== 'stopped' && playingTrackPath && !isDemoMode) {
+            void syncDspAutoPresetTrack(playingTrackPath);
+        }
+    }, [playingTrackPath, playbackState, isDemoMode]);
+
     const activePlaylist = playlists.find(
         (playlist) => playlist.guid === activePlaylistGuid
     );
@@ -274,7 +299,9 @@ export default function App() {
         refreshPlaylist,
         openDiagnostics,
         openActivityBarManager,
-        activityBarManagerOpen
+        activityBarManagerOpen,
+        openDspAutoPresetManager,
+        dspAutoPresetManagerOpen
     }), [
         sidebarCollapsed,
         sidebarView,
@@ -290,7 +317,9 @@ export default function App() {
         refreshPlaylist,
         openDiagnostics,
         openActivityBarManager,
-        activityBarManagerOpen
+        activityBarManagerOpen,
+        openDspAutoPresetManager,
+        dspAutoPresetManagerOpen
     ]);
 
     const {
@@ -446,6 +475,12 @@ export default function App() {
                     cacheActions={waveformCacheActions}
                     progress={waveformCacheProgress}
                     onClose={closeWaveformCacheSettings}
+                />
+                <DspAutoPresetDialog
+                    open={dspAutoPresetManagerOpen}
+                    currentTrackPath={playingTrackPath}
+                    isDemoMode={isDemoMode}
+                    onClose={closeDspAutoPresetManager}
                 />
                 <ActivityBarManagerDialog
                     open={activityBarManagerOpen}

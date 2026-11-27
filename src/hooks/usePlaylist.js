@@ -7,6 +7,10 @@ import {
 } from '../services/foobarApi.js';
 import { PLAYLIST_FORMATS } from '../services/playlistFormats.js';
 import {
+    prepareDspPresetForTrack,
+    cancelPreparedDspPresetTrack
+} from '../features/dspAutoPreset/dspAutoActivationController.js';
+import {
     buildPlaylistSession,
     readPlaylistSession,
     resolveSavedFocusIndex,
@@ -353,8 +357,18 @@ export function usePlaylist() {
     const playItem = useCallback(async (index) => {
         if (!activePlaylistGuid) return;
 
+        let preparedDsp = false;
         try {
             await setSelectedItem(index);
+            const targetTrack = items.find((item) => item.index === index);
+            if (!isDemoMode && targetTrack?.path) {
+                const dspResult = await prepareDspPresetForTrack(targetTrack.path);
+                preparedDsp = Boolean(dspResult?.prepared);
+                if (dspResult?.success === false && dspResult.error) {
+                    setStatusMessage('No se pudo preparar el DSP Preset; se iniciará la canción igualmente', new Error(dspResult.error));
+                }
+            }
+
             await invoke('playlist.playTrack', {
                 playlistGuid: activePlaylistGuid,
                 index
@@ -363,9 +377,12 @@ export function usePlaylist() {
             setStatusMessage('Reproduciendo pista: ' + (index + 1));
             schedulePlaylistRefresh();
         } catch (error) {
+            if (preparedDsp) {
+                await cancelPreparedDspPresetTrack();
+            }
             setStatusMessage('No se pudo reproducir la pista', error);
         }
-    }, [activePlaylistGuid, schedulePlaylistRefresh, setSelectedItem, setStatusMessage]);
+    }, [activePlaylistGuid, items, isDemoMode, schedulePlaylistRefresh, setSelectedItem, setStatusMessage]);
 
     const openNativeContextMenu = useCallback(async (index) => {
         if (!activePlaylistGuid) return;
