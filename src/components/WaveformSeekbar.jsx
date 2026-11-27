@@ -3,7 +3,6 @@ import { getFooSdk } from '../services/fooSdk.js';
 import { WaveformPlaybackController } from '../services/waveform/waveformPlaybackController.js';
 import {
     clampWaveformPosition,
-    formatWaveformTime,
     getWaveformPositionFromPointer,
     getWaveformTimeLabels
 } from '../services/waveform/waveformDisplay.js';
