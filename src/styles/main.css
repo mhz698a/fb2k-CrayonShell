@@ -3013,3 +3013,331 @@ button.play-btn {
         gap: 3px;
     }
 }
+
+
+/* Waveform cache administration. */
+.waveform-cache-dialog {
+    width: min(760px, calc(100vw - 28px));
+    max-width: 760px;
+    max-height: min(760px, calc(100vh - 28px));
+    padding: 0;
+    overflow: hidden;
+    color: #d4d4d4;
+    background: #252526;
+    border: 1px solid #454545;
+    border-radius: 5px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, .55);
+}
+.waveform-cache-dialog::backdrop {
+    background: rgba(0, 0, 0, .62);
+}
+.waveform-cache-settings {
+    display: flex;
+    width: 100%;
+    max-height: min(760px, calc(100vh - 28px));
+    flex-direction: column;
+}
+.waveform-cache-heading {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 15px 17px 12px;
+    border-bottom: 1px solid #3b3b3b;
+}
+.waveform-cache-heading > div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+.waveform-cache-heading strong {
+    color: #f0f0f0;
+    font-size: 13px;
+    font-weight: 600;
+}
+.waveform-cache-heading span {
+    color: #999;
+    font-size: 10px;
+    line-height: 1.45;
+}
+.waveform-cache-close {
+    flex: 0 0 auto;
+    width: 27px;
+    height: 27px;
+    padding: 0;
+    color: #bcbcbc;
+    background: transparent;
+    border: 0;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 21px;
+    line-height: 1;
+}
+.waveform-cache-close:hover {
+    color: #fff;
+    background: #3a3d41;
+}
+.waveform-cache-content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 13px;
+    min-height: 0;
+    padding: 14px 16px;
+    overflow: auto;
+    scrollbar-color: #505050 #202020;
+    scrollbar-width: thin;
+}
+.waveform-cache-section {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+    padding: 11px;
+    background: #1e1e1e;
+    border: 1px solid #3b3b3e;
+    border-radius: 4px;
+}
+.waveform-cache-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+.waveform-cache-section-heading > strong {
+    color: #e7e7e7;
+    font-size: 11px;
+    font-weight: 600;
+}
+.waveform-cache-section-heading > span {
+    color: #929292;
+    font-size: 9px;
+    text-align: right;
+}
+.waveform-cache-section-heading button,
+.waveform-cache-budget-row button,
+.waveform-cache-footer button,
+.waveform-cache-confirm button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 29px;
+    padding: 5px 9px;
+    color: #d8d8d8;
+    background: #333337;
+    border: 1px solid #505054;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+}
+.waveform-cache-section-heading button:hover,
+.waveform-cache-budget-row button:hover,
+.waveform-cache-footer button:hover,
+.waveform-cache-confirm button:hover {
+    color: #fff;
+    background: #414146;
+}
+.waveform-cache-section-heading button:disabled,
+.waveform-cache-budget-row button:disabled,
+.waveform-cache-footer button:disabled,
+.waveform-cache-confirm button:disabled,
+.waveform-cache-section button:disabled {
+    opacity: .48;
+    cursor: not-allowed;
+}
+.waveform-cache-budget-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.waveform-cache-budget-row > label {
+    color: #cfcfcf;
+    font-size: 10px;
+}
+.waveform-cache-budget-row > div {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.waveform-cache-budget-row input {
+    width: 112px;
+    min-height: 29px;
+    padding: 4px 7px;
+    color: #e4e4e4;
+    background: #2d2d30;
+    border: 1px solid #555;
+    border-radius: 3px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+.waveform-cache-budget-row > div > span {
+    color: #999;
+    font-size: 10px;
+}
+.waveform-cache-budget-row .waveform-cache-primary {
+    color: #fff;
+    background: #075f95;
+    border-color: #0878b8;
+}
+.waveform-cache-budget-row .waveform-cache-primary:hover:not(:disabled) {
+    background: #0877b5;
+}
+.waveform-cache-note {
+    margin: 0;
+    color: #929292;
+    font-size: 9px;
+    line-height: 1.5;
+}
+.waveform-cache-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+}
+.waveform-cache-stats > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 8px;
+    background: #252526;
+    border: 1px solid #3c3c40;
+    border-radius: 3px;
+}
+.waveform-cache-stats strong {
+    overflow: hidden;
+    color: #ededed;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.waveform-cache-stats span {
+    color: #999;
+    font-size: 9px;
+    line-height: 1.3;
+}
+.waveform-cache-meter {
+    height: 7px;
+    overflow: hidden;
+    background: #353538;
+    border-radius: 4px;
+}
+.waveform-cache-meter > span {
+    display: block;
+    height: 100%;
+    background: #0e8ac7;
+    border-radius: inherit;
+    transition: width .2s ease;
+}
+.waveform-cache-meter.is-over-budget > span {
+    background: #c98b39;
+}
+.waveform-cache-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #999;
+    font-size: 9px;
+}
+.waveform-cache-warning {
+    margin: 0;
+    color: #e2bd83;
+    font-size: 9px;
+    line-height: 1.45;
+}
+.waveform-cache-path {
+    margin: 0;
+    overflow: hidden;
+    color: #777;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.waveform-cache-danger {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 5px 10px;
+    color: #f0c7c4;
+    background: #4a2928;
+    border: 1px solid #71403d;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+}
+.waveform-cache-danger:hover:not(:disabled) {
+    background: #633431;
+}
+.waveform-cache-danger:disabled {
+    opacity: .48;
+    cursor: not-allowed;
+}
+.waveform-cache-confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 9px;
+    background: #302626;
+    border: 1px solid #68413d;
+    border-radius: 3px;
+}
+.waveform-cache-confirm > span {
+    color: #e2c7c3;
+    font-size: 10px;
+    line-height: 1.5;
+}
+.waveform-cache-confirm > div {
+    display: flex;
+    justify-content: flex-end;
+    gap: 7px;
+}
+.waveform-cache-feedback {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+    color: #a9d9ae;
+    font-size: 10px;
+    line-height: 1.45;
+}
+.waveform-cache-feedback.is-error {
+    color: #e6a09a;
+}
+.waveform-cache-footer {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    border-top: 1px solid #3b3b3b;
+}
+.waveform-cache-footer > span {
+    color: #858585;
+    font-size: 9px;
+    line-height: 1.4;
+}
+@media (max-width: 620px) {
+    .waveform-cache-content { padding: 10px; }
+    .waveform-cache-budget-row,
+    .waveform-cache-budget-row > div {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .waveform-cache-budget-row > div { width: 100%; }
+    .waveform-cache-budget-row input { width: 100%; }
+    .waveform-cache-budget-row > div > span { display: none; }
+    .waveform-cache-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .waveform-cache-meta { flex-direction: column; gap: 4px; }
+    .waveform-cache-section-heading { align-items: flex-start; }
+    .waveform-cache-section-heading > span { text-align: right; }
+    .waveform-cache-footer { align-items: flex-start; flex-direction: column; }
+}
