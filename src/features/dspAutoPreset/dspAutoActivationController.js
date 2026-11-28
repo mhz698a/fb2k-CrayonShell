@@ -322,7 +322,12 @@ export function createDspAutoActivationController({
         return restoreDefault();
     }
 
-    function handleTrackChanged(track) {
+    function handleTrackChanged(payload) {
+        const track = payload?.track && typeof payload.track === 'object'
+            ? payload.track
+            : payload?.currentTrack && typeof payload.currentTrack === 'object'
+                ? payload.currentTrack
+                : payload;
         const path = String(track?.absolutePath || track?.path || '');
         const normalizedPath = normalizePlaybackPath(path);
         if (!path) return;
