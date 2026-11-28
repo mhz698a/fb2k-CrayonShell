@@ -13,6 +13,7 @@ import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
 import StatusBar from './components/StatusBar.jsx';
 import PlaybackBar from './components/PlaybackBar.jsx';
+import FoobarMenuBar from './components/FoobarMenuBar.jsx';
 import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
 import WaveformSeekbar from './components/WaveformSeekbar.jsx';
@@ -449,6 +450,7 @@ export default function App() {
 
     return (
         <div className="app-shell">
+            <FoobarMenuBar isDemoMode={isDemoMode} />
             <div
                 ref={containerRef}
                 className={'cui-container'
