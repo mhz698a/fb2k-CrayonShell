@@ -52,10 +52,9 @@ export default function PlaylistManager({
     );
 
     useEffect(() => {
-        if (!playlists.some((playlist) => playlist.guid === selectedGuid)) {
-            setSelectedGuid(activePlaylistGuid || playlists[0]?.guid || '');
-        }
-    }, [playlists, selectedGuid, activePlaylistGuid]);
+        if (selectedGuid && playlists.some((playlist) => playlist.guid === selectedGuid)) return;
+        setSelectedGuid(activePlaylistGuid || playlists[0]?.guid || '');
+    }, [playlistSignature, activePlaylistGuid]);
 
     useEffect(() => {
         if (!open) return undefined;
