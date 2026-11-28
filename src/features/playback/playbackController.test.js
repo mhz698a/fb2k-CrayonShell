@@ -37,10 +37,10 @@ function createFakeSdk(overrides = {}) {
         random: async () => ({ success: true }),
         setOrder: async (order) => ({
             success: true,
-            order: PLAYBACK_ORDER_NAMES.indexOf(order),
-            orderIndex: PLAYBACK_ORDER_NAMES.indexOf(order),
-            orderName: order,
-            name: order
+            order,
+            orderIndex: order,
+            orderName: PLAYBACK_ORDER_NAMES[order],
+            name: PLAYBACK_ORDER_NAMES[order]
         }),
         setStopAfterCurrent: async (enabled) => ({ success: true, enabled }),
         toggleStopAfterCurrent: async () => ({ success: true, enabled: true }),
@@ -205,7 +205,7 @@ test('all transport and playback-setting actions call the corresponding SDK meth
     ]);
     assert.deepEqual(
         sdk.calls.filter((call) => call.method === 'setOrder').map((call) => call.args[0]),
-        [...PLAYBACK_ORDER_NAMES]
+        PLAYBACK_ORDER_NAMES.map((_, index) => index)
     );
     assert.deepEqual(controller.getState().order, {
         index: 6,
