@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPlaybackController } from './playbackController.js';
+import {
+    createPlaybackController,
+    PLAYBACK_ORDER_NAMES
+} from './playbackController.js';
 
 function createDeferred() {
     let resolve;
@@ -32,7 +35,13 @@ function createFakeSdk(overrides = {}) {
         stop: async () => ({ success: true }),
         next: async () => ({ success: true }),
         random: async () => ({ success: true }),
-        setOrder: async (order) => ({ success: true, order, orderName: order }),
+        setOrder: async (order) => ({
+            success: true,
+            order: PLAYBACK_ORDER_NAMES.indexOf(order),
+            orderIndex: PLAYBACK_ORDER_NAMES.indexOf(order),
+            orderName: order,
+            name: order
+        }),
         setStopAfterCurrent: async (enabled) => ({ success: true, enabled }),
         toggleStopAfterCurrent: async () => ({ success: true, enabled: true }),
         setVolume: async (volume) => ({ success: true, volume, volumeDb: -3, muted: volume === 0 }),
@@ -140,12 +149,7 @@ test('native numeric playback-order events update the selected order name', () =
     const controller = createPlaybackController({ getSdk: () => sdk });
     const release = controller.start();
 
-    const expectedOrders = [
-        [0, 'default'],
-        [1, 'repeat-playlist'],
-        [2, 'repeat-track'],
-        [3, 'random']
-    ];
+    const expectedOrders = PLAYBACK_ORDER_NAMES.map((name, index) => [index, name]);
 
     expectedOrders.forEach(([index, name]) => {
         sdk.emit('playback:orderChanged', { order: index, orderIndex: index });
@@ -171,8 +175,9 @@ test('all transport and playback-setting actions call the corresponding SDK meth
     await controller.stopPlayback();
     await controller.next();
     await controller.playRandom();
-    await controller.setPlaybackOrder('repeat-playlist');
-    await controller.setPlaybackOrder('repeat-track');
+    for (const order of PLAYBACK_ORDER_NAMES) {
+        await controller.setPlaybackOrder(order);
+    }
     await controller.setStopAfterCurrent(true);
     await controller.toggleStopAfterCurrent();
     await controller.setVolume(125);
@@ -189,8 +194,7 @@ test('all transport and playback-setting actions call the corresponding SDK meth
         'stop',
         'next',
         'random',
-        'setOrder',
-        'setOrder',
+        ...PLAYBACK_ORDER_NAMES.map(() => 'setOrder'),
         'setStopAfterCurrent',
         'toggleStopAfterCurrent',
         'setVolume',
@@ -201,8 +205,12 @@ test('all transport and playback-setting actions call the corresponding SDK meth
     ]);
     assert.deepEqual(
         sdk.calls.filter((call) => call.method === 'setOrder').map((call) => call.args[0]),
-        ['repeat-playlist', 'repeat-track']
+        [...PLAYBACK_ORDER_NAMES]
     );
+    assert.deepEqual(controller.getState().order, {
+        index: 6,
+        name: 'shuffle-folders'
+    });
     assert.deepEqual(sdk.calls.find((call) => call.method === 'setVolume').args, [100]);
     assert.deepEqual(sdk.calls.find((call) => call.method === 'mute').args, [false]);
     assert.equal(controller.getState().volume, 100);
@@ -245,7 +253,7 @@ test('invalid playback order and non-numeric volume are rejected before reaching
     const sdk = createFakeSdk();
     const controller = createPlaybackController({ getSdk: () => sdk });
 
-    await assert.rejects(controller.setPlaybackOrder('shuffle-albums'), /Playback Order no admitido/);
+    await assert.rejects(controller.setPlaybackOrder('not-a-playback-order'), /Playback Order no admitido/);
     await assert.rejects(controller.setVolume('loud'), /El volumen debe ser un número/);
     assert.deepEqual(sdk.calls, []);
 });
