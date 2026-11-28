@@ -697,10 +697,14 @@ export function usePlaylist() {
         if (!playlistGuid || !hasBridge()) return;
 
         const currentItems = itemsRef.current;
-        const previousSelectedHandles = currentItems
+        const selectedHandleCounts = new Map();
+        currentItems
             .filter((item) => selectedIndicesRef.current.includes(Number(item.index)))
             .map((item) => item.handle)
-            .filter(Boolean);
+            .filter(Boolean)
+            .forEach((handle) => {
+                selectedHandleCounts.set(handle, (selectedHandleCounts.get(handle) || 0) + 1);
+            });
         let identityRows = null;
         let hydratedItems = [];
         let contentVersion = '';
@@ -741,9 +745,14 @@ export function usePlaylist() {
                 : playlist
         )));
 
-        const preservedSelection = nextItems
-            .filter((item) => previousSelectedHandles.includes(item.handle))
-            .map((item) => item.index);
+        const preservedSelection = nextItems.reduce((indices, item) => {
+            const remaining = selectedHandleCounts.get(item.handle) || 0;
+            if (remaining > 0) {
+                indices.push(item.index);
+                selectedHandleCounts.set(item.handle, remaining - 1);
+            }
+            return indices;
+        }, []);
         commitSelectedIndices(preservedSelection, nextItems);
 
         const focusRevision = focusRevisionRef.current;
@@ -903,6 +912,7 @@ export function usePlaylist() {
                     setActivePlaylistGuid('');
                     commitItems([]);
                     commitFocusedItem(-1);
+                    commitSelectedIndices([]);
                     commitPlayingItem(-1);
                     setPlaybackState('stopped');
                 }
@@ -913,6 +923,7 @@ export function usePlaylist() {
     }, [
         commitFocusedItem,
         commitItems,
+        commitSelectedIndices,
         commitPlayingItem,
         loadActivatedPlaylist,
         setStatusMessage

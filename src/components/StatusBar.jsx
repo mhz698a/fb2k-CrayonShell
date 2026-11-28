@@ -92,15 +92,17 @@ export default function StatusBar({ message, playbackController, playlists = [],
     const openMenu = (event) => {
         event.preventDefault();
         const width = 270, height = 360;
+        const pointerX = Number.isFinite(event.clientX) ? event.clientX : window.innerWidth - width - 12;
+        const pointerY = Number.isFinite(event.clientY) ? event.clientY : window.innerHeight - height - 12;
         setContextMenu({
-            left: Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8)),
-            top: Math.max(8, Math.min(event.clientY, window.innerHeight - height - 8))
+            left: Math.max(8, Math.min(pointerX, window.innerWidth - width - 8)),
+            top: Math.max(8, Math.min(pointerY, window.innerHeight - height - 8))
         });
     };
     const toggle = (id) => setVisibility((current) => ({ ...current, [id]: current[id] === false }));
 
     return (
-        <footer id="StatusBar" className="status-bar" aria-label="Status Bar"
+        <footer id="StatusBar" className="status-bar" aria-label="Status Bar" tabIndex={0}
             onContextMenu={openMenu}
             onKeyDown={(event) => {
                 if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) openMenu(event);
