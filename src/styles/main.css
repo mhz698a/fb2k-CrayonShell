@@ -4342,8 +4342,9 @@ button.play-btn {
     min-width: 0;
     min-height: 0;
     color: #dddddd;
-    background: #1e1e1e;
+    background: #252526;
     overflow: hidden;
+    font-size: 11px;
 }
 
 .playlist-manager.is-hidden {
@@ -4537,6 +4538,7 @@ button.play-btn {
 .playlist-manager-toolbar {
     display: flex;
     flex: 0 0 auto;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: flex-start;
     gap: 3px;
