@@ -11,16 +11,26 @@ function hasNativePlaybackBridge() {
 }
 
 function subscribePlaybackEvent(eventName, handler) {
-    if (!hasNativePlaybackBridge() || typeof window.fb2k.on !== 'function') {
+    if (!hasNativePlaybackBridge()) return () => {};
+
+    let sdk;
+    try {
+        // Playback events are emitted by foo-webview-sdk, just like the
+        // Playback Controller and the rest of the playlist event subscribers.
+        sdk = getFooSdk();
+    } catch (error) {
+        console.error('[DSP Auto Preset] Could not access the playback event source.', error);
         return () => {};
     }
 
-    const unsubscribe = window.fb2k.on(eventName, handler);
+    if (typeof sdk?.on !== 'function') return () => {};
+
+    const unsubscribe = sdk.on(eventName, handler);
     if (typeof unsubscribe === 'function') return unsubscribe;
 
     return () => {
-        if (typeof window.fb2k.off === 'function') {
-            window.fb2k.off(eventName, handler);
+        if (typeof sdk.off === 'function') {
+            sdk.off(eventName, handler);
         }
     };
 }
@@ -312,7 +322,12 @@ export function createDspAutoActivationController({
         return restoreDefault();
     }
 
-    function handleTrackChanged(track) {
+    function handleTrackChanged(payload) {
+        const track = payload?.track && typeof payload.track === 'object'
+            ? payload.track
+            : payload?.currentTrack && typeof payload.currentTrack === 'object'
+                ? payload.currentTrack
+                : payload;
         const path = String(track?.absolutePath || track?.path || '');
         const normalizedPath = normalizePlaybackPath(path);
         if (!path) return;
@@ -339,8 +354,33 @@ export function createDspAutoActivationController({
         if (!isAvailable() || ['queued', 'applying', 'verifying'].includes(state.status)) return;
         const observedRequestSequence = requestSequence;
         try {
-            const chain = await getSdk().dsp.getChain();
-            if (chain?.success === false) return;
+            const sdk = getSdk();
+            let activePreset;
+            let presetStateRead = false;
+
+            // getChain().activePreset is best-effort and can be null even when
+            // foobar2000 still has a saved DSP preset selected. Prefer the
+            // dedicated config API, which reports the selected preset directly.
+            if (typeof sdk?.config?.getActiveDspPreset === 'function') {
+                try {
+                    const selected = await sdk.config.getActiveDspPreset();
+                    if (selected?.success !== false) {
+                        activePreset = selected?.isActive === true
+                            ? String(selected.name || '').trim() || null
+                            : null;
+                        presetStateRead = true;
+                    }
+                } catch {
+                    // Fall back for hosts where the dedicated config API is unavailable.
+                }
+            }
+
+            if (!presetStateRead) {
+                const chain = await sdk.dsp.getChain();
+                if (chain?.success === false) return;
+                activePreset = chain.activePreset || null;
+            }
+
             if (
                 observedRequestSequence !== requestSequence
                 || ['queued', 'applying', 'verifying'].includes(state.status)
@@ -348,9 +388,9 @@ export function createDspAutoActivationController({
                 return;
             }
             publish({
-                activePreset: chain.activePreset || null,
-                targetPreset: chain.activePreset || null,
-                status: chain.activePreset ? 'active' : 'idle',
+                activePreset,
+                targetPreset: activePreset,
+                status: activePreset ? 'active' : 'idle',
                 activationSource: null,
                 trackPath: '',
                 error: ''

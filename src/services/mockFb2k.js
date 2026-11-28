@@ -38,6 +38,7 @@ const demoTracks = [
 
 const listeners = new Map();
 let focusedIndex = 0;
+let selectedIndices = [0];
 let playingIndex = -1;
 let playbackState = 'stopped';
 let activePlaylistGuid = demoPlaylistGuid;
@@ -66,44 +67,155 @@ export const demoBridge = {
             case 'playlist.getAll':
                 return { playlists: getPlaylists() };
 
+            case 'playlist.getActive':
+                return {
+                    found: true,
+                    index: 0,
+                    guid: demoPlaylistGuid,
+                    name: 'CrayonShell - Demo',
+                    trackCount: demoTracks.length,
+                    isActive: true
+                };
+
+            case 'playlist.getPlaying':
+                return playingIndex >= 0
+                    ? {
+                        found: true,
+                        index: 0,
+                        guid: demoPlaylistGuid,
+                        isPlaying: true
+                    }
+                    : { found: false };
+
             case 'playlist.getTracks': {
                 const start = Number(params.start) || 0;
                 const count = Number(params.count) || demoTracks.length;
+                const rows = demoTracks.slice(start, start + count).map((track) => ({
+                    ...track,
+                    handle: track.path,
+                    absolutePath: track.path,
+                    subsong: 0
+                }));
+                const tracks = Array.isArray(params.fields) && params.fields.length > 0
+                    ? rows.map((track) => ({
+                        index: track.index,
+                        ...Object.fromEntries(params.fields.map((field) => [field, track[field]]))
+                    }))
+                    : rows;
+
                 return {
-                    tracks: demoTracks.slice(start, start + count),
+                    playlistGuid: demoPlaylistGuid,
+                    contentVersion: 'demo-content-v1',
+                    start,
+                    count: tracks.length,
+                    tracks,
                     total: demoTracks.length
+                };
+            }
+
+            case 'playlist.getTracksAt': {
+                const rows = Array.isArray(params.rows) ? params.rows : [];
+                const tracks = rows
+                    .map((index) => demoTracks.find((track) => track.index === Number(index)))
+                    .filter(Boolean)
+                    .map((track) => ({
+                        ...track,
+                        handle: track.path,
+                        absolutePath: track.path,
+                        subsong: 0
+                    }));
+                return {
+                    playlistGuid: demoPlaylistGuid,
+                    contentVersion: 'demo-content-v1',
+                    count: tracks.length,
+                    total: demoTracks.length,
+                    tracks
                 };
             }
 
             case 'playlist.getFocusedTrack':
                 return { index: focusedIndex };
 
-            case 'playback.getCurrentTrackIndex':
+            case 'playlist.getSelection':
                 return {
-                    found: playingIndex >= 0,
-                    playlistGuid: activePlaylistGuid,
-                    index: playingIndex
+                    playlistGuid: demoPlaylistGuid,
+                    items: [...selectedIndices],
+                    count: selectedIndices.length
                 };
+
+            case 'playback.getCurrentTrack': {
+                const current = demoTracks.find((track) => track.index === playingIndex);
+                if (!current) return { found: false, playing: false };
+
+                return {
+                    found: true,
+                    id: current.path + '|subsong:0',
+                    path: current.path,
+                    absolutePath: current.path,
+                    fullPath: current.path + '|subsong:0',
+                    subsong: 0,
+                    title: current.formats.title,
+                    artist: current.formats.artist
+                };
+            }
+
+            case 'playback.getCurrentTrackIndex': {
+                const current = demoTracks.find((track) => track.index === playingIndex);
+                const response = {
+                    found: Boolean(current),
+                    playlist: current ? 0 : null,
+                    playlistGuid: current ? activePlaylistGuid : null,
+                    index: current ? playingIndex : null
+                };
+                if (params.includeTrackInfo && current) {
+                    response.track = {
+                        handle: current.path,
+                        path: current.path,
+                        absolutePath: current.path,
+                        subsong: 0,
+                        title: current.formats.title,
+                        artist: current.formats.artist
+                    };
+                }
+                return response;
+            }
 
             case 'playback.getState':
                 return { state: playbackState };
 
             case 'playlist.setSelection':
+                selectedIndices = Array.isArray(params.indices)
+                    ? params.indices.map(Number).filter(Number.isInteger)
+                    : [];
+                emit('playlist:selectionChanged', { playlist: 0 });
                 return { success: true };
 
-            case 'playlist.setFocusedTrack':
+            case 'playlist.setFocusedTrack': {
+                const previous = focusedIndex;
                 focusedIndex = Number(params.index);
-                emit('playlist:focusChanged', { index: focusedIndex });
+                emit('playlist:focusChanged', {
+                    playlist: 0,
+                    from: previous,
+                    to: focusedIndex
+                });
                 return { success: true };
+            }
 
-            case 'playlist.setActive':
+            case 'playlist.setActive': {
+                const oldIndex = 0;
                 activePlaylistGuid = params.playlistGuid;
-                emit('playlist:activated', { playlistGuid: activePlaylistGuid });
+                emit('playlist:activated', {
+                    newGuid: activePlaylistGuid,
+                    newIndex: 0,
+                    oldIndex
+                });
                 return { success: true };
+            }
 
             case 'playlist.playTrack':
                 playingIndex = Number(params.index);
                 focusedIndex = playingIndex;
+                selectedIndices = [playingIndex];
                 playbackState = 'playing';
                 emit('playback:trackChanged', { index: playingIndex });
                 emit('playback:stateChanged', { state: playbackState });

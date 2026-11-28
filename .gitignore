@@ -48,3 +48,7 @@ Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
+
+# github updates:
+sync-pr.js
+.env.local

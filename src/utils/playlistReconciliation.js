@@ -1,0 +1,153 @@
+export function getTrackIdentity(track) {
+    if (track?.handle) return String(track.handle);
+
+    const path = String(track?.absolutePath || track?.path || '').trim();
+    if (!path) return '';
+
+    const subsong = track.subsong === null || track.subsong === undefined
+        ? null
+        : Number(track.subsong);
+    return path.toLocaleLowerCase('en-US') + (subsong === null ? '' : '|subsong:' + subsong);
+}
+
+export function findUnmatchedPlaylistRows(currentItems = [], identityRows = []) {
+    const available = new Map();
+
+    currentItems.forEach((item) => {
+        const identity = getTrackIdentity(item);
+        if (identity) available.set(identity, (available.get(identity) || 0) + 1);
+    });
+
+    return identityRows.filter((row) => {
+        const identity = getTrackIdentity(row);
+        if (!identity) return true;
+
+        const count = available.get(identity) || 0;
+        if (count > 0) {
+            available.set(identity, count - 1);
+            return false;
+        }
+        return true;
+    });
+}
+
+/**
+ * Rebuild the visible playlist order from a lightweight handle snapshot.
+ * Existing rows are reused by identity; only identities absent from the
+ * previous snapshot need a separately hydrated full row.
+ */
+export function reconcilePlaylistItems({
+    currentItems = [],
+    identityRows = [],
+    hydratedItems = []
+} = {}) {
+    const reusableByIdentity = new Map();
+
+    currentItems.forEach((item) => {
+        const identity = getTrackIdentity(item);
+        if (!identity) return;
+
+        const queue = reusableByIdentity.get(identity) || [];
+        queue.push(item);
+        reusableByIdentity.set(identity, queue);
+    });
+
+    const hydratedByIndex = new Map(
+        hydratedItems.map((item) => [Number(item.index), item])
+    );
+
+    const nextItems = identityRows.map((identityRow) => {
+        const index = Number(identityRow.index);
+        const identity = getTrackIdentity(identityRow);
+        const queue = identity ? reusableByIdentity.get(identity) : null;
+        const existing = queue?.length ? queue.shift() : null;
+
+        if (existing) {
+            return existing.index === index
+                ? existing
+                : { ...existing, index };
+        }
+
+        const hydrated = hydratedByIndex.get(index);
+        if (!hydrated) {
+            const error = new Error('No se recibieron los datos de la nueva pista en la fila ' + index + '.');
+            error.code = 'STALE_SNAPSHOT';
+            throw error;
+        }
+
+        if (identity && getTrackIdentity(hydrated) !== identity) {
+            const error = new Error('La pista cambió durante la hidratación de la fila ' + index + '.');
+            error.code = 'STALE_SNAPSHOT';
+            throw error;
+        }
+
+        return hydrated.index === index
+            ? hydrated
+            : { ...hydrated, index };
+    });
+
+    const unchanged = nextItems.length === currentItems.length
+        && nextItems.every((item, index) => item === currentItems[index]);
+
+    return unchanged ? currentItems : nextItems;
+}
+
+/**
+ * On startup, keep the actual playing track selected when it belongs to the
+ * active playlist. Otherwise restore the last focused row, then native focus.
+ */
+export function resolveInitialSelectionIndex({
+    playingIndex = -1,
+    savedFocusIndex = -1,
+    focusedIndex = -1,
+    itemCount = 0
+} = {}) {
+    const isValid = (index) => Number.isInteger(index) && index >= 0 && index < itemCount;
+
+    if (isValid(playingIndex)) return playingIndex;
+    if (isValid(savedFocusIndex)) return savedFocusIndex;
+    if (isValid(focusedIndex)) return focusedIndex;
+    return -1;
+}
+
+/**
+ * Resolve playlist:activated across the current and legacy event payloads.
+ * Index-only events must be matched against a fresh playlist.getAll snapshot.
+ */
+export function resolveActivatedPlaylistGuid(payload = {}, playlists = []) {
+    const explicitGuid = payload.newGuid || payload.playlistGuid;
+    if (typeof explicitGuid === 'string' && explicitGuid.trim()) {
+        return explicitGuid.trim();
+    }
+
+    // The SDK event's newIndex identifies the activation target. The isActive
+    // flag can still reflect the previous playlist in a snapshot taken during
+    // event dispatch, so use that flag only as a fallback.
+    const rawIndex = payload.newIndex ?? payload.index;
+    const index = Number(rawIndex);
+    if (Number.isInteger(index) && index >= 0) {
+        const indexed = playlists.find((playlist) => Number(playlist.index) === index);
+        if (typeof indexed?.guid === 'string' && indexed.guid) return indexed.guid;
+    }
+
+    const active = playlists.find((playlist) => playlist.isActive);
+    return typeof active?.guid === 'string' ? active.guid : '';
+}
+
+/**
+ * Focus events provide both a stable playlist GUID and a numeric playlist index.
+ * Prefer the GUID; use the index only as a compatibility fallback.
+ */
+export function resolvePlaylistGuidFromEvent(payload = {}, playlists = []) {
+    const explicitGuid = payload.playlistGuid || payload.newGuid;
+    if (typeof explicitGuid === 'string' && explicitGuid.trim()) {
+        return explicitGuid.trim();
+    }
+
+    const rawIndex = payload.playlist ?? payload.index;
+    const index = Number(rawIndex);
+    if (!Number.isInteger(index) || index < 0) return '';
+
+    const playlist = playlists.find((item) => Number(item.index) === index);
+    return typeof playlist?.guid === 'string' ? playlist.guid : '';
+}

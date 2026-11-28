@@ -1,4 +1,5 @@
 import { demoBridge } from './mockFb2k.js';
+import { getFooSdk } from './fooSdk.js';
 
 const injectedBridge = () => {
     if (typeof window === 'undefined') return null;
@@ -39,21 +40,31 @@ export async function invoke(method, params = {}) {
 }
 
 export function subscribe(eventName, handler) {
-    const bridge = getBridge();
-
-    if (!bridge || typeof bridge.on !== 'function') {
+    // Demo events remain on the local mock. In foobar2000, subscribe through
+    // the official foo-webview-sdk emitter instead of the legacy fb2k bridge.
+    // Playback Controller already uses this exact emitter for playback events.
+    let eventSource = null;
+    try {
+        eventSource = isDemoMode ? getBridge() : getFooSdk();
+    } catch (error) {
+        console.error('[CrayonShell][events] SDK event source unavailable', {
+            eventName,
+            error
+        });
         return () => {};
     }
 
-    const unsubscribe = bridge.on(eventName, handler);
-
-    if (typeof unsubscribe === 'function') {
-        return unsubscribe;
+    if (!eventSource || typeof eventSource.on !== 'function') {
+        console.error('[CrayonShell][events] SDK does not expose on()', { eventName });
+        return () => {};
     }
 
+    const unsubscribe = eventSource.on(eventName, handler);
+    if (typeof unsubscribe === 'function') return unsubscribe;
+
     return () => {
-        if (typeof bridge.off === 'function') {
-            bridge.off(eventName, handler);
+        if (typeof eventSource.off === 'function') {
+            eventSource.off(eventName, handler);
         }
     };
 }

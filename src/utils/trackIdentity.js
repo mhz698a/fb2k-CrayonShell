@@ -1,0 +1,189 @@
+function decodePath(value) {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+}
+
+function splitSubsongSuffix(value) {
+    const match = value.match(/\|subsong:(\d+)$/i);
+    return match
+        ? { path: value.slice(0, match.index), subsong: Number(match[1]) }
+        : { path: value, subsong: null };
+}
+
+/**
+ * Normalize local track paths for identity matching across Windows paths and file URLs.
+ * The optional subsong suffix is preserved separately so cue/subsong entries are not
+ * accidentally treated as different files when only one side exposes that metadata.
+ */
+export function normalizeTrackPath(value) {
+    let path = String(value || '').trim();
+    if (!path) return { path: '', subsong: null };
+
+    if (/^file:\/\//i.test(path)) {
+        path = decodePath(path.slice(7));
+
+        if (/^\/[a-z]:[\\/]/i.test(path)) {
+            path = path.slice(1);
+        } else if (!path.startsWith('/') && !/^[a-z]:[\\/]/i.test(path)) {
+            path = '\\\\' + path;
+        }
+    } else {
+        path = decodePath(path);
+    }
+
+    path = path.replace(/\//g, '\\');
+    if (path.startsWith('\\\\')) {
+        path = '\\\\' + path.slice(2).replace(/\\{2,}/g, '\\');
+    } else {
+        path = path.replace(/\\{2,}/g, '\\');
+    }
+
+    const split = splitSubsongSuffix(path);
+    return {
+        path: split.path.replace(/\\+$/, '').toLocaleLowerCase('en-US'),
+        subsong: split.subsong
+    };
+}
+
+function normalizeSubsong(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const subsong = Number(value);
+    return Number.isInteger(subsong) && subsong >= 0 ? subsong : null;
+}
+
+export function trackPathsMatch(left, right, leftSubsong = null, rightSubsong = null) {
+    const normalizedLeft = normalizeTrackPath(left);
+    const normalizedRight = normalizeTrackPath(right);
+
+    if (!normalizedLeft.path || normalizedLeft.path !== normalizedRight.path) return false;
+
+    const subsongLeft = normalizedLeft.subsong ?? normalizeSubsong(leftSubsong);
+    const subsongRight = normalizedRight.subsong ?? normalizeSubsong(rightSubsong);
+    if (subsongLeft !== null && subsongRight !== null) {
+        return subsongLeft === subsongRight;
+    }
+    return true;
+}
+
+function getTrackPath(track) {
+    return String(
+        track?.absolutePath
+        || track?.fullPath
+        || track?.path
+        || track?.id
+        || ''
+    );
+}
+
+/**
+ * Resolve the row representing the actual playing track.
+ * A native playlist index is the most precise identity when it belongs to the
+ * active playlist; handle and normalized path provide the cross-playlist fallback.
+ */
+export function resolveCurrentTrackIndex({
+    items = [],
+    playingTrackIndex = null,
+    currentTrackResponse = null,
+    activePlaylistGuid = '',
+    playlists = []
+} = {}) {
+    const currentTrack = playingTrackIndex?.track
+        || (
+            currentTrackResponse?.found === false
+                ? null
+                : (
+                    currentTrackResponse?.track
+                    || currentTrackResponse?.currentTrack
+                    || (
+                        currentTrackResponse && (
+                            currentTrackResponse.found === true
+                            || currentTrackResponse.handle
+                            || currentTrackResponse.id
+                            || currentTrackResponse.fullPath
+                            || currentTrackResponse.absolutePath
+                            || currentTrackResponse.path
+                        )
+                            ? currentTrackResponse
+                            : null
+                    )
+                )
+        );
+
+    const playingPlaylistIndex = playingTrackIndex?.playlist
+        ?? playingTrackIndex?.playlistIndex;
+    const playingPlaylist = playingPlaylistIndex !== null
+        && playingPlaylistIndex !== undefined
+        && playingPlaylistIndex !== ''
+        ? playlists.find((playlist) => Number(playlist.index) === Number(playingPlaylistIndex))
+        : null;
+    const playingPlaylistGuid = playingTrackIndex?.playlistGuid || playingPlaylist?.guid || '';
+
+    if (
+        playingTrackIndex?.found === true
+        && playingPlaylistGuid === activePlaylistGuid
+        && playingTrackIndex.index !== null
+        && playingTrackIndex.index !== undefined
+        && playingTrackIndex.index !== ''
+        && Number.isInteger(Number(playingTrackIndex.index))
+    ) {
+        const indexedItem = items.find((item) => item.index === Number(playingTrackIndex.index));
+        if (indexedItem) {
+            const itemHandle = indexedItem.handle === null || indexedItem.handle === undefined
+                ? ''
+                : String(indexedItem.handle);
+            const currentHandle = currentTrack?.handle === null || currentTrack?.handle === undefined
+                ? ''
+                : String(currentTrack.handle);
+            const itemPath = getTrackPath(indexedItem);
+            const currentPath = getTrackPath(currentTrack);
+
+            const identityConflict = itemPath && currentPath
+                ? !trackPathsMatch(
+                    itemPath,
+                    currentPath,
+                    indexedItem.subsong,
+                    currentTrack.subsong
+                )
+                : itemHandle && currentHandle && itemHandle !== currentHandle;
+
+            if (!identityConflict) return indexedItem.index;
+        }
+    }
+
+    if (!currentTrack) return -1;
+
+    const currentHandle = currentTrack.handle === null || currentTrack.handle === undefined
+        ? ''
+        : String(currentTrack.handle);
+    if (currentHandle) {
+        const handleMatch = items.find((item) => item.handle && String(item.handle) === currentHandle);
+        if (handleMatch) return handleMatch.index;
+    }
+
+    const currentPath = getTrackPath(currentTrack);
+    if (!currentPath) return -1;
+
+    const pathMatch = items.find((item) =>
+        trackPathsMatch(
+            item.absolutePath || item.path,
+            currentPath,
+            item.subsong,
+            currentTrack.subsong
+        )
+    );
+    return pathMatch ? pathMatch.index : -1;
+}
+
+
+/**
+ * Resolve the loaded track regardless of playback state. This is used when a
+ * playlist is activated so a paused/just-stopped track can still be restored
+ * as the focused row without being rendered as actively playing.
+ */
+export function resolvePlayingTrackIndex(options = {}) {
+    if (options.playbackState === 'stopped') return -1;
+    return resolveCurrentTrackIndex(options);
+}

@@ -196,3 +196,140 @@ test('controller skips repeat activation and restores the default on stop', asyn
 
     controller.stop();
 });
+
+test('folder rules apply only to tracks below the folder, not to the folder itself', () => {
+    const settings = {
+        defaultPreset: 'Default',
+        folderRules: [
+            { id: 'classical-folder', path: 'D:\\Music\\Classical', presetName: 'Classical' }
+        ],
+        trackRules: []
+    };
+
+    assert.equal(
+        resolveDspPresetForTrack(settings, 'D:\\Music\\Classical').presetName,
+        'Default'
+    );
+    assert.equal(
+        resolveDspPresetForTrack(settings, 'D:\\Music\\Classical\\').presetName,
+        'Default'
+    );
+    assert.equal(
+        resolveDspPresetForTrack(settings, 'D:\\Music\\Classical\\Symphony.flac').presetName,
+        'Classical'
+    );
+    assert.equal(
+        resolveDspPresetForTrack(settings, 'D:\\Music\\Classical Archive\\Symphony.flac').presetName,
+        'Default'
+    );
+});
+
+test('track-change event uses native absolutePath when the other path is stale', async () => {
+    const handlers = new Map();
+    let activePreset = 'Classical';
+    const applications = [];
+    const controller = createDspAutoActivationController({
+        getSettings: () => ({
+            defaultPreset: 'Default',
+            folderRules: [
+                { id: 'classical-folder', path: 'D:\\Music\\Classical', presetName: 'Classical' }
+            ],
+            trackRules: []
+        }),
+        isAvailable: () => true,
+        subscribeEvents: (name, handler) => {
+            handlers.set(name, handler);
+            return () => handlers.delete(name);
+        },
+        getSdk: () => ({
+            dsp: {
+                async getChain() {
+                    return { success: true, activePreset };
+                },
+                async applyPreset(name) {
+                    activePreset = name;
+                    applications.push(name);
+                    return { success: true, appliedPreset: name };
+                }
+            }
+        })
+    });
+
+    controller.start();
+    handlers.get('playback:trackChanged')({
+        track: {
+            path: 'file:///D:/Music/Classical/Symphony.flac',
+            absolutePath: 'D:\\Music\\Rock\\Unrelated.flac'
+        }
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.deepEqual(applications, ['Default']);
+    assert.equal(controller.getState().activePreset, 'Default');
+    assert.equal(controller.getState().trackPath, 'D:\\Music\\Rock\\Unrelated.flac');
+    controller.stop();
+});
+
+
+test('external DSP status reads the selected preset from the dedicated config API', async () => {
+    const handlers = new Map();
+    const controller = createDspAutoActivationController({
+        isAvailable: () => true,
+        subscribeEvents: (name, handler) => {
+            handlers.set(name, handler);
+            return () => handlers.delete(name);
+        },
+        getSdk: () => ({
+            config: {
+                async getActiveDspPreset() {
+                    return {
+                        success: true,
+                        index: 2,
+                        name: 'Studio Headphones',
+                        isActive: true
+                    };
+                }
+            },
+            dsp: {
+                async getChain() {
+                    return { success: true, activePreset: null };
+                }
+            }
+        })
+    });
+
+    controller.start();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(controller.getState().status, 'active');
+    assert.equal(controller.getState().activePreset, 'Studio Headphones');
+    assert.equal(controller.getState().targetPreset, 'Studio Headphones');
+
+    handlers.get('audio:dspPresetChanged')();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(controller.getState().status, 'active');
+    assert.equal(controller.getState().activePreset, 'Studio Headphones');
+    controller.stop();
+});
+
+test('external DSP status falls back to getChain when config API is unavailable', async () => {
+    const controller = createDspAutoActivationController({
+        isAvailable: () => true,
+        subscribeEvents: () => () => {},
+        getSdk: () => ({
+            dsp: {
+                async getChain() {
+                    return { success: true, activePreset: 'Fallback Preset' };
+                }
+            }
+        })
+    });
+
+    controller.start();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(controller.getState().status, 'active');
+    assert.equal(controller.getState().activePreset, 'Fallback Preset');
+    controller.stop();
+});

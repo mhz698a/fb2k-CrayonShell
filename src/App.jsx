@@ -11,11 +11,14 @@ import { useActivityBarActions } from './features/activitybar/hooks/useActivityB
 import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
-import PlaylistStatus from './components/PlaylistStatus.jsx';
+import StatusBar from './components/StatusBar.jsx';
+import PlaybackBar from './components/PlaybackBar.jsx';
+import FoobarMenuBar from './components/FoobarMenuBar.jsx';
 import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
 import WaveformSeekbar from './components/WaveformSeekbar.jsx';
 import { usePlaylist } from './hooks/usePlaylist.js';
+import { usePlaybackController } from './hooks/usePlaybackController.js';
 import { useTrackProperties } from './hooks/useTrackProperties.js';
 import { useWindowsFileMetadata } from './hooks/useWindowsFileMetadata.js';
 import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
@@ -227,6 +230,7 @@ export default function App() {
         activePlaylistGuid,
         items,
         focusedItem,
+        selectedIndices,
         playingItemIndex,
         playbackState,
         status,
@@ -236,23 +240,33 @@ export default function App() {
         changePlaylist,
         selectItem,
         playItem,
+        focusPlayingTrack,
         openNativeContextMenu
     } = usePlaylist();
 
-    const playingItem = items.find((item) => item.index === playingItemIndex) || null;
-    const playingTrackPath = playingItem?.absolutePath || playingItem?.path || '';
+    // Keep one native playback controller alive and expose its snapshot/actions to the bar.
+    const playbackController = usePlaybackController();
+
+    // DSP rules must use the actual native now-playing path. The Facets/Refacets
+    // row index can temporarily point to a different track while subfolder rows load.
+    const playingTrackPath = playbackController.currentTrackPath || '';
 
     useEffect(() => {
-        if (playbackState !== 'stopped' && playingTrackPath && !isDemoMode) {
+        if (
+            playbackController.playbackState !== 'stopped'
+            && playingTrackPath
+            && !isDemoMode
+        ) {
             void syncDspAutoPresetTrack(playingTrackPath);
         }
-    }, [playingTrackPath, playbackState, isDemoMode]);
+    }, [playingTrackPath, playbackController.playbackState, isDemoMode]);
 
     const activePlaylist = playlists.find(
         (playlist) => playlist.guid === activePlaylistGuid
     );
     const selectedItemIndex = focusedItem >= 0 ? focusedItem : playingItemIndex;
     const selectedItem = items.find((item) => item.index === selectedItemIndex) || null;
+    const playingItem = items.find((item) => item.index === playingItemIndex) || null;
     const {
         properties: trackProperties,
         loading: propertiesLoading,
@@ -277,12 +291,6 @@ export default function App() {
             || searchableText.toLocaleLowerCase().includes(normalizedFilter)
             || String(item.path || '').toLocaleLowerCase().includes(normalizedFilter);
     });
-
-    const summary = !activePlaylist
-        ? 'Sin playlist activa'
-        : visibleItems.length === items.length
-            ? items.length + ' pistas'
-            : visibleItems.length + ' / ' + items.length + ' pistas';
 
     const activityBarContext = useMemo(() => ({
         sidebarCollapsed,
@@ -442,6 +450,13 @@ export default function App() {
 
     return (
         <div className="app-shell">
+            <FoobarMenuBar
+                isDemoMode={isDemoMode}
+                contentView={contentView}
+                propertiesVisible={!propertiesCollapsed}
+                onToggleProperties={() => setPropertiesCollapsed((value) => !value)}
+                onExecuteAction={executeActivityBarAction}
+            />
             <div
                 ref={containerRef}
                 className={'cui-container'
@@ -547,13 +562,8 @@ export default function App() {
                             playlists={playlists}
                             activePlaylistGuid={activePlaylistGuid}
                             filter={filter}
-                            summary={summary}
                             onFilterChange={setFilter}
                             onPlaylistChange={changePlaylist}
-                            contentView={contentView}
-                            propertiesVisible={!propertiesCollapsed}
-                            onToggleProperties={() => setPropertiesCollapsed((value) => !value)}
-                            onExecuteAction={executeActivityBarAction}
                         />
 
 
@@ -588,7 +598,6 @@ export default function App() {
                             />
                         </div>
 
-                        <PlaylistStatus message={status} />
                     </section>
                 </main>
 
@@ -627,6 +636,19 @@ export default function App() {
             <WaveformSeekbar
                 onCacheControllerChange={handleWaveformCacheActionsChange}
                 onCacheProgressChange={handleWaveformCacheProgressChange}
+            />
+            <PlaybackBar
+                controller={playbackController}
+                hasCurrentTrack={Boolean(playingItem || playbackController.currentTrack)}
+                onFocusPlayingTrack={focusPlayingTrack}
+            />
+            <StatusBar
+                message={status}
+                playbackController={playbackController}
+                playlists={playlists}
+                activePlaylist={activePlaylist}
+                items={items}
+                selectedIndices={selectedIndices}
             />
         </div>
     );

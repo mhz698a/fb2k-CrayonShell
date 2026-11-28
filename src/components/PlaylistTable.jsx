@@ -72,8 +72,17 @@ export default function PlaylistTable({
 
         const viewportBounds = viewport.getBoundingClientRect();
         const rowBounds = row.getBoundingClientRect();
+        const centerPlayingRow = requestChanged
+            ? scrollRequest.target === 'playing'
+            : playingChanged || (playlistChanged && playingItemIndex >= 0);
 
-        if (rowBounds.top < viewportBounds.top) {
+        if (centerPlayingRow) {
+            const rowCenter = rowBounds.top + rowBounds.height / 2;
+            const viewportCenter = viewportBounds.top + viewport.clientHeight / 2;
+            const desiredScrollTop = viewport.scrollTop + rowCenter - viewportCenter;
+            const maximumScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+            viewport.scrollTop = Math.max(0, Math.min(maximumScrollTop, desiredScrollTop));
+        } else if (rowBounds.top < viewportBounds.top) {
             viewport.scrollTop -= viewportBounds.top - rowBounds.top;
         } else if (rowBounds.bottom > viewportBounds.bottom) {
             viewport.scrollTop += rowBounds.bottom - viewportBounds.bottom;
