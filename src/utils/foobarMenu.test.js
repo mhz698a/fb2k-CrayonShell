@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    buildMainMenuPopupItems,
+    buildMainMenuNativeItems,
     buildMainMenuTree,
     getMenuNodeLabel,
     isMenuCommandExecutable
@@ -75,7 +75,7 @@ test('converts the main menu tree to popup items and retains command identities'
         ]
     }];
 
-    const converted = buildMainMenuPopupItems(tree);
+    const converted = buildMainMenuNativeItems(tree);
     const root = converted.items[0];
     assert.equal(root.label, 'File');
     assert.deepEqual(root.submenu.map((item) => item.type || item.label), [
@@ -93,7 +93,7 @@ test('converts the main menu tree to popup items and retains command identities'
 });
 
 test('omits hidden entries and empty submenus from the native popup model', () => {
-    const converted = buildMainMenuPopupItems([
+    const converted = buildMainMenuNativeItems([
         { type: 'command', label: 'Hidden', guid: '{hidden}', hidden: true },
         { type: 'submenu', label: 'Empty', children: [] },
         { type: 'separator' }
