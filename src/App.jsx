@@ -256,7 +256,8 @@ export default function App() {
     const playbackController = usePlaybackController();
 
     const activateManagedPlaylist = useCallback(async (playlistGuid) => {
-        await changePlaylist(playlistGuid);
+        const activated = await changePlaylist(playlistGuid);
+        if (!activated) throw new Error('No se pudo activar la playlist seleccionada.');
         setPlaylistManagerOpen(false);
     }, [changePlaylist]);
 
