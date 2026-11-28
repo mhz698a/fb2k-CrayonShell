@@ -84,51 +84,22 @@ export function buildMainMenuTree(items = [], flatFallback = false) {
 }
 
 /**
- * Convert the read-only main-menu tree into the native Win32 menu item format
- * consumed by fb.notification.showCustomMenu. The map keeps each generated
- * item id tied to the original SDK node, including GUID/subGuid for dynamic commands.
+ * Resolve a menu command into the exact SDK invocation. Dynamic entries need
+ * both GUID and subGuid; static entries may use their command path.
  */
-export function buildMainMenuNativeItems(nodes = []) {
-    const commandById = new Map();
-    let commandSequence = 0;
+export function getMenuCommandInvocation(node = {}) {
+    if (!isMenuCommandExecutable(node)) return null;
 
-    function convert(items) {
-        return (Array.isArray(items) ? items : [])
-            .filter((node) => node && node.hidden !== true)
-            .map((node) => {
-                if (node.type === 'separator') {
-                    return { type: 'separator' };
-                }
+    const address = typeof node.guid === 'string' && node.guid.trim()
+        ? node.guid
+        : typeof node.path === 'string' && node.path.trim()
+            ? node.path
+            : '';
 
-                const label = getMenuNodeLabel(node);
-                if (node.type === 'submenu') {
-                    const submenu = convert(node.children);
-                    if (submenu.length === 0) return null;
-                    return {
-                        label,
-                        enabled: node.enabled !== false && node.available !== false,
-                        submenu
-                    };
-                }
-
-                const id = 'foobar-main-menu-' + commandSequence++;
-                const enabled = isMenuCommandExecutable(node);
-                const item = {
-                    id,
-                    label,
-                    enabled,
-                    ...(node.shortcut ? { shortcut: String(node.shortcut) } : {}),
-                    ...(node.checked === true || node.radioChecked === true ? { checked: true } : {})
-                };
-
-                commandById.set(id, node);
-                return item;
-            })
-            .filter(Boolean);
-    }
+    if (!address) return null;
 
     return {
-        items: convert(nodes),
-        commandById
+        address,
+        options: node.subGuid ? { subGuid: node.subGuid } : undefined
     };
 }
