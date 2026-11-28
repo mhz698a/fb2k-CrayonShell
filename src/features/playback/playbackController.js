@@ -84,21 +84,38 @@ function getTrackPath(track) {
     return String(track?.absolutePath || track?.path || '');
 }
 
+const PLAYBACK_ORDER_NAMES_BY_INDEX = Object.freeze([
+    'default',
+    'repeat-playlist',
+    'repeat-track',
+    'random',
+    'shuffle-tracks',
+    'shuffle-albums',
+    'shuffle-folders'
+]);
+
 function normalizeOrder(response, fallbackName) {
     const rawOrder = response?.order;
+    const indexValue = response?.orderIndex
+        ?? (typeof rawOrder === 'number' ? rawOrder : null);
+    const hasIndex = indexValue !== null && indexValue !== undefined && indexValue !== '';
+    const numericIndex = hasIndex && Number.isInteger(Number(indexValue))
+        ? Number(indexValue)
+        : null;
+    const indexedName = numericIndex !== null
+        ? PLAYBACK_ORDER_NAMES_BY_INDEX[numericIndex] || ''
+        : '';
     const name = String(
         response?.orderName
         || response?.name
         || (typeof rawOrder === 'string' ? rawOrder : '')
+        || indexedName
         || fallbackName
         || 'default'
     );
-    const indexValue = response?.orderIndex
-        ?? (typeof rawOrder === 'number' ? rawOrder : null);
-    const hasIndex = indexValue !== null && indexValue !== undefined && indexValue !== '';
-    const index = hasIndex && Number.isInteger(Number(indexValue))
-        ? Number(indexValue)
-        : PLAYBACK_ORDER_NAMES.indexOf(name);
+    const index = numericIndex !== null
+        ? numericIndex
+        : PLAYBACK_ORDER_NAMES_BY_INDEX.indexOf(name);
 
     return { index: index >= 0 ? index : null, name };
 }
@@ -241,7 +258,8 @@ export function createPlaybackController({
             const order = normalizeOrder({
                 order: payload.order,
                 orderIndex: payload.orderIndex,
-                orderName: payload.orderName
+                orderName: payload.orderName,
+                name: payload.name
             });
             markEvent('order', { order, orderKnown: true });
         });
