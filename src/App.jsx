@@ -258,7 +258,6 @@ function AppContent() {
     const activateManagedPlaylist = useCallback(async (playlistGuid) => {
         const activated = await changePlaylist(playlistGuid);
         if (!activated) throw new Error('No se pudo activar la playlist seleccionada.');
-        setSidebarCollapsed(true);
     }, [changePlaylist]);
 
     useEffect(() => {
@@ -551,7 +550,6 @@ function AppContent() {
                     playlists={playlists}
                     activePlaylistGuid={activePlaylistGuid}
                     onActivatePlaylist={activateManagedPlaylist}
-                    onClosePlaylistManager={() => setSidebarCollapsed(true)}
                     onRefreshPlaylists={refreshPlaylist}
                 />
 
