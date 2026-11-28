@@ -247,14 +247,19 @@ export default function App() {
     // Keep one native playback controller alive and expose its snapshot/actions to the bar.
     const playbackController = usePlaybackController();
 
-    const playingItem = items.find((item) => item.index === playingItemIndex) || null;
-    const playingTrackPath = playingItem?.absolutePath || playingItem?.path || '';
+    // DSP rules must use the actual native now-playing path. The Facets/Refacets
+    // row index can temporarily point to a different track while subfolder rows load.
+    const playingTrackPath = playbackController.currentTrackPath || '';
 
     useEffect(() => {
-        if (playbackState !== 'stopped' && playingTrackPath && !isDemoMode) {
+        if (
+            playbackController.playbackState !== 'stopped'
+            && playingTrackPath
+            && !isDemoMode
+        ) {
             void syncDspAutoPresetTrack(playingTrackPath);
         }
-    }, [playingTrackPath, playbackState, isDemoMode]);
+    }, [playingTrackPath, playbackController.playbackState, isDemoMode]);
 
     const activePlaylist = playlists.find(
         (playlist) => playlist.guid === activePlaylistGuid
