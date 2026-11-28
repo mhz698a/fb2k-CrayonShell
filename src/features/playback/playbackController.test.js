@@ -136,7 +136,12 @@ test('playback events update the shared snapshot', () => {
 });
 
 test('all transport and playback-setting actions call the corresponding SDK methods', async () => {
-    const sdk = createFakeSdk();
+    const sdk = createFakeSdk({
+        player: {
+            volumeUp: async () => ({ success: true, volume: 100, volumeDb: 0, muted: false }),
+            volumeDown: async () => ({ success: true, volume: 100, volumeDb: 0, muted: false })
+        }
+    });
     const controller = createPlaybackController({ getSdk: () => sdk });
 
     await controller.play();
