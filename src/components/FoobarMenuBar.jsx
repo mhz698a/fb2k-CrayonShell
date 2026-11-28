@@ -68,6 +68,7 @@ function MenuEntries({
                         className={'foobar-menubar-item foobar-menubar-submenu-button'
                             + (expanded ? ' is-submenu-open' : '')}
                         role="menuitem" aria-haspopup="menu" aria-expanded={expanded}
+                        data-menu-path={path}
                         disabled={executing || node.enabled === false || node.available === false}
                         onMouseEnter={(event) => onOpenSubmenu(path, event.currentTarget)}
                         onClick={(event) => onOpenSubmenu(path, event.currentTarget)}>
@@ -80,6 +81,7 @@ function MenuEntries({
                             role="menu"
                             aria-label={label}
                             data-foobar-menu-popup="true"
+                            data-foobar-menu-path={path}
                             style={{ left: position.left, top: position.top }}
                             onKeyDown={onMenuKeyDown}>
                             <MenuEntries
@@ -89,6 +91,7 @@ function MenuEntries({
                                 submenuPositions={submenuPositions}
                                 onOpenSubmenu={onOpenSubmenu}
                                 onRunCommand={onRunCommand}
+                                onMenuKeyDown={onMenuKeyDown}
                                 executing={executing}
                             />
                         </div>,
@@ -239,6 +242,18 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
             if (enabledItems.length === 0) return;
             event.preventDefault();
             enabledItems[event.key === 'Home' ? 0 : enabledItems.length - 1].focus();
+        } else if (event.key === 'ArrowRight') {
+            const submenuButton = event.target.closest?.('[data-menu-path][aria-haspopup="menu"]');
+            if (submenuButton && submenuButton.getAttribute('aria-expanded') !== 'true') {
+                event.preventDefault();
+                const path = submenuButton.getAttribute('data-menu-path');
+                openSubmenu(path, submenuButton);
+                window.requestAnimationFrame(() => {
+                    document.querySelector(
+                        '[data-foobar-menu-path="' + path + '"] [role="menuitem"]:not(:disabled)'
+                    )?.focus();
+                });
+            }
         } else if (event.key === 'ArrowLeft') {
             if (openSubmenus.length > 0) {
                 event.preventDefault();
@@ -249,11 +264,12 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
                     delete next[closingPath];
                     return next;
                 });
+                document.querySelector('[data-menu-path="' + closingPath + '"]')?.focus();
             } else {
                 closeMenus();
             }
         }
-    }, [closeMenus, openSubmenus]);
+    }, [closeMenus, openSubmenu, openSubmenus]);
 
     const runCommand = useCallback(async (node) => {
         if (executingRef.current) return;
