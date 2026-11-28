@@ -257,8 +257,10 @@ test('track-change event uses native absolutePath when the other path is stale',
 
     controller.start();
     handlers.get('playback:trackChanged')({
-        path: 'file:///D:/Music/Classical/Symphony.flac',
-        absolutePath: 'D:\\Music\\Rock\\Unrelated.flac'
+        track: {
+            path: 'file:///D:/Music/Classical/Symphony.flac',
+            absolutePath: 'D:\\Music\\Rock\\Unrelated.flac'
+        }
     });
     await new Promise((resolve) => setImmediate(resolve));
 
