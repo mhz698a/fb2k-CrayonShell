@@ -11,7 +11,7 @@ import { useActivityBarActions } from './features/activitybar/hooks/useActivityB
 import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
-import PlaylistStatus from './components/PlaylistStatus.jsx';
+import StatusBar from './components/PlaylistStatus.jsx';
 import PlaybackBar from './components/PlaybackBar.jsx';
 import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
@@ -594,7 +594,6 @@ export default function App() {
                             />
                         </div>
 
-                        <PlaylistStatus message={status} />
                     </section>
                 </main>
 
@@ -630,6 +629,10 @@ export default function App() {
                     fileMetadataError={windowsFileMetadataError}
                 />
             </div>
+            <StatusBar
+                message={status}
+                playbackController={playbackController}
+            />
             <PlaybackBar
                 controller={playbackController}
                 hasCurrentTrack={Boolean(playingItem || playbackController.currentTrack)}
