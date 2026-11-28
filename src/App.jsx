@@ -286,12 +286,6 @@ export default function App() {
             || String(item.path || '').toLocaleLowerCase().includes(normalizedFilter);
     });
 
-    const summary = !activePlaylist
-        ? 'Sin playlist activa'
-        : visibleItems.length === items.length
-            ? items.length + ' pistas'
-            : visibleItems.length + ' / ' + items.length + ' pistas';
-
     const activityBarContext = useMemo(() => ({
         sidebarCollapsed,
         sidebarView,
@@ -450,7 +444,13 @@ export default function App() {
 
     return (
         <div className="app-shell">
-            <FoobarMenuBar isDemoMode={isDemoMode} />
+            <FoobarMenuBar
+                isDemoMode={isDemoMode}
+                contentView={contentView}
+                propertiesVisible={!propertiesCollapsed}
+                onToggleProperties={() => setPropertiesCollapsed((value) => !value)}
+                onExecuteAction={executeActivityBarAction}
+            />
             <div
                 ref={containerRef}
                 className={'cui-container'
@@ -556,13 +556,8 @@ export default function App() {
                             playlists={playlists}
                             activePlaylistGuid={activePlaylistGuid}
                             filter={filter}
-                            summary={summary}
                             onFilterChange={setFilter}
                             onPlaylistChange={changePlaylist}
-                            contentView={contentView}
-                            propertiesVisible={!propertiesCollapsed}
-                            onToggleProperties={() => setPropertiesCollapsed((value) => !value)}
-                            onExecuteAction={executeActivityBarAction}
                         />
 
 
