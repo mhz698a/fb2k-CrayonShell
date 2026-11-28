@@ -132,7 +132,6 @@ export default function PlaylistManager({
         if (!selectedPlaylist || selectedPlaylist.guid === activePlaylistGuid) return;
         await runExclusive(async () => {
             await onActivate?.(selectedPlaylist.guid);
-            onClose?.();
         });
     }
 
@@ -304,7 +303,6 @@ export default function PlaylistManager({
                                 if (playlist.guid !== activePlaylistGuid) {
                                     void runExclusive(async () => {
                                         await onActivate?.(playlist.guid);
-                                        onClose?.();
                                     });
                                 }
                             }}>
