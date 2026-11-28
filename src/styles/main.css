@@ -764,26 +764,8 @@ select {
     border-bottom: 1px solid rgba(128, 128, 128, .35);
 }
 
-.playlist-heading {
-    display: flex;
-    flex: 0 0 auto;
-    flex-direction: column;
-    min-width: 95px;
-    text-align: left;
-}
-
-.playlist-heading strong {
-    font-size: 13px;
-}
-
-#PlaylistSummary {
-    color: GrayText;
-    font-size: 10px;
-}
-
 #PlaylistPicker,
-#PlaylistFilter,
-#PlaylistRefresh {
+#PlaylistFilter {
     min-height: 26px;
     max-width: 32%;
     padding: 3px 6px;
@@ -796,11 +778,6 @@ select {
     width: 120px;
     min-width: 60px;
     max-width: none;
-}
-
-#PlaylistRefresh {
-    flex: 0 0 auto;
-    cursor: pointer;
 }
 
 .demo-notice {
@@ -4296,6 +4273,49 @@ button.play-btn {
 
 .foobar-menubar-feedback {
     max-width: min(320px, 35vw);
+}
+
+.foobar-menubar-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.foobar-menubar-action {
+    display: inline-flex;
+    flex: 0 0 27px;
+    align-items: center;
+    justify-content: center;
+    width: 27px;
+    height: 25px;
+    padding: 0;
+    color: #c9c9c9;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    transition: color .12s ease, background-color .12s ease, border-color .12s ease;
+}
+
+.foobar-menubar-action:hover:not(:disabled),
+.foobar-menubar-action.is-active {
+    color: #ffffff;
+    background: #3b3b3f;
+    border-color: #4c4c51;
+}
+
+.foobar-menubar-action:focus-visible {
+    outline: 1px solid var(--accent-color);
+    outline-offset: -1px;
+}
+
+.foobar-menubar-action:disabled {
+    opacity: .42;
+    cursor: not-allowed;
 }
 
 .playback-volume-mute {
