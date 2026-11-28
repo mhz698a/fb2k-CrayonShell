@@ -33,7 +33,6 @@ export default function PlaylistManager({
     playlists = [],
     activePlaylistGuid = '',
     onActivate,
-    onClose,
     onRefresh
 }) {
     const [selectedGuid, setSelectedGuid] = useState(activePlaylistGuid);
@@ -263,11 +262,6 @@ export default function PlaylistManager({
                     <strong>Playlists</strong>
                     <span>{playlists.length} playlists</span>
                 </div>
-                <button type="button" className="playlist-manager-close"
-                    aria-label="Cerrar gestor de playlists" title="Cerrar gestor"
-                    onClick={() => onClose?.()}>
-                    <i className="fa fa-times" aria-hidden="true" />
-                </button>
             </header>
 
             <div className="playlist-manager-list" role="listbox"
