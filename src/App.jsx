@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AppErrorBoundary from './components/AppErrorBoundary.jsx';
 import ActivityBar from './components/activitybar/ActivityBar.jsx';
 import ActivityBarManagerDialog from './components/activitybar/ActivityBarManagerDialog.jsx';
 import ExternalToolsDialog from './components/activitybar/ExternalToolsDialog.jsx';
@@ -71,7 +72,7 @@ function clampPropertiesWidth(width, containerWidth) {
     );
 }
 
-export default function App() {
+function AppContent() {
     const containerRef = useRef(null);
     const draggingRef = useRef(false);
     const propertiesDraggingRef = useRef(false);
@@ -684,3 +685,11 @@ export default function App() {
     );
 }
 
+
+export default function App() {
+    return (
+        <AppErrorBoundary>
+            <AppContent />
+        </AppErrorBoundary>
+    );
+}
