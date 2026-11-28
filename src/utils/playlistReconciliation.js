@@ -111,31 +111,6 @@ export function resolveInitialSelectionIndex({
 }
 
 /**
- * Keep an automatically restored playing row stable against delayed native
- * focus notifications. Explicit user selection releases the pin in usePlaylist.
- */
-export function shouldIgnorePinnedFocusChange({
-    pinnedSelection = null,
-    playlistGuid = '',
-    nextIndex = -1
-} = {}) {
-    return Boolean(
-        pinnedSelection
-        && pinnedSelection.playlistGuid === playlistGuid
-        && Number(nextIndex) !== pinnedSelection.index
-    );
-}
-
-export function resolvePinnedSelectionIndex(items = [], pinnedSelection = null, playlistGuid = '') {
-    if (!pinnedSelection || pinnedSelection.playlistGuid !== playlistGuid || !pinnedSelection.identity) {
-        return -1;
-    }
-
-    return items.findIndex((item) => getTrackIdentity(item) === pinnedSelection.identity);
-}
-
-
-/**
  * Resolve playlist:activated across the current and legacy event payloads.
  * Index-only events must be matched against a fresh playlist.getAll snapshot.
  */

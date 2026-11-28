@@ -38,8 +38,8 @@ El índice nativo se valida contra los elementos realmente cargados en la playli
 
 - Al montar CrayonShell se hace una sola lectura completa de la playlist activa. La restauración de selección y foco no dispara una segunda lectura de contenido.
 - Al iniciar, la selección prioriza la pista en reproducción si pertenece a la playlist activa; después usa la última pista enfocada persistida y, como último recurso, el foco nativo.
-- La selección automática de la pista en reproducción queda protegida por identidad hasta que el usuario elige otra fila desde CrayonShell.
-- Los eventos nativos de foco que contradicen esa selección protegida no pueden reemplazarla con un índice obsoleto; la protección sigue a la misma pista si la playlist se reordena y se libera si la pista desaparece.
+- La selección automática se aplica una sola vez durante la activación y se verifica contra selección y foco nativos. No permanece bloqueada después de terminar la activación.
+- Después de la restauración, los eventos nativos de foco vuelven a actualizar la navegación normalmente.
 - Los cambios manuales de selección liberan la protección y vuelven a sincronizar el foco normalmente.
 - Los eventos de selección y foco actualizan el estado de navegación sin recargar los elementos.
 - Los eventos de reproducción consultan únicamente el estado de reproducción y la pista actual. No vuelven a leer el contenido de la playlist.
@@ -66,6 +66,6 @@ El índice nativo se valida contra los elementos realmente cargados en la playli
 - La restauración al cambiar de playlist usa la ubicación exacta de `playback.getCurrentTrackIndex`: GUID de origen e índice de fila. No hace coincidencias por ruta/handle entre playlists para decidir la selección de activación.
 - Antes de escribir, comprueba con `playlist.getActive` que el GUID solicitado sigue siendo la playlist activa.
 - La selección y el foco nativos se escriben por separado y se leen de vuelta por separado; un resultado discrepante queda registrado en la consola con el prefijo `[CrayonShell][playlist-activation]`.
-- La protección automática observa tanto `playlist:focusChanged` como `playlist:selectionChanged`. Si foobar2000 restaura una selección/foco anterior, ambos estados se vuelven a reconciliar con la pista protegida.
+- La restauración no deja un pin persistente: los eventos de foco y los comandos de transporte vuelven a operar sin escrituras automáticas que impongan la pista anterior.
 - El evento `playlist:activated` se resuelve primero por su `newIndex`; el indicador `isActive` queda como fallback para evitar elegir la playlist anterior si la lectura llega durante el despacho del evento.
-- La selección manual desde CrayonShell libera la protección automática.
+- Las selecciones manuales y los comandos Next/Previous no son sobrescritos por una protección de selección persistente.

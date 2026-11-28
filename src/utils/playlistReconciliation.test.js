@@ -3,10 +3,8 @@ import assert from 'node:assert/strict';
 import {
     reconcilePlaylistItems,
     resolveInitialSelectionIndex,
-    resolvePinnedSelectionIndex,
     resolveActivatedPlaylistGuid,
     resolvePlaylistGuidFromEvent,
-    shouldIgnorePinnedFocusChange
 } from './playlistReconciliation.js';
 
 const track = (index, handle, title = handle) => ({
@@ -141,63 +139,6 @@ test('restores saved focus when playback is stopped or outside the playlist', ()
         itemCount: 10
     }), 0);
 });
-
-test('ignores delayed native focus changes that conflict with the restored playing row', () => {
-    const pinnedSelection = { playlistGuid: 'active', identity: 'track-8', index: 8 };
-
-    assert.equal(shouldIgnorePinnedFocusChange({
-        pinnedSelection,
-        playlistGuid: 'active',
-        nextIndex: 0
-    }), true);
-    assert.equal(shouldIgnorePinnedFocusChange({
-        pinnedSelection,
-        playlistGuid: 'active',
-        nextIndex: 8
-    }), false);
-});
-
-test('does not block focus changes after the pin is released or on another playlist', () => {
-    const pinnedSelection = { playlistGuid: 'active', identity: 'track-8', index: 8 };
-
-    assert.equal(shouldIgnorePinnedFocusChange({
-        pinnedSelection: null,
-        playlistGuid: 'active',
-        nextIndex: 0
-    }), false);
-    assert.equal(shouldIgnorePinnedFocusChange({
-        pinnedSelection,
-        playlistGuid: 'another',
-        nextIndex: 0
-    }), false);
-});
-
-test('keeps the pinned selection attached to its track after reordering', () => {
-    const pinnedSelection = {
-        playlistGuid: 'active',
-        identity: 'track-c',
-        index: 2
-    };
-    const reordered = [
-        track(0, 'track-a'),
-        track(1, 'track-c'),
-        track(2, 'track-b')
-    ];
-
-    assert.equal(resolvePinnedSelectionIndex(reordered, pinnedSelection, 'active'), 1);
-    assert.equal(resolvePinnedSelectionIndex(reordered, pinnedSelection, 'other'), -1);
-});
-
-test('returns no pinned index after the pinned track is removed', () => {
-    const pinnedSelection = {
-        playlistGuid: 'active',
-        identity: 'track-c',
-        index: 2
-    };
-
-    assert.equal(resolvePinnedSelectionIndex([track(0, 'track-a')], pinnedSelection, 'active'), -1);
-});
-
 
 test('resolves current playlist activation events through newGuid', () => {
     assert.equal(resolveActivatedPlaylistGuid({
