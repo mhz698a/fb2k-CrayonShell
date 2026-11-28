@@ -1221,7 +1221,6 @@ export function usePlaylist() {
         }));
 
         unsubscribers.push(subscribe('playlist:selectionChanged', async (payload = {}) => {
-            const selectionRequest = ++selectionReadRevisionRef.current;
             const playlistGuid = resolvePlaylistGuidFromEvent(payload, playlistsRef.current);
             if (
                 !playlistGuid
@@ -1229,6 +1228,7 @@ export function usePlaylist() {
                 || nativeSelectionMutationRef.current.has(playlistGuid)
             ) return;
 
+            const selectionRequest = ++selectionReadRevisionRef.current;
             try {
                 const selection = await invoke('playlist.getSelection', { playlistGuid });
                 if (
