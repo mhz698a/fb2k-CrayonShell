@@ -410,7 +410,7 @@ export function createPlaybackController({
                 await invoke(...args),
                 method
             );
-            onSuccess?.(response);
+            await onSuccess?.(response);
             return response;
         } catch (error) {
             const normalizedError = toError(error, 'No se pudo ejecutar ' + method + '().');
@@ -421,6 +421,32 @@ export function createPlaybackController({
             if (remaining > 0) pendingActionCounts.set(actionId, remaining);
             else pendingActionCounts.delete(actionId);
             publish({ pendingActions: Array.from(pendingActionCounts.keys()) });
+        }
+    }
+
+    async function refreshVolumeSnapshot(response) {
+        const hasVolumeData = response && (
+            response.volume !== undefined
+            || response.volumeDb !== undefined
+            || typeof response.muted === 'boolean'
+            || typeof response.isMuted === 'boolean'
+        );
+        if (hasVolumeData) {
+            markEvent('volume', normalizeVolume(response, state));
+            return;
+        }
+
+        try {
+            const sdk = activeSdk || getSdk();
+            const currentVolume = assertSuccess(
+                await readMethod(sdk, 'getVolume')(),
+                'getVolume'
+            );
+            markEvent('volume', normalizeVolume(currentVolume, state));
+        } catch (error) {
+            // The transport action already succeeded. A failed follow-up read
+            // must not turn the volume button into a failed command.
+            publish({ readErrors: [...state.readErrors, 'getVolume: ' + toError(error).message] });
         }
     }
 
@@ -513,8 +539,12 @@ export function createPlaybackController({
                 markEvent('volume', { muted: value, volumeKnown: true });
             }
         }),
-        volumeUp: () => runAction('volumeUp', 'volumeUp'),
-        volumeDown: () => runAction('volumeDown', 'volumeDown')
+        volumeUp: () => runAction('volumeUp', 'volumeUp', [], async (response) => {
+            await refreshVolumeSnapshot(response);
+        }),
+        volumeDown: () => runAction('volumeDown', 'volumeDown', [], async (response) => {
+            await refreshVolumeSnapshot(response);
+        })
     });
 
     async function refresh() {

@@ -117,6 +117,7 @@ export function usePlaylist() {
     const activationLoadRef = useRef(null);
     const nativeSelectionMutationRef = useRef(new Set());
     const focusRevisionRef = useRef(0);
+    const selectionReadRevisionRef = useRef(0);
 
     const fullRefreshControlRef = useRef({
         running: false,
@@ -1220,6 +1221,7 @@ export function usePlaylist() {
         }));
 
         unsubscribers.push(subscribe('playlist:selectionChanged', async (payload = {}) => {
+            const selectionRequest = ++selectionReadRevisionRef.current;
             const playlistGuid = resolvePlaylistGuidFromEvent(payload, playlistsRef.current);
             if (
                 !playlistGuid
@@ -1229,6 +1231,10 @@ export function usePlaylist() {
 
             try {
                 const selection = await invoke('playlist.getSelection', { playlistGuid });
+                if (
+                    selectionRequest !== selectionReadRevisionRef.current
+                    || playlistGuid !== activePlaylistGuidRef.current
+                ) return;
                 const selected = commitSelectedIndices(selection.items, itemsRef.current);
                 console.info('[CrayonShell][playlist-navigation] selectionChanged received', {
                     payload,

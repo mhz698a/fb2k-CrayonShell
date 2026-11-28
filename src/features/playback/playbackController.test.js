@@ -259,3 +259,24 @@ test('controller start is reference-counted and remains active until the last co
     assert.equal(controller.getState().available, false);
     assert.equal(Array.from(sdk.listeners.values()).every((handlers) => handlers.size === 0), true);
 });
+
+
+test('volume step actions refresh the shared snapshot when the SDK returns no volume payload', async () => {
+    let volume = 72;
+    const sdk = createFakeSdk({
+        player: {
+            volumeUp: async () => { volume = 77; return { success: true }; },
+            volumeDown: async () => { volume = 72; return { success: true }; },
+            getVolume: async () => ({ success: true, volume, volumeDb: -6, muted: false })
+        }
+    });
+    const controller = createPlaybackController({ getSdk: () => sdk });
+    const release = controller.start();
+    await flushMicrotasks();
+
+    await controller.volumeUp();
+    assert.equal(controller.getState().volume, 77);
+    await controller.volumeDown();
+    assert.equal(controller.getState().volume, 72);
+    release();
+});

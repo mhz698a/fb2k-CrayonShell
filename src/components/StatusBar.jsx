@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { getDspAutoPresetState, subscribeDspAutoPresetState } from '../features/dspAutoPreset/dspAutoActivationController.js';
 import { formatTrackDuration, getSelectedTrackStats } from '../utils/playlistStatus.js';
 
@@ -134,17 +135,20 @@ export default function StatusBar({ message, playbackController, playlists = [],
             {visibility.dspPreset && <span className={'statusbar-item statusbar-dsp ' + dsp.variant} title={dsp.title}>
                 <FaIcon name="fa-sliders" /><span>{dsp.label}</span>
             </span>}
-            {contextMenu && <div ref={menuRef} className="statusbar-context-menu" role="menu"
-                aria-label="Mostrar u ocultar estados de la Status Bar"
-                style={{ left: contextMenu.left + 'px', top: contextMenu.top + 'px' }}>
-                <div className="statusbar-context-menu-heading">Estados visibles</div>
-                {STATUS_ITEMS.map((item) => <button key={item.id} type="button" role="menuitemcheckbox"
-                    aria-checked={visibility[item.id] !== false} className="statusbar-context-menu-item"
-                    onClick={() => toggle(item.id)}>
-                    <FaIcon name={visibility[item.id] !== false ? 'fa-check-square-o' : 'fa-square-o'} />
-                    <span>{item.label}</span>
-                </button>)}
-            </div>}
+            {contextMenu && createPortal(
+                <div ref={menuRef} className="statusbar-context-menu" role="menu"
+                    aria-label="Mostrar u ocultar estados de la Status Bar"
+                    style={{ left: contextMenu.left + 'px', top: contextMenu.top + 'px' }}>
+                    <div className="statusbar-context-menu-heading">Estados visibles</div>
+                    {STATUS_ITEMS.map((item) => <button key={item.id} type="button" role="menuitemcheckbox"
+                        aria-checked={visibility[item.id] !== false} className="statusbar-context-menu-item"
+                        onClick={() => toggle(item.id)}>
+                        <FaIcon name={visibility[item.id] !== false ? 'fa-check-square-o' : 'fa-square-o'} />
+                        <span>{item.label}</span>
+                    </button>)}
+                </div>,
+                document.body
+            )}
         </footer>
     );
 }
