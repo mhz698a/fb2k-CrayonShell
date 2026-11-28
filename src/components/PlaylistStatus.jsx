@@ -59,7 +59,45 @@ function getDspStatusPresentation(state) {
     }
 }
 
-export default function PlaylistStatus({ message }) {
+function getPlayerStatusPresentation(controller = {}) {
+    const connectionLabels = {
+        disconnected: 'Desconectado',
+        connecting: 'Conectando',
+        ready: 'Conectado',
+        degraded: 'Conexión parcial',
+        unavailable: 'No disponible'
+    };
+    const playbackLabels = {
+        playing: 'Reproduciendo',
+        paused: 'Pausado',
+        stopped: 'Detenido',
+        opening: 'Abriendo'
+    };
+    const connectionState = controller.connectionState || 'disconnected';
+    const connectionLabel = connectionLabels[connectionState] || 'Estado desconocido';
+    const playbackLabel = controller.initialized
+        ? playbackLabels[controller.playbackState] || ''
+        : '';
+
+    return {
+        label: 'Player · ' + connectionLabel + (playbackLabel ? ' · ' + playbackLabel : ''),
+        title: controller.lastError || (
+            'Conexión de reproducción: ' + connectionLabel
+            + (playbackLabel ? '. Estado: ' + playbackLabel : '.')
+        ),
+        variant: connectionState === 'ready'
+            ? 'is-ready'
+            : connectionState === 'connecting'
+                ? 'is-connecting'
+                : connectionState === 'degraded'
+                    ? 'is-degraded'
+                    : connectionState === 'unavailable'
+                        ? 'is-error'
+                        : 'is-disconnected'
+    };
+}
+
+export default function PlaylistStatus({ message, playbackController }) {
     const [dspState, setDspState] = useState(() => getDspAutoPresetState());
 
     useEffect(() => {
@@ -69,11 +107,18 @@ export default function PlaylistStatus({ message }) {
     }, []);
 
     const dspStatus = getDspStatusPresentation(dspState);
+    const playerStatus = getPlayerStatusPresentation(playbackController);
 
     return (
-        <footer id="PlaylistStatus" aria-live="polite">
+        <footer id="StatusBar" className="status-bar" aria-live="polite">
             <span className="playlist-status-message" title={message}>
                 {message}
+            </span>
+            <span
+                className={'playlist-status-playback ' + playerStatus.variant}
+                title={playerStatus.title}
+            >
+                {playerStatus.label}
             </span>
             <span
                 className={'playlist-status-dsp ' + dspStatus.variant}
