@@ -3685,7 +3685,7 @@ button.play-btn {
 }
 
 
-/* Global playback controls, positioned directly above the full-width waveform. */
+/* Global playback controls, positioned directly below the full-width waveform. */
 .playback-bar {
     display: flex;
     flex: 0 0 auto;
