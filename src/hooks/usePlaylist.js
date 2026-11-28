@@ -733,10 +733,11 @@ export function usePlaylist() {
             activePlaylistGuid: playlistGuid,
             playlists: playlistsRef.current
         });
-        const nextPlayingIndex = playback.state === 'stopped' ? -1 : currentTrackIndex;
+        const playbackState = playback.state || 'stopped';
+        const nextPlayingIndex = playbackState === 'stopped' ? -1 : currentTrackIndex;
 
         commitPlayingItem(nextPlayingIndex);
-        setPlaybackState(playback.state || 'stopped');
+        setPlaybackState(playbackState);
 
         if (currentTrackIndex >= 0) {
             let selectionResult = null;
