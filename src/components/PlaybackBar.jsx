@@ -23,6 +23,7 @@ function runAction(action) {
 export default function PlaybackBar({ controller, hasCurrentTrack = false, onFocusPlayingTrack }) {
     const [volumeDraft, setVolumeDraft] = useState(null);
     const [volumeInteractionActive, setVolumeInteractionActive] = useState(false);
+    const [orderDraft, setOrderDraft] = useState(null);
     const volumeInteractionRef = useRef(false);
     const volumeDraftRef = useRef(null);
     const pendingVolumeRef = useRef(null);
@@ -33,7 +34,11 @@ export default function PlaybackBar({ controller, hasCurrentTrack = false, onFoc
     const available = Boolean(state.available);
     const pending = new Set(state.pendingActions || []);
     const isPending = (id) => pending.has(id);
-    const order = PLAYBACK_ORDERS.some((item) => item.value === state.order?.name) ? state.order.name : 'default';
+    const order = orderDraft ?? (
+        PLAYBACK_ORDERS.some((item) => item.value === state.order?.name)
+            ? state.order.name
+            : 'default'
+    );
     const volume = volumeDraft ?? (Number.isFinite(Number(state.volume)) ? Number(state.volume) : 0);
     const volumeKnown = Boolean(state.volumeKnown);
     const isPlaying = state.playbackState === 'playing' || state.playbackState === 'opening';
@@ -79,6 +84,18 @@ export default function PlaybackBar({ controller, hasCurrentTrack = false, onFoc
             }
         });
     }, [flushVolume]);
+
+    const handlePlaybackOrderChange = useCallback((event) => {
+        // Capture synchronously: React restores a controlled select after the
+        // change handler, so reading event.target.value in a later microtask
+        // can return the previous order rather than the user's choice.
+        const selectedOrder = event.currentTarget.value;
+        setOrderDraft(selectedOrder);
+        Promise.resolve()
+            .then(() => actions.setPlaybackOrder?.(selectedOrder))
+            .finally(() => setOrderDraft(null))
+            .catch(() => {});
+    }, [actions.setPlaybackOrder]);
 
     useEffect(() => () => {
         if (volumeTimerRef.current !== null) window.clearTimeout(volumeTimerRef.current);
@@ -138,7 +155,7 @@ export default function PlaybackBar({ controller, hasCurrentTrack = false, onFoc
                     <span>Playback Order</span>
                     <select aria-label="Playback Order" value={order}
                         disabled={disabled || !state.orderKnown || isPending('setPlaybackOrder')}
-                        onChange={(event) => runAction(() => actions.setPlaybackOrder?.(event.target.value))}>
+                        onChange={handlePlaybackOrderChange}>
                         {PLAYBACK_ORDERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                     </select>
                 </label>
