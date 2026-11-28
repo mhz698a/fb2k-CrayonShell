@@ -4381,7 +4381,6 @@ button.play-btn {
     font-size: 10px;
 }
 
-.playlist-manager-close,
 .playlist-manager-toolbar button {
     display: inline-grid;
     flex: 0 0 30px;
@@ -4397,14 +4396,12 @@ button.play-btn {
     font-size: 12px;
 }
 
-.playlist-manager-close:hover,
 .playlist-manager-toolbar button:hover:not(:disabled) {
     color: #ffffff;
     background: #38383b;
     border-color: #4a4a4e;
 }
 
-.playlist-manager-close:focus-visible,
 .playlist-manager-toolbar button:focus-visible,
 .playlist-manager-row:focus-visible {
     outline: 1px solid var(--accent-color, #3794ff);
