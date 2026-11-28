@@ -19,7 +19,6 @@ export default function Sidebar({
     playlists = [],
     activePlaylistGuid = '',
     onActivatePlaylist,
-    onClosePlaylistManager,
     onRefreshPlaylists
 }) {
     const sidebarRef = useRef(null);
@@ -158,7 +157,6 @@ export default function Sidebar({
                         playlists={playlists}
                         activePlaylistGuid={activePlaylistGuid}
                         onActivate={onActivatePlaylist}
-                        onClose={onClosePlaylistManager}
                         onRefresh={onRefreshPlaylists}
                     />
                 </section>
