@@ -124,7 +124,7 @@ test('playback events update the shared snapshot', () => {
     assert.equal(controller.getState().volumeDb, -12.3);
     assert.equal(controller.getState().muted, true);
 
-    sdk.emit('playback:orderChanged', { orderIndex: 2, order: 'repeat-track' });
+    sdk.emit('playback:orderChanged', { order: 2, orderIndex: 2 });
     assert.deepEqual(controller.getState().order, { index: 2, name: 'repeat-track' });
 
     sdk.emit('playback:stopAfterCurrentChanged', { enabled: true });
@@ -132,6 +132,26 @@ test('playback events update the shared snapshot', () => {
 
     sdk.emit('playback:stopped', { reason: 'user' });
     assert.equal(controller.getState().playbackState, 'stopped');
+    release();
+});
+
+test('native numeric playback-order events update the selected order name', () => {
+    const sdk = createFakeSdk();
+    const controller = createPlaybackController({ getSdk: () => sdk });
+    const release = controller.start();
+
+    const expectedOrders = [
+        [0, 'default'],
+        [1, 'repeat-playlist'],
+        [2, 'repeat-track'],
+        [3, 'random']
+    ];
+
+    expectedOrders.forEach(([index, name]) => {
+        sdk.emit('playback:orderChanged', { order: index, orderIndex: index });
+        assert.deepEqual(controller.getState().order, { index, name });
+    });
+
     release();
 });
 
