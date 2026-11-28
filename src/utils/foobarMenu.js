@@ -84,9 +84,9 @@ export function buildMainMenuTree(items = [], flatFallback = false) {
 }
 
 /**
- * Convert the read-only main-menu tree into the compact popup format consumed
- * by fb.menu.popup. The map keeps each generated popup id tied to the original
- * SDK node, including GUID/subGuid for dynamic commands.
+ * Convert the read-only main-menu tree into the native Win32 menu item format
+ * consumed by fb.notification.showCustomMenu. The map keeps each generated
+ * item id tied to the original SDK node, including GUID/subGuid for dynamic commands.
  */
 export function buildMainMenuNativeItems(nodes = []) {
     const commandById = new Map();
