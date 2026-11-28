@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    buildMainMenuNativeItems,
     buildMainMenuTree,
+    getMenuCommandInvocation,
     getMenuNodeLabel,
     isMenuCommandExecutable
 } from './foobarMenu.js';
@@ -51,52 +51,37 @@ test('dynamic main-menu commands require both GUID and subGuid', () => {
     }), true);
 });
 
-test('converts the main menu tree to popup items and retains command identities', () => {
-    const tree = [{
-        type: 'submenu',
-        label: 'File',
-        children: [
-            { type: 'command', label: 'Open', guid: '{open}', enabled: true },
-            { type: 'separator' },
-            {
-                type: 'submenu',
-                label: 'Recent',
-                children: [{
-                    type: 'command',
-                    label: 'Recent file',
-                    guid: '{recent}',
-                    subGuid: '{file-1}',
-                    source: 'mainmenu_dynamic',
-                    checked: true,
-                    enabled: true
-                }]
-            },
-            { type: 'command', label: 'Unavailable', guid: '{disabled}', enabled: false }
-        ]
-    }];
+test('builds exact SDK invocations for static and dynamic menu commands', () => {
+    assert.deepEqual(
+        getMenuCommandInvocation({
+            type: 'command',
+            path: 'File/Open',
+            enabled: true
+        }),
+        {
+            address: 'File/Open',
+            options: undefined
+        }
+    );
 
-    const converted = buildMainMenuNativeItems(tree);
-    const root = converted.items[0];
-    assert.equal(root.label, 'File');
-    assert.deepEqual(root.submenu.map((item) => item.type || item.label), [
-        'Open',
-        'separator',
-        'Recent',
-        'Unavailable'
-    ]);
-    const recent = root.submenu[2].submenu[0];
-    assert.equal(recent.checked, true);
-    assert.equal(recent.enabled, true);
-    assert.deepEqual(converted.commandById.get(recent.id), tree[0].children[2].children[0]);
-    assert.equal(converted.commandById.get(root.submenu[0].id).guid, '{open}');
-    assert.equal(root.submenu[3].enabled, false);
-});
+    assert.deepEqual(
+        getMenuCommandInvocation({
+            type: 'command',
+            source: 'mainmenu_dynamic',
+            guid: '{parent-guid}',
+            subGuid: '{dynamic-guid}',
+            enabled: true
+        }),
+        {
+            address: '{parent-guid}',
+            options: { subGuid: '{dynamic-guid}' }
+        }
+    );
 
-test('omits hidden entries and empty submenus from the native popup model', () => {
-    const converted = buildMainMenuNativeItems([
-        { type: 'command', label: 'Hidden', guid: '{hidden}', hidden: true },
-        { type: 'submenu', label: 'Empty', children: [] },
-        { type: 'separator' }
-    ]);
-    assert.deepEqual(converted.items, [{ type: 'separator' }]);
+    assert.equal(getMenuCommandInvocation({
+        type: 'command',
+        source: 'mainmenu_dynamic',
+        guid: '{parent-guid}',
+        enabled: true
+    }), null);
 });
