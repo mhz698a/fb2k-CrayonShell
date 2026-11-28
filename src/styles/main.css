@@ -755,31 +755,6 @@ select {
     background: transparent;
 }
 
-.playlist-toolbar {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: 7px;
-    padding: 7px 9px;
-    border-bottom: 1px solid rgba(128, 128, 128, .35);
-}
-
-#PlaylistPicker,
-#PlaylistFilter {
-    min-height: 26px;
-    max-width: 32%;
-    padding: 3px 6px;
-}
-
-#PlaylistFilter {
-    -webkit-user-select: text;
-    user-select: text;
-    flex: 1 1 auto;
-    width: 120px;
-    min-width: 60px;
-    max-width: none;
-}
-
 .demo-notice {
     flex: 0 0 auto;
     padding: 4px 9px;
@@ -1134,6 +1109,10 @@ button.play-btn {
     min-height: 0;
     overflow: hidden;
     position: relative;
+}
+
+.playlist-content.is-hidden {
+    display: none;
 }
 
 .playlist-list-view {
@@ -4351,5 +4330,530 @@ button.play-btn {
     .foobar-menubar-root-button {
         padding-right: 6px;
         padding-left: 6px;
+    }
+}
+
+
+/* Playlist Manager */
+.playlist-manager {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    color: #dddddd;
+    background: #1e1e1e;
+    overflow: hidden;
+}
+
+.playlist-manager.is-hidden {
+    display: none;
+}
+
+.playlist-manager-heading {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
+    padding: 5px 12px 5px 15px;
+    background: #252526;
+    border-bottom: 1px solid #383838;
+}
+
+.playlist-manager-heading > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.playlist-manager-heading strong {
+    color: #eeeeee;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.playlist-manager-heading span {
+    color: #888888;
+    font-size: 10px;
+}
+
+.playlist-manager-close,
+.playlist-manager-toolbar button {
+    display: inline-grid;
+    flex: 0 0 30px;
+    place-items: center;
+    width: 30px;
+    height: 29px;
+    padding: 0;
+    color: #c8c8c8;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.playlist-manager-close:hover,
+.playlist-manager-toolbar button:hover:not(:disabled) {
+    color: #ffffff;
+    background: #38383b;
+    border-color: #4a4a4e;
+}
+
+.playlist-manager-close:focus-visible,
+.playlist-manager-toolbar button:focus-visible,
+.playlist-manager-row:focus-visible {
+    outline: 1px solid var(--accent-color, #3794ff);
+    outline-offset: -1px;
+}
+
+.playlist-manager-list {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    padding: 5px 0;
+    scrollbar-color: #505050 #1e1e1e;
+    scrollbar-width: thin;
+}
+
+.playlist-manager-row {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+    min-height: 56px;
+    padding: 9px 15px 8px;
+    color: #dcdcdc;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid rgba(128, 128, 128, .12);
+    text-align: left;
+    cursor: pointer;
+}
+
+.playlist-manager-row:hover {
+    background: #2a2d2e;
+}
+
+.playlist-manager-row.is-selected {
+    background: #37373d;
+    box-shadow: inset 2px 0 0 var(--accent-color, #3794ff);
+}
+
+.playlist-manager-row.is-active:not(.is-selected) .playlist-manager-name {
+    color: #9ecbff;
+}
+
+.playlist-manager-primary {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.playlist-manager-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: #eeeeee;
+    font-size: 12px;
+    font-weight: 550;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playlist-manager-active {
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    color: #a6d6ff;
+    background: rgba(55, 148, 255, .13);
+    border: 1px solid rgba(55, 148, 255, .25);
+    border-radius: 9px;
+    font-size: 9px;
+    line-height: 1.1;
+}
+
+.playlist-manager-lock {
+    flex: 0 0 auto;
+    color: #aaaaaa;
+    font-size: 11px;
+}
+
+.playlist-manager-secondary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    color: #929292;
+    font-size: 10px;
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+}
+
+.playlist-manager-secondary > span {
+    color: #666666;
+}
+
+.playlist-manager-empty,
+.playlist-manager-loading {
+    padding: 20px 15px;
+    color: #858585;
+    font-size: 11px;
+    text-align: center;
+}
+
+.playlist-manager-loading {
+    padding: 6px 12px;
+    font-size: 9px;
+}
+
+.playlist-manager-feedback {
+    flex: 0 0 auto;
+    padding: 7px 13px;
+    color: #a8d9b0;
+    background: rgba(78, 155, 92, .08);
+    border-top: 1px solid rgba(78, 155, 92, .2);
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.playlist-manager-feedback.is-error {
+    color: #edaaa5;
+    background: rgba(190, 70, 64, .09);
+    border-top-color: rgba(190, 70, 64, .25);
+}
+
+.playlist-manager-toolbar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 3px;
+    min-height: 43px;
+    padding: 5px 10px;
+    background: #252526;
+    border-top: 1px solid #3b3b3b;
+}
+
+.playlist-manager-toolbar button:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+}
+
+.playlist-manager-toolbar-separator {
+    flex: 0 0 1px;
+    height: 21px;
+    margin: 0 5px;
+    background: #4a4a4e;
+}
+
+.playlist-manager-dialog {
+    width: min(430px, calc(100vw - 28px));
+    max-width: 430px;
+    padding: 0;
+    color: #dddddd;
+    background: #252526;
+    border: 1px solid #505054;
+    border-radius: 7px;
+    box-shadow: 0 18px 55px rgba(0, 0, 0, .55);
+}
+
+.playlist-manager-dialog::backdrop {
+    background: rgba(0, 0, 0, .58);
+    backdrop-filter: blur(2px);
+}
+
+.playlist-manager-dialog-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px;
+}
+
+.playlist-manager-dialog-content > strong {
+    color: #eeeeee;
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.playlist-manager-dialog-content > p {
+    margin: 0;
+    color: #bbbbbb;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.playlist-manager-dialog-content > label {
+    color: #aaaaaa;
+    font-size: 11px;
+}
+
+.playlist-manager-dialog-content > input {
+    width: 100%;
+    min-height: 34px;
+    box-sizing: border-box;
+    padding: 6px 9px;
+    color: #eeeeee;
+    background: #1e1e1e;
+    border: 1px solid #55555a;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 12px;
+}
+
+.playlist-manager-dialog-content > input:focus {
+    outline: 1px solid var(--accent-color, #3794ff);
+    border-color: var(--accent-color, #3794ff);
+}
+
+.playlist-manager-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 3px;
+}
+
+.playlist-manager-dialog-actions button {
+    min-width: 76px;
+    min-height: 31px;
+    padding: 5px 11px;
+    color: #dddddd;
+    background: #333337;
+    border: 1px solid #55555a;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.playlist-manager-dialog-actions button:hover:not(:disabled) {
+    background: #414146;
+}
+
+.playlist-manager-dialog-actions button.is-danger {
+    color: #ffffff;
+    background: #71332f;
+    border-color: #91443e;
+}
+
+.playlist-manager-dialog-actions button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+
+/* VS Code-style Spotlight for the active playlist. */
+.spotlight-dialog {
+    width: min(650px, calc(100vw - 32px));
+    max-width: 650px;
+    max-height: min(76vh, 680px);
+    padding: 0;
+    overflow: hidden;
+    color: #dddddd;
+    background: #252526;
+    border: 1px solid #55555a;
+    border-radius: 8px;
+    box-shadow: 0 22px 70px rgba(0, 0, 0, .62);
+}
+
+.spotlight-dialog::backdrop {
+    background: rgba(0, 0, 0, .55);
+    backdrop-filter: blur(2px);
+}
+
+.spotlight-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: min(76vh, 680px);
+    min-height: 0;
+}
+
+.spotlight-search-field {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 11px;
+    min-height: 48px;
+    padding: 0 12px;
+    color: #a5a5a5;
+    border-bottom: 1px solid #414144;
+}
+
+.spotlight-search-field > .fa-search {
+    flex: 0 0 auto;
+    font-size: 14px;
+}
+
+.spotlight-search-input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    height: 43px;
+    padding: 0;
+    color: #eeeeee;
+    background: transparent;
+    border: 0;
+    outline: none;
+    font: inherit;
+    font-size: 14px;
+}
+
+.spotlight-search-input::placeholder {
+    color: #858585;
+}
+
+.spotlight-search-input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.spotlight-clear {
+    display: inline-grid;
+    flex: 0 0 27px;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    padding: 0;
+    color: #bcbcbc;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.spotlight-clear:hover:not(:disabled) {
+    color: #ffffff;
+    background: #3b3b3f;
+    border-color: #55555a;
+}
+
+.spotlight-clear:disabled {
+    opacity: .3;
+    cursor: default;
+}
+
+.spotlight-results {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+    padding: 5px 0;
+    scrollbar-color: #55555a #252526;
+    scrollbar-width: thin;
+}
+
+.spotlight-empty {
+    padding: 27px 20px;
+    color: #929292;
+    font-size: 12px;
+    text-align: center;
+}
+
+.spotlight-result {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+    padding: 8px 14px;
+    color: #d7d7d7;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+}
+
+.spotlight-result:hover,
+.spotlight-result.is-active {
+    color: #ffffff;
+    background: #37373d;
+}
+
+.spotlight-result:focus-visible {
+    outline: 1px solid var(--accent-color, #3794ff);
+    outline-offset: -1px;
+}
+
+.spotlight-result-primary {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: #e5e5e5;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.spotlight-result-secondary {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: #999999;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.spotlight-footer {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 31px;
+    padding: 4px 12px;
+    color: #969696;
+    background: #202021;
+    border-top: 1px solid #414144;
+    font-size: 9px;
+}
+
+.spotlight-footer > span:last-child {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.spotlight-footer kbd {
+    min-width: 15px;
+    padding: 2px 4px;
+    color: #c8c8c8;
+    background: #353539;
+    border: 1px solid #505055;
+    border-radius: 3px;
+    font: inherit;
+    text-align: center;
+}
+
+@media (max-width: 540px) {
+    .playlist-manager-secondary {
+        gap: 4px;
+        font-size: 9px;
+    }
+
+    .playlist-manager-row {
+        padding-right: 9px;
+        padding-left: 10px;
+    }
+
+    .spotlight-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+        padding-top: 6px;
+        padding-bottom: 6px;
     }
 }
