@@ -41,6 +41,7 @@ function MenuEntries({
     submenuPositions,
     onOpenSubmenu,
     onRunCommand,
+    onMenuKeyDown,
     executing
 }) {
     return nodes.map((node, index) => {
@@ -378,6 +379,8 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
                                 openSubmenus={openSubmenus}
                                 submenuPositions={submenuPositions}
                                 onOpenSubmenu={openSubmenu}
+                                onRunCommand={runCommand}
+                                onMenuKeyDown={handleMenuKeyDown}
                                 executing={executing}
                             />
                         </div>,
