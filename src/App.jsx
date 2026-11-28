@@ -11,7 +11,7 @@ import { useActivityBarActions } from './features/activitybar/hooks/useActivityB
 import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
-import StatusBar from './components/PlaylistStatus.jsx';
+import StatusBar from './components/StatusBar.jsx';
 import PlaybackBar from './components/PlaybackBar.jsx';
 import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
