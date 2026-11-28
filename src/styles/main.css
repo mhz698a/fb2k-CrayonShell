@@ -4857,3 +4857,78 @@ button.play-btn {
         padding-bottom: 6px;
     }
 }
+
+
+.app-runtime-failure {
+    display: grid;
+    min-width: 0;
+    min-height: 100vh;
+    place-items: start center;
+    box-sizing: border-box;
+    padding: 10vh 18px 30px;
+    color: #dddddd;
+    background: #1e1e1e;
+    overflow: auto;
+}
+
+.app-runtime-failure-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: min(760px, 100%);
+    padding: 22px;
+    box-sizing: border-box;
+    background: #252526;
+    border: 1px solid #55555a;
+    border-radius: 7px;
+}
+
+.app-runtime-failure-panel h1 {
+    margin: 0;
+    color: #f0f0f0;
+    font-size: 17px;
+    font-weight: 650;
+}
+
+.app-runtime-failure-panel p {
+    margin: 0;
+    color: #aaaaaa;
+    font-size: 12px;
+}
+
+.app-runtime-failure-panel strong {
+    color: #f0b0aa;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.app-runtime-failure-panel pre {
+    max-height: 48vh;
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    color: #c8c8c8;
+    background: #191919;
+    border: 1px solid #3b3b3b;
+    border-radius: 4px;
+    font: 11px/1.5 Consolas, monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.app-runtime-failure-panel button {
+    align-self: flex-start;
+    min-height: 31px;
+    padding: 5px 12px;
+    color: #ffffff;
+    background: #0e639c;
+    border: 1px solid #1177bb;
+    border-radius: 4px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+}
+
+.app-runtime-failure-panel button:hover {
+    background: #1177bb;
+}
