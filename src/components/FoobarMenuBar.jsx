@@ -40,9 +40,7 @@ function MenuEntries({
     openSubmenus,
     submenuPositions,
     onOpenSubmenu,
-    onToggleSubmenu,
     onRunCommand,
-    onMenuKeyDown,
     executing
 }) {
     return nodes.map((node, index) => {
@@ -89,9 +87,7 @@ function MenuEntries({
                                 openSubmenus={openSubmenus}
                                 submenuPositions={submenuPositions}
                                 onOpenSubmenu={onOpenSubmenu}
-                                onToggleSubmenu={onToggleSubmenu}
                                 onRunCommand={onRunCommand}
-                                onMenuKeyDown={onMenuKeyDown}
                                 executing={executing}
                             />
                         </div>,
@@ -382,8 +378,6 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
                                 openSubmenus={openSubmenus}
                                 submenuPositions={submenuPositions}
                                 onOpenSubmenu={openSubmenu}
-                                                                onRunCommand={runCommand}
-                                onMenuKeyDown={handleMenuKeyDown}
                                 executing={executing}
                             />
                         </div>,
