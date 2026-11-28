@@ -88,7 +88,7 @@ export function buildMainMenuTree(items = [], flatFallback = false) {
  * by fb.menu.popup. The map keeps each generated popup id tied to the original
  * SDK node, including GUID/subGuid for dynamic commands.
  */
-export function buildMainMenuPopupItems(nodes = []) {
+export function buildMainMenuNativeItems(nodes = []) {
     const commandById = new Map();
     let commandSequence = 0;
 
@@ -104,7 +104,11 @@ export function buildMainMenuPopupItems(nodes = []) {
                 if (node.type === 'submenu') {
                     const submenu = convert(node.children);
                     if (submenu.length === 0) return null;
-                    return { label, submenu };
+                    return {
+                        label,
+                        enabled: node.enabled !== false && node.available !== false,
+                        submenu
+                    };
                 }
 
                 const id = 'foobar-main-menu-' + commandSequence++;
@@ -113,6 +117,7 @@ export function buildMainMenuPopupItems(nodes = []) {
                     id,
                     label,
                     enabled,
+                    ...(node.shortcut ? { shortcut: String(node.shortcut) } : {}),
                     ...(node.checked === true || node.radioChecked === true ? { checked: true } : {})
                 };
 
