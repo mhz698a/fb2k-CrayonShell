@@ -125,7 +125,8 @@ export default function FoobarMenuBar({
     contentView = 'playlist',
     propertiesVisible = false,
     onToggleProperties,
-    onExecuteAction
+    onExecuteAction,
+    onOpenSpotlight
 }) {
     const menuBarRef = useRef(null);
     const rootMenuRef = useRef(null);
@@ -386,7 +387,14 @@ export default function FoobarMenuBar({
                     <div className="foobar-menubar-feedback" aria-live="polite">
                         {loading ? 'Cargando menús…' : error ? 'Menú no disponible' : ''}
                     </div>
-                    <div className="foobar-menubar-actions" role="toolbar" aria-label="Acciones de playlist">
+                    <div className="foobar-menubar-actions" role="toolbar" aria-label="Acciones de CrayonShell">
+                        <button id="PlaylistSpotlight" type="button"
+                            className="foobar-menubar-action"
+                            aria-label="Buscar en la playlist actual (Ctrl+P)"
+                            title="Buscar en la playlist actual (Ctrl+P)"
+                            onClick={onOpenSpotlight}>
+                            <i className="fa fa-search" aria-hidden="true" />
+                        </button>
                         <button id="MediaViewToggle" type="button"
                             className="foobar-menubar-action"
                             aria-label={contentView === 'playlist' ? 'Mostrar visor de video' : 'Mostrar playlist'}
@@ -441,6 +449,17 @@ export default function FoobarMenuBar({
                         document.body
                     )}
                 </>
+            )}
+            {isDemoMode && (
+                <div className="foobar-menubar-actions" role="toolbar" aria-label="Acciones de CrayonShell">
+                    <button id="PlaylistSpotlight" type="button"
+                        className="foobar-menubar-action"
+                        aria-label="Buscar en la playlist actual (Ctrl+P)"
+                        title="Buscar en la playlist actual (Ctrl+P)"
+                        onClick={onOpenSpotlight}>
+                        <i className="fa fa-search" aria-hidden="true" />
+                    </button>
+                </div>
             )}
         </nav>
     );

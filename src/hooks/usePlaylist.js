@@ -1115,7 +1115,7 @@ export function usePlaylist() {
     }, [commitFocusedItem, commitSelectedIndices, requestScroll, setStatusMessage]);
 
     const changePlaylist = useCallback(async (playlistGuid) => {
-        if (!playlistGuid) return;
+        if (!playlistGuid) return false;
 
         const eventRequestBefore = activationEventRequestRef.current;
         console.info('[CrayonShell][playlist-activation] picker change requested', {
@@ -1139,15 +1139,17 @@ export function usePlaylist() {
                         source: 'picker-fallback-after-event'
                     });
                 }
-                return;
+                return activePlaylistGuidRef.current === playlistGuid;
             }
 
             await loadActivatedPlaylist(playlistGuid, {
                 force: true,
                 source: 'picker'
             });
+            return activePlaylistGuidRef.current === playlistGuid;
         } catch (error) {
             setStatusMessage('No se pudo cambiar la playlist', error);
+            return false;
         }
 
     }, [loadActivatedPlaylist, setStatusMessage]);

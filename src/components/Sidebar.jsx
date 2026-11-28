@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import SpectrumVisualizer from './audio/SpectrumVisualizer.jsx';
 import ReFacetsPanel from './refacets/ReFacetsPanel.jsx';
 import YearbookExplorerPanel from './yearbook/YearbookExplorerPanel.jsx';
+import PlaylistManager from './PlaylistManager.jsx';
 import {
     DEFAULT_REFACETS_HEIGHT as DEFAULT_FACET_HEIGHT,
     MAX_REFACETS_HEIGHT as MAX_FACET_HEIGHT,
@@ -14,7 +15,11 @@ export default function Sidebar({
     visible = true,
     activeView = 'library',
     externalTools = {},
-    onOpenSettings
+    onOpenSettings,
+    playlists = [],
+    activePlaylistGuid = '',
+    onActivatePlaylist,
+    onRefreshPlaylists
 }) {
     const sidebarRef = useRef(null);
     const draggingRef = useRef(false);
@@ -22,6 +27,7 @@ export default function Sidebar({
     const [isResizing, setIsResizing] = useState(false);
     const libraryVisible = visible && activeView === 'library';
     const yearbookVisible = visible && activeView === 'yearbook';
+    const playlistManagerVisible = visible && activeView === 'playlists';
 
     useEffect(() => {
         try {
@@ -137,6 +143,21 @@ export default function Sidebar({
                         visible={yearbookVisible}
                         externalTools={externalTools}
                         onOpenSettings={onOpenSettings}
+                    />
+                </section>
+
+                <section
+                    className="sidebar-view"
+                    aria-label="Playlist Manager"
+                    aria-hidden={activeView !== 'playlists'}
+                    hidden={activeView !== 'playlists'}
+                >
+                    <PlaylistManager
+                        open={playlistManagerVisible}
+                        playlists={playlists}
+                        activePlaylistGuid={activePlaylistGuid}
+                        onActivate={onActivatePlaylist}
+                        onRefresh={onRefreshPlaylists}
                     />
                 </section>
             </div>

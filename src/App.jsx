@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AppErrorBoundary from './components/AppErrorBoundary.jsx';
 import ActivityBar from './components/activitybar/ActivityBar.jsx';
 import ActivityBarManagerDialog from './components/activitybar/ActivityBarManagerDialog.jsx';
 import ExternalToolsDialog from './components/activitybar/ExternalToolsDialog.jsx';
@@ -9,7 +10,7 @@ import { useExternalToolsConfig } from './features/activitybar/hooks/useExternal
 import { useActivityBarConfig } from './features/activitybar/hooks/useActivityBarConfig.js';
 import { useActivityBarActions } from './features/activitybar/hooks/useActivityBarActions.js';
 import Sidebar from './components/Sidebar.jsx';
-import PlaylistToolbar from './components/PlaylistToolbar.jsx';
+import SpotlightDialog from './components/SpotlightDialog.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
 import StatusBar from './components/StatusBar.jsx';
 import PlaybackBar from './components/PlaybackBar.jsx';
@@ -21,7 +22,6 @@ import { usePlaylist } from './hooks/usePlaylist.js';
 import { usePlaybackController } from './hooks/usePlaybackController.js';
 import { useTrackProperties } from './hooks/useTrackProperties.js';
 import { useWindowsFileMetadata } from './hooks/useWindowsFileMetadata.js';
-import { formatItemLine, formatItemSubtitle } from './utils/playlistDisplay.js';
 import {
     SIDEBAR_COLLAPSED_STORAGE_KEY,
     SIDEBAR_VIEW_STORAGE_KEY,
@@ -71,16 +71,17 @@ function clampPropertiesWidth(width, containerWidth) {
     );
 }
 
-export default function App() {
+function AppContent() {
     const containerRef = useRef(null);
     const draggingRef = useRef(false);
     const propertiesDraggingRef = useRef(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
     const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
     const [sidebarView, setSidebarView] = useState(readSidebarView);
+    const playlistManagerOpen = !sidebarCollapsed && sidebarView === 'playlists';
     const [propertiesCollapsed, setPropertiesCollapsed] = useState(readPropertiesCollapsed);
     const [propertiesWidth, setPropertiesWidth] = useState(readPropertiesWidth);
-    const [filter, setFilter] = useState('');
+    const [spotlightOpen, setSpotlightOpen] = useState(false);
     const [contentView, setContentView] = useState('playlist');
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
     const [activityActionError, setActivityActionError] = useState('');
@@ -112,7 +113,7 @@ export default function App() {
     }, [sidebarCollapsed, sidebarView]);
 
     const selectSidebarView = useCallback((view) => {
-        const nextView = view === 'yearbook' ? 'yearbook' : 'library';
+        const nextView = view === 'yearbook' || view === 'playlists' ? view : 'library';
         if (!sidebarCollapsed && sidebarView === nextView) {
             setSidebarCollapsed(true);
             return;
@@ -124,6 +125,13 @@ export default function App() {
     const toggleContentView = useCallback(() => {
         setContentView((value) => value === 'playlist' ? 'video' : 'playlist');
     }, []);
+
+    const togglePlaylistManager = useCallback(() => {
+        selectSidebarView('playlists');
+    }, [selectSidebarView]);
+
+    const openSpotlight = useCallback(() => setSpotlightOpen(true), []);
+    const closeSpotlight = useCallback(() => setSpotlightOpen(false), []);
 
     const openDiagnostics = useCallback(() => {
         setDiagnosticsOpen(true);
@@ -247,6 +255,23 @@ export default function App() {
     // Keep one native playback controller alive and expose its snapshot/actions to the bar.
     const playbackController = usePlaybackController();
 
+    const activateManagedPlaylist = useCallback(async (playlistGuid) => {
+        const activated = await changePlaylist(playlistGuid);
+        if (!activated) throw new Error('No se pudo activar la playlist seleccionada.');
+    }, [changePlaylist]);
+
+    useEffect(() => {
+        const handleGlobalShortcut = (event) => {
+            if (event.defaultPrevented || event.altKey || !(event.ctrlKey || event.metaKey)) return;
+            if (event.key.toLocaleLowerCase() !== 'p') return;
+            event.preventDefault();
+            setSpotlightOpen(true);
+        };
+
+        window.addEventListener('keydown', handleGlobalShortcut);
+        return () => window.removeEventListener('keydown', handleGlobalShortcut);
+    }, []);
+
     // DSP rules must use the actual native now-playing path. The Facets/Refacets
     // row index can temporarily point to a different track while subfolder rows load.
     const playingTrackPath = playbackController.currentTrackPath || '';
@@ -282,28 +307,20 @@ export default function App() {
         !propertiesCollapsed && Boolean(selectedItem)
     );
 
-    const normalizedFilter = filter.trim().toLocaleLowerCase();
-    const visibleItems = items.filter((item) => {
-        const line = formatItemLine(item, playingItemIndex, playbackState);
-        const subtitle = formatItemSubtitle(item);
-        const searchableText = line + ' ' + subtitle;
-        return !normalizedFilter
-            || searchableText.toLocaleLowerCase().includes(normalizedFilter)
-            || String(item.path || '').toLocaleLowerCase().includes(normalizedFilter);
-    });
-
     const activityBarContext = useMemo(() => ({
         sidebarCollapsed,
         sidebarView,
         selectSidebarView,
         contentView,
         activePlaylistGuid,
+        playlistManagerOpen,
         isDemoMode,
         externalTools: externalToolsConfig,
         externalToolsSettingsOpen,
         openExternalToolsSettings,
         toggleSidebar,
         toggleContentView,
+        togglePlaylistManager,
         refreshPlaylist,
         openDiagnostics,
         openActivityBarManager,
@@ -316,12 +333,14 @@ export default function App() {
         selectSidebarView,
         contentView,
         activePlaylistGuid,
+        playlistManagerOpen,
         isDemoMode,
         externalToolsConfig,
         externalToolsSettingsOpen,
         openExternalToolsSettings,
         toggleSidebar,
         toggleContentView,
+        togglePlaylistManager,
         refreshPlaylist,
         openDiagnostics,
         openActivityBarManager,
@@ -456,6 +475,7 @@ export default function App() {
                 propertiesVisible={!propertiesCollapsed}
                 onToggleProperties={() => setPropertiesCollapsed((value) => !value)}
                 onExecuteAction={executeActivityBarAction}
+                onOpenSpotlight={openSpotlight}
             />
             <div
                 ref={containerRef}
@@ -497,6 +517,14 @@ export default function App() {
                     isDemoMode={isDemoMode}
                     onClose={closeDspAutoPresetManager}
                 />
+                <SpotlightDialog
+                    open={spotlightOpen}
+                    items={items}
+                    playingItemIndex={playingItemIndex}
+                    playbackState={playbackState}
+                    onPlay={playItem}
+                    onClose={closeSpotlight}
+                />
                 <ActivityBarManagerDialog
                     open={activityBarManagerOpen}
                     buttons={activityBarConfig.buttons}
@@ -519,6 +547,10 @@ export default function App() {
                     activeView={sidebarView}
                     externalTools={externalToolsConfig}
                     onOpenSettings={openExternalToolsSettings}
+                    playlists={playlists}
+                    activePlaylistGuid={activePlaylistGuid}
+                    onActivatePlaylist={activateManagedPlaylist}
+                    onRefreshPlaylists={refreshPlaylist}
                 />
 
                 <div
@@ -558,15 +590,6 @@ export default function App() {
 
                 <main className="main-playlist">
                     <section id="PlaylistPanel" aria-label="Playlist">
-                        <PlaylistToolbar
-                            playlists={playlists}
-                            activePlaylistGuid={activePlaylistGuid}
-                            filter={filter}
-                            onFilterChange={setFilter}
-                            onPlaylistChange={changePlaylist}
-                        />
-
-
                         {isDemoMode && (
                             <div className="demo-notice">
                                 Modo de demostración: los datos no proceden de foobar2000.
@@ -579,7 +602,7 @@ export default function App() {
                                 aria-hidden={contentView !== 'playlist'}
                             >
                                 <PlaylistTable
-                                    items={visibleItems}
+                                    items={items}
                                     totalItems={items.length}
                                     focusedItem={focusedItem}
                                     playingItemIndex={playingItemIndex}
@@ -654,3 +677,11 @@ export default function App() {
     );
 }
 
+
+export default function App() {
+    return (
+        <AppErrorBoundary>
+            <AppContent />
+        </AppErrorBoundary>
+    );
+}

@@ -63,7 +63,7 @@ export function normalizeCoreUiSettings(value = {}) {
         sidebar: {
             width: normalizeSidebarWidth(sidebar.width),
             collapsed: typeof sidebar.collapsed === 'boolean' ? sidebar.collapsed : true,
-            view: sidebar.view === 'yearbook' ? 'yearbook' : 'library'
+            view: sidebar.view === 'yearbook' || sidebar.view === 'playlists' ? sidebar.view : 'library'
         },
         refacets: {
             height: clampNumber(
@@ -96,7 +96,7 @@ export function readCoreUiSettings(storageOverride) {
         sidebar: {
             width: readStorageValue(storage, SIDEBAR_WIDTH_STORAGE_KEY),
             collapsed: collapsed === null ? true : collapsed === 'true',
-            view: view === 'yearbook' ? 'yearbook' : 'library'
+            view: view === 'yearbook' || view === 'playlists' ? view : 'library'
         },
         refacets: {
             height: readStorageValue(storage, REFACETS_HEIGHT_STORAGE_KEY)

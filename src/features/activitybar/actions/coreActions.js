@@ -31,6 +31,17 @@ export function registerCoreActivityBarActions(registry) {
     }));
 
     unregister.push(registry.register({
+        id: 'playlist.manager.toggle',
+        label: 'Gestor de playlists',
+        category: 'Playlist',
+        description: 'Muestra u oculta el panel lateral para activar, organizar y administrar playlists.',
+        defaultIcon: 'list-ul',
+        isAvailable: callbackAvailability('togglePlaylistManager', 'El gestor de playlists'),
+        isActive: (context) => context.playlistManagerOpen === true,
+        execute: (context) => context.togglePlaylistManager()
+    }));
+
+    unregister.push(registry.register({
         id: 'playlist.refresh',
         label: 'Actualizar playlist',
         category: 'Playlist',
