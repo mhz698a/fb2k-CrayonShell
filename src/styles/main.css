@@ -4155,13 +4155,6 @@ button.play-btn {
     height: 100%;
 }
 
-.foobar-menubar-root {
-    position: relative;
-    display: flex;
-    align-items: center;
-    height: 100%;
-}
-
 .foobar-menubar-root-button {
     display: inline-flex;
     align-items: center;
@@ -4194,6 +4187,100 @@ button.play-btn {
 .foobar-menubar-root-button:disabled {
     opacity: .42;
     cursor: not-allowed;
+}
+
+.foobar-menubar-dropdown,
+.foobar-menubar-flyout {
+    position: fixed;
+    z-index: 2200;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    box-sizing: border-box;
+    width: max-content;
+    min-width: 238px;
+    max-width: min(330px, calc(100vw - 16px));
+    max-height: min(72vh, calc(100vh - 16px));
+    overflow: auto;
+    padding: 4px;
+    color: #dddddd;
+    background: #252526;
+    border: 1px solid #4c4c51;
+    border-radius: 4px;
+    box-shadow: 0 9px 28px rgba(0, 0, 0, .55), 0 2px 7px rgba(0, 0, 0, .35);
+    scrollbar-color: #55555a #252526;
+    scrollbar-width: thin;
+}
+
+.foobar-menubar-flyout {
+    min-width: 230px;
+}
+
+.foobar-menubar-entry {
+    display: contents;
+}
+
+.foobar-menubar-item {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) 14px;
+    align-items: center;
+    gap: 7px;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 27px;
+    padding: 4px 8px;
+    color: #d8d8d8;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+    line-height: 1.25;
+}
+
+.foobar-menubar-item:hover:not(:disabled),
+.foobar-menubar-item.is-submenu-open {
+    color: #ffffff;
+    background: #3b3b3f;
+    border-color: #4c4c51;
+}
+
+.foobar-menubar-item:disabled {
+    color: #777777;
+    opacity: .55;
+    cursor: default;
+}
+
+.foobar-menubar-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    color: #d7d7d7;
+    font-size: 10px;
+}
+
+.foobar-menubar-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.foobar-menubar-submenu-arrow {
+    justify-self: end;
+    color: #a4a4a4;
+    font-size: 12px;
+}
+
+.foobar-menubar-separator {
+    flex: 0 0 1px;
+    height: 1px;
+    margin: 3px 7px;
+    background: #4a4a4e;
 }
 
 .foobar-menubar-feedback,
