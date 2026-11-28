@@ -83,6 +83,7 @@ export function usePlaylist() {
     const [activePlaylistGuid, setActivePlaylistGuid] = useState('');
     const [items, setItems] = useState([]);
     const [focusedItem, setFocusedItem] = useState(-1);
+    const [selectedIndices, setSelectedIndices] = useState([]);
     const [playingItemIndex, setPlayingItemIndex] = useState(-1);
     const [playbackState, setPlaybackState] = useState('stopped');
     const [status, setStatus] = useState('Esperando WebView2…');
@@ -93,11 +94,13 @@ export function usePlaylist() {
     const playlistsRef = useRef(playlists);
     const itemsRef = useRef(items);
     const focusedItemRef = useRef(focusedItem);
+    const selectedIndicesRef = useRef(selectedIndices);
     const playingItemIndexRef = useRef(playingItemIndex);
     const activePlaylistGuidRef = useRef(activePlaylistGuid);
     playlistsRef.current = playlists;
     itemsRef.current = items;
     focusedItemRef.current = focusedItem;
+    selectedIndicesRef.current = selectedIndices;
     playingItemIndexRef.current = playingItemIndex;
     activePlaylistGuidRef.current = activePlaylistGuid;
 
@@ -138,6 +141,18 @@ export function usePlaylist() {
     const commitItems = useCallback((nextItems) => {
         itemsRef.current = nextItems;
         setItems(nextItems);
+    }, []);
+
+    const commitSelectedIndices = useCallback((indices, sourceItems = itemsRef.current) => {
+        const validIndices = new Set(sourceItems.map((item) => Number(item.index)));
+        const nextIndices = Array.from(new Set(
+            (Array.isArray(indices) ? indices : [])
+                .map(Number)
+                .filter((index) => Number.isInteger(index) && index >= 0 && validIndices.has(index))
+        )).sort((left, right) => left - right);
+        selectedIndicesRef.current = nextIndices;
+        setSelectedIndices(nextIndices);
+        return nextIndices;
     }, []);
 
     const commitFocusedItem = useCallback((index) => {
@@ -359,6 +374,7 @@ export function usePlaylist() {
             setActivePlaylistGuid('');
             commitItems([]);
             commitFocusedItem(-1);
+            commitSelectedIndices([]);
             commitPlayingItem(-1);
             setPlaybackState('stopped');
             setSessionReady(true);
@@ -369,9 +385,10 @@ export function usePlaylist() {
         activePlaylistGuidRef.current = active.guid;
         setPlaylists(mapPlaylistList(nextPlaylists, active.guid));
 
-        const [nextItems, focus, playingTrack, playback, currentTrackResponse] = await Promise.all([
+        const [nextItems, focus, nativeSelection, playingTrack, playback, currentTrackResponse] = await Promise.all([
             readPlaylistItems(active),
             invoke('playlist.getFocusedTrack', { playlistGuid: active.guid }),
+            invoke('playlist.getSelection', { playlistGuid: active.guid }).catch(() => ({ items: [] })),
             invoke('playback.getCurrentTrackIndex', { includeTrackInfo: true }),
             invoke('playback.getState'),
             invoke('playback.getCurrentTrack').catch(() => null)
@@ -428,6 +445,7 @@ export function usePlaylist() {
 
         commitItems(nextItems);
         commitFocusedItem(nextFocusedIndex);
+        commitSelectedIndices(restoredIndex >= 0 ? [restoredIndex] : nativeSelection.items, nextItems);
         commitPlayingItem(nextPlayingIndex);
         setActivePlaylistGuid(active.guid);
         setPlaybackState(playback.state || 'stopped');
@@ -436,6 +454,7 @@ export function usePlaylist() {
     }, [
         commitFocusedItem,
         commitItems,
+        commitSelectedIndices,
         commitPlayingItem,
         readPlaylistItems,
         setStatusMessage
@@ -621,6 +640,11 @@ export function usePlaylist() {
                     });
                 }
 
+                const currentSelection = verification?.applied
+                    ? verification.nativeSelection
+                    : (await invoke('playlist.getSelection', { playlistGuid }).catch(() => ({ items: [] }))).items;
+                commitSelectedIndices(currentSelection, nextItems);
+
                 if (selectionError) {
                     console.error('[CrayonShell][playlist-activation] native selection failed', selectionError);
                     setStatusMessage('No se pudo restaurar la selección nativa', selectionError);
@@ -661,6 +685,7 @@ export function usePlaylist() {
     }, [
         commitFocusedItem,
         commitItems,
+        commitSelectedIndices,
         commitPlayingItem,
         readPlaylistItems,
         requestScroll,
@@ -672,6 +697,10 @@ export function usePlaylist() {
         if (!playlistGuid || !hasBridge()) return;
 
         const currentItems = itemsRef.current;
+        const previousSelectedHandles = currentItems
+            .filter((item) => selectedIndicesRef.current.includes(Number(item.index)))
+            .map((item) => item.handle)
+            .filter(Boolean);
         let identityRows = null;
         let hydratedItems = [];
         let contentVersion = '';
@@ -712,9 +741,15 @@ export function usePlaylist() {
                 : playlist
         )));
 
+        const preservedSelection = nextItems
+            .filter((item) => previousSelectedHandles.includes(item.handle))
+            .map((item) => item.index);
+        commitSelectedIndices(preservedSelection, nextItems);
+
         const focusRevision = focusRevisionRef.current;
-        const [focus, playingTrack, playback, currentTrackResponse] = await Promise.all([
+        const [focus, nativeSelection, playingTrack, playback, currentTrackResponse] = await Promise.all([
             invoke('playlist.getFocusedTrack', { playlistGuid }).catch(() => null),
+            invoke('playlist.getSelection', { playlistGuid }).catch(() => ({ items: [] })),
             invoke('playback.getCurrentTrackIndex', { includeTrackInfo: true })
                 .catch(() => ({ found: false })),
             invoke('playback.getState').catch(() => ({ state: 'stopped' })),
@@ -778,6 +813,7 @@ export function usePlaylist() {
 
             if (selectionResult?.applied) {
                 commitFocusedItem(currentTrackIndex);
+                commitSelectedIndices(selectionResult.nativeSelection, nextItems);
                 requestScroll(nextPlayingIndex >= 0 ? 'playing' : 'focused');
                 console.info('[CrayonShell][facets-selection] restored current track selection', {
                     playlistGuid,
@@ -803,10 +839,12 @@ export function usePlaylist() {
             // The playing track is outside the current Facets result. Preserve
             // the viewer's own focus until a later result contains that track.
             commitFocusedItem(normalizeIndex(focus.index));
+            commitSelectedIndices(nativeSelection.items, nextItems);
         }
     }, [
         commitFocusedItem,
         commitItems,
+        commitSelectedIndices,
         commitPlayingItem,
         readPlaylistIdentityRows,
         readPlaylistRowsAt,
@@ -940,6 +978,7 @@ export function usePlaylist() {
 
                 if (mountedRef.current && activePlaylistGuidRef.current === requestedPlaylistGuid) {
                     commitFocusedItem(index);
+                    commitSelectedIndices([index]);
                 }
             } catch (error) {
                 throw error;
@@ -949,7 +988,7 @@ export function usePlaylist() {
         const queued = selectionQueueRef.current.then(operation, operation);
         selectionQueueRef.current = queued.catch(() => {});
         return queued;
-    }, [activePlaylistGuid, commitFocusedItem]);
+    }, [activePlaylistGuid, commitFocusedItem, commitSelectedIndices]);
 
     const selectItem = useCallback(async (index) => {
         if (!activePlaylistGuid) return;
@@ -1052,6 +1091,7 @@ export function usePlaylist() {
 
             if (result?.applied) {
                 commitFocusedItem(index);
+                commitSelectedIndices(result.nativeSelection, itemsRef.current);
                 requestScroll('focused');
                 setStatusMessage('Active Now Playing: pista ' + (index + 1));
             } else if (result?.reason === 'active-playlist-changed') {
@@ -1060,7 +1100,7 @@ export function usePlaylist() {
         } catch (error) {
             setStatusMessage('No se pudo enfocar la canción en reproducción', error);
         }
-    }, [commitFocusedItem, requestScroll, setStatusMessage]);
+    }, [commitFocusedItem, commitSelectedIndices, requestScroll, setStatusMessage]);
 
     const changePlaylist = useCallback(async (playlistGuid) => {
         if (!playlistGuid) return;
@@ -1178,11 +1218,12 @@ export function usePlaylist() {
 
             try {
                 const selection = await invoke('playlist.getSelection', { playlistGuid });
+                const selected = commitSelectedIndices(selection.items, itemsRef.current);
                 console.info('[CrayonShell][playlist-navigation] selectionChanged received', {
                     payload,
                     resolvedPlaylistGuid: playlistGuid,
                     activePlaylistGuid: activePlaylistGuidRef.current,
-                    selectedIndices: Array.isArray(selection.items) ? selection.items : [],
+                    selectedIndices: selected,
                     count: Number(selection.count) || 0
                 });
             } catch (error) {
@@ -1233,6 +1274,7 @@ export function usePlaylist() {
                     setPlaylists((previous) => mapPlaylistList(previous, ''));
                     commitItems([]);
                     commitFocusedItem(-1);
+                    commitSelectedIndices([]);
                     commitPlayingItem(-1);
                     setPlaybackState('stopped');
                     setSessionReady(true);
@@ -1323,6 +1365,7 @@ export function usePlaylist() {
         };
     }, [
         commitFocusedItem,
+        commitSelectedIndices,
         handleContentEvent,
         loadActivatedPlaylist,
         refreshPlaylist,
@@ -1337,6 +1380,7 @@ export function usePlaylist() {
         activePlaylistGuid,
         items,
         focusedItem,
+        selectedIndices,
         playingItemIndex,
         playbackState,
         status,

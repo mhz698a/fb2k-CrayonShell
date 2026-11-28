@@ -229,6 +229,7 @@ export default function App() {
         activePlaylistGuid,
         items,
         focusedItem,
+        selectedIndices,
         playingItemIndex,
         playbackState,
         status,
@@ -629,18 +630,22 @@ export default function App() {
                     fileMetadataError={windowsFileMetadataError}
                 />
             </div>
-            <StatusBar
-                message={status}
-                playbackController={playbackController}
+            <WaveformSeekbar
+                onCacheControllerChange={handleWaveformCacheActionsChange}
+                onCacheProgressChange={handleWaveformCacheProgressChange}
             />
             <PlaybackBar
                 controller={playbackController}
                 hasCurrentTrack={Boolean(playingItem || playbackController.currentTrack)}
                 onFocusPlayingTrack={focusPlayingTrack}
             />
-            <WaveformSeekbar
-                onCacheControllerChange={handleWaveformCacheActionsChange}
-                onCacheProgressChange={handleWaveformCacheProgressChange}
+            <StatusBar
+                message={status}
+                playbackController={playbackController}
+                playlists={playlists}
+                activePlaylist={activePlaylist}
+                items={items}
+                selectedIndices={selectedIndices}
             />
         </div>
     );

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const PLAYBACK_ORDERS = [
     { value: 'default', label: 'Predeterminado' },
@@ -6,188 +6,151 @@ const PLAYBACK_ORDERS = [
     { value: 'repeat-track', label: 'Repetir canción' },
     { value: 'random', label: 'Aleatorio' }
 ];
-
-function FaIcon({ name }) {
-    return <i className={'fa fa-' + name} aria-hidden="true" />;
-}
-
+const FaIcon = ({ name }) => <i className={'fa ' + name} aria-hidden="true" />;
 function runAction(action) {
     if (typeof action !== 'function') return;
-    Promise.resolve().then(action).catch(() => {
-        // The playback controller publishes the failure in its shared state.
-    });
+    Promise.resolve().then(action).catch(() => {});
 }
 
-export default function PlaybackBar({
-    controller,
-    hasCurrentTrack = false,
-    onFocusPlayingTrack
-}) {
+export default function PlaybackBar({ controller, hasCurrentTrack = false, onFocusPlayingTrack }) {
     const [volumeDraft, setVolumeDraft] = useState(null);
     const volumeDraftRef = useRef(null);
-
-    const available = Boolean(controller?.available);
+    const pendingVolumeRef = useRef(null);
+    const volumeTimerRef = useRef(null);
+    const volumeQueueRef = useRef(Promise.resolve());
     const state = controller || {};
     const actions = state.actions || {};
+    const available = Boolean(state.available);
     const pending = new Set(state.pendingActions || []);
-    const isPending = (actionId) => pending.has(actionId);
-    const order = PLAYBACK_ORDERS.some((item) => item.value === state.order?.name)
-        ? state.order.name
-        : 'default';
-    const volume = volumeDraft ?? (
-        Number.isFinite(Number(state.volume)) ? Number(state.volume) : 0
-    );
+    const isPending = (id) => pending.has(id);
+    const order = PLAYBACK_ORDERS.some((item) => item.value === state.order?.name) ? state.order.name : 'default';
+    const volume = volumeDraft ?? (Number.isFinite(Number(state.volume)) ? Number(state.volume) : 0);
     const volumeKnown = Boolean(state.volumeKnown);
     const isPlaying = state.playbackState === 'playing' || state.playbackState === 'opening';
     const playPauseLabel = isPlaying ? 'Pausar' : 'Reproducir';
-
-    const updateVolumeDraft = (event) => {
-        const nextVolume = Math.max(0, Math.min(100, Number(event.target.value) || 0));
-        volumeDraftRef.current = nextVolume;
-        setVolumeDraft(nextVolume);
-    };
-
-    const commitVolume = () => {
-        if (volumeDraftRef.current === null) return;
-        const nextVolume = volumeDraftRef.current;
-        volumeDraftRef.current = null;
-        setVolumeDraft(null);
-        runAction(() => actions.setVolume?.(nextVolume));
-    };
-
-    const cancelVolume = () => {
-        volumeDraftRef.current = null;
-        setVolumeDraft(null);
-    };
-
-    const transportDisabled = !available;
     const stopAfterCurrent = Boolean(state.stopAfterCurrent);
 
+    const flushVolume = useCallback(() => {
+        if (volumeTimerRef.current !== null) {
+            window.clearTimeout(volumeTimerRef.current);
+            volumeTimerRef.current = null;
+        }
+        const nextVolume = pendingVolumeRef.current;
+        if (nextVolume === null) return;
+        pendingVolumeRef.current = null;
+        const operation = volumeQueueRef.current.catch(() => {}).then(() => actions.setVolume?.(nextVolume));
+        volumeQueueRef.current = operation.catch(() => {});
+        operation.then(() => {
+            if (pendingVolumeRef.current === null && volumeDraftRef.current === nextVolume) {
+                volumeDraftRef.current = null;
+                setVolumeDraft(null);
+            }
+        }).catch(() => {});
+    }, [actions.setVolume]);
+
+    const scheduleVolume = useCallback((rawValue) => {
+        const value = Math.max(0, Math.min(100, Number(rawValue) || 0));
+        volumeDraftRef.current = value;
+        pendingVolumeRef.current = value;
+        setVolumeDraft(value);
+        if (volumeTimerRef.current === null) volumeTimerRef.current = window.setTimeout(flushVolume, 45);
+    }, [flushVolume]);
+
+    const finishVolumeChange = useCallback(() => flushVolume(), [flushVolume]);
+
+    useEffect(() => () => {
+        if (volumeTimerRef.current !== null) window.clearTimeout(volumeTimerRef.current);
+        if (pendingVolumeRef.current !== null) {
+            const finalVolume = pendingVolumeRef.current;
+            pendingVolumeRef.current = null;
+            volumeQueueRef.current = volumeQueueRef.current
+                .catch(() => {})
+                .then(() => actions.setVolume?.(finalVolume))
+                .catch(() => {});
+        }
+    }, [actions.setVolume]);
+
+    const disabled = !available;
     return (
         <section className="playback-bar" aria-label="Playback Bar">
             <div className="playback-bar-transport" role="group" aria-label="Controles de transporte">
-                <button
-                    className="playback-control playback-control-primary"
-                    type="button"
-                    aria-label={playPauseLabel}
-                    title={playPauseLabel}
-                    disabled={transportDisabled || isPending('playPause')}
-                    aria-busy={isPending('playPause')}
-                    onClick={() => runAction(actions.playPause)}
-                >
-                    <FaIcon name={state.playbackState === 'opening' ? 'spinner fa-spin' : isPlaying ? 'pause' : 'play'} />
+                <button className="playback-control playback-control-primary" type="button"
+                    aria-label={playPauseLabel} title={playPauseLabel}
+                    disabled={disabled || isPending('playPause')}
+                    onClick={() => runAction(actions.playPause)}>
+                    <FaIcon name={state.playbackState === 'opening' ? 'fa-spinner fa-spin' : isPlaying ? 'fa-pause' : 'fa-play'} />
                 </button>
-                <button
-                    className="playback-control"
-                    type="button"
-                    aria-label="Pista anterior"
-                    title="Pista anterior"
-                    disabled={transportDisabled || isPending('previous')}
-                    onClick={() => runAction(actions.previous)}
-                >
-                    <FaIcon name="step-backward" />
+                <button className="playback-control" type="button" aria-label="Pista anterior"
+                    title="Pista anterior" disabled={disabled || isPending('previous')}
+                    onClick={() => runAction(actions.previous)}>
+                    <FaIcon name="fa-step-backward" />
                 </button>
-                <button
-                    className="playback-control"
-                    type="button"
-                    aria-label="Detener"
-                    title="Detener"
-                    disabled={transportDisabled || isPending('stop')}
-                    onClick={() => runAction(actions.stopPlayback)}
-                >
-                    <FaIcon name="stop" />
+                <button className="playback-control" type="button" aria-label="Detener"
+                    title="Detener" disabled={disabled || isPending('stop')}
+                    onClick={() => runAction(actions.stopPlayback)}>
+                    <FaIcon name="fa-stop" />
                 </button>
-                <button
-                    className="playback-control"
-                    type="button"
-                    aria-label="Pista siguiente"
-                    title="Pista siguiente"
-                    disabled={transportDisabled || isPending('next')}
-                    onClick={() => runAction(actions.next)}
-                >
-                    <FaIcon name="step-forward" />
+                <button className="playback-control" type="button" aria-label="Pista siguiente"
+                    title="Pista siguiente" disabled={disabled || isPending('next')}
+                    onClick={() => runAction(actions.next)}>
+                    <FaIcon name="fa-step-forward" />
                 </button>
-                <button
-                    className="playback-control"
-                    type="button"
-                    aria-label="Reproducir aleatoriamente"
-                    title="Reproducir aleatoriamente"
-                    disabled={transportDisabled || isPending('playRandom')}
-                    onClick={() => runAction(actions.playRandom)}
-                >
-                    <FaIcon name="random" />
+                <button className="playback-control" type="button" aria-label="Reproducir aleatoriamente"
+                    title="Reproducir aleatoriamente" disabled={disabled || isPending('playRandom')}
+                    onClick={() => runAction(actions.playRandom)}>
+                    <FaIcon name="fa-random" />
                 </button>
-                <button
-                    className={'playback-control playback-control-wide'
-                        + (stopAfterCurrent ? ' is-active' : '')}
-                    type="button"
-                    aria-label="Detener después de la canción actual"
-                    aria-pressed={stopAfterCurrent}
-                    title={stopAfterCurrent
-                        ? 'Desactivar Detener después de la canción actual'
-                        : 'Detener después de la canción actual'}
-                    disabled={transportDisabled || !state.stopAfterCurrentKnown || isPending('setStopAfterCurrent')}
-                    onClick={() => runAction(() => actions.setStopAfterCurrent?.(!stopAfterCurrent))}
-                >
-                    <FaIcon name="stop-circle" />
-                    <span>Stop after current</span>
+                <button className={'playback-control playback-control-toggle' + (stopAfterCurrent ? ' is-active' : '')}
+                    type="button" aria-label="Detener después de la canción actual" aria-pressed={stopAfterCurrent}
+                    title={stopAfterCurrent ? 'Desactivar Detener después de la canción actual' : 'Detener después de la canción actual'}
+                    disabled={disabled || !state.stopAfterCurrentKnown || isPending('setStopAfterCurrent')}
+                    onClick={() => runAction(() => actions.setStopAfterCurrent?.(!stopAfterCurrent))}>
+                    <FaIcon name="fa-stop-circle" />
                 </button>
-                <button
-                    className="playback-control playback-control-wide"
-                    type="button"
-                    aria-label="Active Now Playing"
-                    title="Seleccionar y enfocar la canción en reproducción"
-                    disabled={transportDisabled || !hasCurrentTrack}
-                    onClick={() => runAction(onFocusPlayingTrack)}
-                >
-                    <FaIcon name="crosshairs" />
-                    <span>Active Now Playing</span>
+                <button className="playback-control playback-control-toggle" type="button"
+                    aria-label="Active Now Playing" title="Seleccionar y enfocar la canción en reproducción"
+                    disabled={disabled || !hasCurrentTrack} onClick={() => runAction(onFocusPlayingTrack)}>
+                    <FaIcon name="fa-crosshairs" />
                 </button>
                 <label className="playback-order-control">
                     <span>Playback Order</span>
-                    <select
-                        aria-label="Playback Order"
-                        value={order}
-                        disabled={transportDisabled || !state.orderKnown || isPending('setPlaybackOrder')}
-                        onChange={(event) => runAction(() => actions.setPlaybackOrder?.(event.target.value))}
-                    >
-                        {PLAYBACK_ORDERS.map((item) => (
-                            <option key={item.value} value={item.value}>{item.label}</option>
-                        ))}
+                    <select aria-label="Playback Order" value={order}
+                        disabled={disabled || !state.orderKnown || isPending('setPlaybackOrder')}
+                        onChange={(event) => runAction(() => actions.setPlaybackOrder?.(event.target.value))}>
+                        {PLAYBACK_ORDERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                     </select>
                 </label>
             </div>
-
             <div className="playback-bar-volume" role="group" aria-label="Control de volumen">
-                <button
-                    className="playback-control playback-volume-mute"
-                    type="button"
-                    aria-label={state.muted ? 'Activar sonido' : 'Silenciar'}
-                    aria-pressed={Boolean(state.muted)}
-                    title={state.muted ? 'Activar sonido' : 'Silenciar'}
-                    disabled={transportDisabled || !volumeKnown || isPending('toggleMute')}
-                    onClick={() => runAction(actions.toggleMute)}
-                >
-                    <FaIcon name={state.muted || Number(state.volume) === 0 ? 'volume-off' : 'volume-up'} />
+                <button className="playback-control playback-volume-step" type="button"
+                    aria-label="Bajar volumen" title="Bajar volumen"
+                    disabled={disabled || !volumeKnown || isPending('volumeDown')}
+                    onClick={() => runAction(actions.volumeDown)}>
+                    <FaIcon name="fa-volume-down" />
                 </button>
                 <label className="playback-volume-slider">
                     <span className="sr-only">Volumen</span>
-                    <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="1"
-                        aria-label="Volumen"
-                        aria-valuetext={Math.round(volume) + '%'}
-                        value={volume}
-                        disabled={transportDisabled || !volumeKnown}
-                        onChange={updateVolumeDraft}
-                        onPointerUp={commitVolume}
-                        onPointerCancel={cancelVolume}
-                        onKeyUp={commitVolume}
-                        onBlur={commitVolume}
-                    />
+                    <input type="range" min="0" max="100" step="1" aria-label="Volumen"
+                        aria-valuetext={Math.round(volume) + '%'} value={volume}
+                        disabled={disabled || !volumeKnown}
+                        onChange={(event) => scheduleVolume(event.target.value)}
+                        onPointerUp={finishVolumeChange} onPointerCancel={finishVolumeChange}
+                        onKeyUp={finishVolumeChange} onBlur={finishVolumeChange} />
                 </label>
+                <button className="playback-control playback-volume-step" type="button"
+                    aria-label="Subir volumen" title="Subir volumen"
+                    disabled={disabled || !volumeKnown || isPending('volumeUp')}
+                    onClick={() => runAction(actions.volumeUp)}>
+                    <FaIcon name="fa-volume-up" />
+                </button>
+                <button className="playback-control playback-volume-mute" type="button"
+                    aria-label={state.muted ? 'Activar sonido' : 'Silenciar'}
+                    aria-pressed={Boolean(state.muted)}
+                    title={state.muted ? 'Activar sonido' : 'Silenciar'}
+                    disabled={disabled || !volumeKnown || isPending('toggleMute')}
+                    onClick={() => runAction(actions.toggleMute)}>
+                    <FaIcon name={state.muted || Number(state.volume) === 0 ? 'fa-volume-off' : 'fa-volume-up'} />
+                </button>
                 <span className="playback-volume-value">{Math.round(volume)}%</span>
             </div>
         </section>

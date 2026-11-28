@@ -919,54 +919,59 @@ select {
 }
 
 #StatusBar {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    min-width: 0;
-    padding: 4px 9px;
-    color: GrayText;
-    font-size: 10px;
-    border-top: 1px solid rgba(128, 128, 128, .35);
+    position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-items: center;
+    gap: 0; min-width: 0; min-height: 25px; padding: 3px 8px; overflow: hidden;
+    color: GrayText; background: #202022; border-top: 1px solid rgba(128, 128, 128, .28);
+    font-size: 10px; font-variant-numeric: tabular-nums;
 }
-
-.playlist-status-message {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.statusbar-item {
+    display: inline-flex; flex: 0 1 auto; align-items: center; gap: 5px; min-width: 0;
+    max-width: 23%; padding: 0 8px; overflow: hidden;
+    border-left: 1px solid rgba(128, 128, 128, .2); white-space: nowrap;
 }
-
-.playlist-status-dsp {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 52%;
-    overflow: hidden;
-    padding-left: 10px;
-    border-left: 1px solid rgba(128, 128, 128, .28);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
+.statusbar-item:first-child { padding-left: 2px; border-left: 0; }
+.statusbar-item > .fa { flex: 0 0 auto; color: #8f9aa5; font-size: 10px; }
+.statusbar-message { flex: 1 1 16%; max-width: 24%; min-width: 50px; }
+.statusbar-message > span,
+.statusbar-playlist-name > span,
+.statusbar-player-connection > span,
+.statusbar-dsp > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.statusbar-playback-state { flex: 0 0 25px; justify-content: center; padding: 0 7px; }
+.statusbar-playback-state .fa-play, .statusbar-playback-state .fa-pause { color: #a9d9ae; }
+.statusbar-playback-state .fa-stop { color: #929292; }
+.statusbar-playback-state .fa-spinner { color: #d0bd8b; }
+.statusbar-playlist-name, .statusbar-dsp { max-width: 25%; }
+.statusbar-player-connection.is-ready, .statusbar-dsp.is-active { color: #a9d9ae; }
+.statusbar-player-connection.is-connecting, .statusbar-player-connection.is-degraded,
+.statusbar-dsp.is-queued, .statusbar-dsp.is-applying, .statusbar-dsp.is-verifying { color: #d0bd8b; }
+.statusbar-player-connection.is-error, .statusbar-dsp.is-error { color: #e6a09a; }
+.statusbar-context-menu {
+    position: fixed; z-index: 3000; display: flex; width: 270px;
+    max-height: min(390px, calc(100vh - 16px)); flex-direction: column; gap: 2px;
+    box-sizing: border-box; padding: 7px; overflow: auto; color: #dedede;
+    background: #252526; border: 1px solid #4a4a4d; border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .48);
 }
-
-.playlist-status-dsp.is-active {
-    color: #a9d9ae;
+.statusbar-context-menu-heading {
+    padding: 5px 7px 7px; color: #9d9d9d; border-bottom: 1px solid #3d3d40;
+    font-size: 10px; font-weight: 600;
 }
-
-.playlist-status-dsp.is-queued,
-.playlist-status-dsp.is-applying,
-.playlist-status-dsp.is-verifying {
-    color: #d0bd8b;
+.statusbar-context-menu-item {
+    display: flex; align-items: center; gap: 8px; min-height: 27px; padding: 4px 7px;
+    color: #dedede; background: transparent; border: 0; border-radius: 2px;
+    cursor: pointer; font: inherit; font-size: 10px; text-align: left;
 }
-
-.playlist-status-dsp.is-error {
-    color: #e6a09a;
+.statusbar-context-menu-item:hover, .statusbar-context-menu-item:focus-visible {
+    color: #fff; background: #3a3d41; outline: none;
 }
-
-.playlist-status-dsp.is-idle {
-    color: #929292;
+.statusbar-context-menu-item > .fa { width: 13px; flex: 0 0 13px; color: #8ab4d8; text-align: center; }
+@media (max-width: 820px) {
+    #StatusBar { overflow-x: auto; scrollbar-width: thin; }
+    .statusbar-item { max-width: 40%; padding-right: 6px; padding-left: 6px; }
+}
+@media (max-width: 520px) {
+    #StatusBar { font-size: 9px; }
+    .statusbar-item { gap: 4px; padding-right: 5px; padding-left: 5px; }
 }
 
 button.play-btn {
@@ -3698,117 +3703,10 @@ button.play-btn {
 
 .playback-bar-transport,
 .playback-bar-volume {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    gap: 4px;
-}
-
-.playback-bar-transport {
-    flex: 1 1 auto;
-    flex-wrap: wrap;
-}
-
-.playback-control {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    min-width: 29px;
-    min-height: 28px;
-    padding: 4px 8px;
-    color: #c9c9c9;
-    background: #303033;
-    border: 1px solid #414145;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 11px;
-    line-height: 1;
-}
-
-.playback-control:hover:not(:disabled) {
-    color: #ffffff;
-    background: #3b3b40;
-    border-color: #626268;
-}
-
-.playback-control:focus-visible,
-.playback-order-control select:focus-visible,
-.playback-volume-slider input:focus-visible {
-    outline: 1px solid var(--accent-color);
-    outline-offset: 1px;
-}
-
-.playback-control:disabled {
-    opacity: .38;
-    cursor: not-allowed;
-}
-
-.playback-control-primary {
-    color: #ffffff;
-    background: #075f95;
-    border-color: #0878b8;
-}
-
-.playback-control-primary:hover:not(:disabled) {
-    background: #0877b5;
-    border-color: #1593d2;
-}
-
-.playback-control-wide {
-    padding-right: 9px;
-    padding-left: 9px;
-    white-space: nowrap;
-}
-
-.playback-control.is-active {
-    color: #ffffff;
-    background: rgba(0, 122, 204, .28);
-    border-color: var(--accent-color);
-}
-
-.playback-order-control {
-    display: inline-flex;
-    flex: 0 1 auto;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    margin-left: 3px;
-    color: #a9a9a9;
-    font-size: 9px;
-    white-space: nowrap;
-}
-
-.playback-order-control select {
-    min-width: 118px;
-    max-width: 170px;
-    min-height: 28px;
-    padding: 3px 6px;
-    color: #e0e0e0;
-    color-scheme: dark;
-    background: #2c2c2f;
-    border: 1px solid #48484c;
-    border-radius: 3px;
-    font-size: 10px;
-}
-
-.playback-order-control select:disabled {
-    opacity: .4;
-}
-
-.playback-bar-volume {
-    flex: 0 0 auto;
-    justify-content: flex-end;
-    margin-left: auto;
-    padding-left: 10px;
+    flex: 0 0 auto; justify-content: flex-end; margin-left: auto; padding-left: 10px;
     border-left: 1px solid rgba(128, 128, 128, .24);
 }
-
-.playback-volume-mute {
-    min-width: 29px;
-    padding: 4px 7px;
-}
+.playback-volume-step { min-width: 27px; padding: 4px 6px; }
 
 .playback-volume-slider {
     display: inline-flex;
