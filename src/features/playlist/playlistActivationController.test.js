@@ -174,3 +174,70 @@ test('reads the active playlist after the playback and focus snapshot', async ()
     assert.equal(calls.at(-1), 'playlist.getActive');
     assert.equal(snapshot.selectionIndex, 7);
 });
+
+test('guards Facets content selection and focus writes with the reconciled content version', async () => {
+    const writes = [];
+    const invoke = async (method, params = {}) => {
+        if (method === 'playlist.getActive') return { found: true, guid: 'playlist-a' };
+        if (method === 'playlist.setSelection' || method === 'playlist.setFocusedTrack') {
+            writes.push({ method, params });
+            return { success: true };
+        }
+        if (method === 'playlist.getSelection') return { items: [8] };
+        if (method === 'playlist.getFocusedTrack') return { index: 8 };
+        return {};
+    };
+
+    const result = await applyPlaylistActivationSelection({
+        invoke,
+        playlistGuid: 'playlist-a',
+        index: 8,
+        expectedVersion: 'facets-content-v12'
+    });
+
+    assert.equal(result.applied, true);
+    assert.deepEqual(writes, [
+        {
+            method: 'playlist.setSelection',
+            params: {
+                playlistGuid: 'playlist-a',
+                indices: [8],
+                clearOthers: true,
+                expectedVersion: 'facets-content-v12'
+            }
+        },
+        {
+            method: 'playlist.setFocusedTrack',
+            params: {
+                playlistGuid: 'playlist-a',
+                index: 8,
+                expectedVersion: 'facets-content-v12'
+            }
+        }
+    ]);
+});
+
+test('does not continue to focus a row when the Facets content version became stale', async () => {
+    const calls = [];
+    const invoke = async (method, params = {}) => {
+        calls.push(method);
+        if (method === 'playlist.getActive') return { found: true, guid: 'playlist-a' };
+        if (method === 'playlist.setSelection') {
+            const error = new Error('content changed');
+            error.code = 'STALE_TARGET';
+            throw error;
+        }
+        return {};
+    };
+
+    await assert.rejects(
+        applyPlaylistActivationSelection({
+            invoke,
+            playlistGuid: 'playlist-a',
+            index: 8,
+            expectedVersion: 'old-content-version'
+        }),
+        (error) => error.code === 'STALE_TARGET'
+    );
+    assert.deepEqual(calls, ['playlist.getActive', 'playlist.setSelection']);
+});

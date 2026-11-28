@@ -230,3 +230,25 @@ test('falls back to getCurrentTrack when the playback location snapshot has no p
         activePlaylistGuid: 'active'
     }), 6);
 });
+
+
+test('resolves the playing track after Facets replaces rows within the same active playlist', () => {
+    const result = resolveCurrentTrackIndex({
+        items: [
+            { index: 2, handle: 'facet-b-track', path: 'D:\\Music\\Subfolder B\\Other.flac' },
+            { index: 8, handle: 'playing-track', path: 'D:\\Music\\Subfolder A\\Current.flac' }
+        ],
+        playingTrackIndex: {
+            found: true,
+            playlistGuid: 'library-viewer-selection',
+            index: 2,
+            track: {
+                handle: 'playing-track',
+                path: 'D:\\Music\\Subfolder A\\Current.flac'
+            }
+        },
+        activePlaylistGuid: 'library-viewer-selection'
+    });
+
+    assert.equal(result, 8);
+});

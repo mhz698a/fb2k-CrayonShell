@@ -6,7 +6,7 @@ import {
     subscribe
 } from '../services/foobarApi.js';
 import { PLAYLIST_FORMATS } from '../services/playlistFormats.js';
-import { resolvePlayingTrackIndex } from '../utils/trackIdentity.js';
+import { resolveCurrentTrackIndex, resolvePlayingTrackIndex } from '../utils/trackIdentity.js';
 import {
     findUnmatchedPlaylistRows,
     reconcilePlaylistItems,
@@ -674,6 +674,7 @@ export function usePlaylist() {
         const currentItems = itemsRef.current;
         let identityRows = null;
         let hydratedItems = [];
+        let contentVersion = '';
 
         for (let attempt = 0; attempt < 2; attempt += 1) {
             try {
@@ -689,6 +690,7 @@ export function usePlaylist() {
 
                 identityRows = snapshot.rows;
                 hydratedItems = nextHydratedItems;
+                contentVersion = snapshot.contentVersion;
                 break;
             } catch (error) {
                 if (error.code !== 'STALE_SNAPSHOT' || attempt > 0) throw error;
@@ -711,23 +713,103 @@ export function usePlaylist() {
         )));
 
         const focusRevision = focusRevisionRef.current;
-        const focus = await invoke('playlist.getFocusedTrack', { playlistGuid }).catch(() => null);
-        if (
-            mountedRef.current
-            && activePlaylistGuidRef.current === playlistGuid
-            && focusRevision === focusRevisionRef.current
+        const [focus, playingTrack, playback, currentTrackResponse] = await Promise.all([
+            invoke('playlist.getFocusedTrack', { playlistGuid }).catch(() => null),
+            invoke('playback.getCurrentTrackIndex', { includeTrackInfo: true })
+                .catch(() => ({ found: false })),
+            invoke('playback.getState').catch(() => ({ state: 'stopped' })),
+            invoke('playback.getCurrentTrack').catch(() => null)
+        ]);
+
+        if (!mountedRef.current || activePlaylistGuidRef.current !== playlistGuid) return;
+
+        // Facets/Refacets keep Library Viewer Selection active while replacing
+        // its rows. The playback source index can therefore point at a different
+        // track after a subfolder change; resolve by native identity, then handle/path.
+        const currentTrackIndex = resolveCurrentTrackIndex({
+            items: nextItems,
+            playingTrackIndex: playingTrack,
+            currentTrackResponse,
+            activePlaylistGuid: playlistGuid,
+            playlists: playlistsRef.current
+        });
+        const nextPlayingIndex = playback.state === 'stopped' ? -1 : currentTrackIndex;
+
+        commitPlayingItem(nextPlayingIndex);
+        setPlaybackState(playback.state || 'stopped');
+
+        if (currentTrackIndex >= 0) {
+            let selectionResult = null;
+            console.info('[CrayonShell][facets-selection] current track found in updated playlist content', {
+                playlistGuid,
+                index: currentTrackIndex,
+                contentVersion,
+                itemCount: nextItems.length,
+                playbackState: playback.state || 'stopped'
+            });
+
+            nativeSelectionMutationRef.current.add(playlistGuid);
+            try {
+                selectionResult = await applyPlaylistActivationSelection({
+                    invoke,
+                    playlistGuid,
+                    index: currentTrackIndex,
+                    expectedVersion: contentVersion
+                });
+            } catch (error) {
+                if (error?.code === 'STALE_TARGET') {
+                    // A newer Facets result arrived between reading rows and
+                    // applying the selection. Reconcile again against its version.
+                    contentSyncControlRef.current.queued = true;
+                    console.info('[CrayonShell][facets-selection] discarded stale content snapshot', {
+                        playlistGuid,
+                        expectedVersion: contentVersion,
+                        error
+                    });
+                    return;
+                }
+                throw error;
+            } finally {
+                nativeSelectionMutationRef.current.delete(playlistGuid);
+            }
+
+            if (!mountedRef.current || activePlaylistGuidRef.current !== playlistGuid) return;
+
+            if (selectionResult?.applied) {
+                commitFocusedItem(currentTrackIndex);
+                requestScroll(nextPlayingIndex >= 0 ? 'playing' : 'focused');
+                console.info('[CrayonShell][facets-selection] restored current track selection', {
+                    playlistGuid,
+                    requestedIndex: currentTrackIndex,
+                    contentVersion,
+                    nativeSelection: selectionResult.nativeSelection,
+                    nativeFocusIndex: selectionResult.nativeFocusIndex,
+                    selectionMatches: selectionResult.selectionMatches,
+                    focusMatches: selectionResult.focusMatches
+                });
+            } else {
+                console.info('[CrayonShell][facets-selection] selection restore skipped', {
+                    playlistGuid,
+                    index: currentTrackIndex,
+                    reason: selectionResult?.reason,
+                    activePlaylistGuid: selectionResult?.activePlaylistGuid
+                });
+            }
+        } else if (
+            focusRevision === focusRevisionRef.current
             && focus
         ) {
+            // The playing track is outside the current Facets result. Preserve
+            // the viewer's own focus until a later result contains that track.
             commitFocusedItem(normalizeIndex(focus.index));
         }
-
-        await refreshPlaybackSnapshot();
     }, [
         commitFocusedItem,
         commitItems,
+        commitPlayingItem,
         readPlaylistIdentityRows,
         readPlaylistRowsAt,
-        refreshPlaybackSnapshot
+        requestScroll
     ]);
 
     const reconcileActivePlaylist = useCallback(async () => {

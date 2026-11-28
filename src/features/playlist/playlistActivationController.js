@@ -111,7 +111,8 @@ export async function readPlaylistActivationSnapshot({
 export async function applyPlaylistActivationSelection({
     invoke,
     playlistGuid,
-    index
+    index,
+    expectedVersion = ''
 }) {
     const selectionIndex = Number(index);
     if (!Number.isInteger(selectionIndex) || selectionIndex < 0) {
@@ -130,11 +131,13 @@ export async function applyPlaylistActivationSelection({
     await invoke('playlist.setSelection', {
         playlistGuid,
         indices: [selectionIndex],
-        clearOthers: true
+        clearOthers: true,
+        ...(expectedVersion ? { expectedVersion } : {})
     });
     await invoke('playlist.setFocusedTrack', {
         playlistGuid,
-        index: selectionIndex
+        index: selectionIndex,
+        ...(expectedVersion ? { expectedVersion } : {})
     });
 
     const [nativeSelection, nativeFocus] = await Promise.all([
