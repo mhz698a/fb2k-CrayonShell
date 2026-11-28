@@ -1,20 +1,149 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { getFooSdk } from '../services/fooSdk.js';
 import {
-    buildMainMenuNativeItems,
     buildMainMenuTree,
+    getMenuCommandInvocation,
     getMenuNodeLabel,
     isMenuCommandExecutable
 } from '../utils/foobarMenu.js';
 
+const ROOT_MENU_WIDTH = 252;
+const SUBMENU_WIDTH = 248;
+
+function getRootMenuPosition(button) {
+    const rect = button.getBoundingClientRect();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+
+    return {
+        left: Math.max(8, Math.min(rect.left, viewportWidth - ROOT_MENU_WIDTH - 8)),
+        top: rect.bottom
+    };
+}
+
+function getSubmenuPosition(button) {
+    const rect = button.getBoundingClientRect();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const menuWidth = Math.min(SUBMENU_WIDTH, viewportWidth - 16);
+    const opensRight = rect.right + menuWidth <= viewportWidth - 8;
+
+    return {
+        left: Math.max(8, opensRight ? rect.right - 3 : rect.left - menuWidth + 3),
+        top: Math.max(8, Math.min(rect.top, viewportHeight - 90))
+    };
+}
+
+function MenuEntries({
+    nodes = [],
+    pathPrefix,
+    openSubmenus,
+    submenuPositions,
+    onOpenSubmenu,
+    onToggleSubmenu,
+    onRunCommand,
+    onMenuKeyDown,
+    executing
+}) {
+    return nodes.map((node, index) => {
+        if (!node || node.hidden === true) return null;
+        const path = pathPrefix + '/' + index;
+
+        if (node.type === 'separator') {
+            return <div key={path} className="foobar-menubar-separator" role="separator" />;
+        }
+
+        const label = getMenuNodeLabel(node);
+        const children = Array.isArray(node.children)
+            ? node.children.filter((child) => child && child.hidden !== true)
+            : [];
+        const hasSubmenu = node.type === 'submenu' && children.length > 0;
+
+        if (hasSubmenu) {
+            const expanded = openSubmenus.includes(path);
+            const position = submenuPositions[path];
+
+            return (
+                <div key={path} className="foobar-menubar-entry">
+                    <button type="button"
+                        className={'foobar-menubar-item foobar-menubar-submenu-button'
+                            + (expanded ? ' is-submenu-open' : '')}
+                        role="menuitem" aria-haspopup="menu" aria-expanded={expanded}
+                        disabled={executing || node.enabled === false || node.available === false}
+                        onMouseEnter={(event) => onOpenSubmenu(path, event.currentTarget)}
+                        onFocus={(event) => onOpenSubmenu(path, event.currentTarget)}
+                        onClick={(event) => onToggleSubmenu(path, event.currentTarget)}
+                        onKeyDown={onMenuKeyDown}>
+                        <span className="foobar-menubar-check" />
+                        <span className="foobar-menubar-label">{label}</span>
+                        <i className="fa fa-angle-right foobar-menubar-submenu-arrow" aria-hidden="true" />
+                    </button>
+                    {expanded && position && createPortal(
+                        <div className="foobar-menubar-flyout"
+                            role="menu"
+                            aria-label={label}
+                            data-foobar-menu-popup="true"
+                            style={{ left: position.left, top: position.top }}
+                            onKeyDown={onMenuKeyDown}>
+                            <MenuEntries
+                                nodes={children}
+                                pathPrefix={path}
+                                openSubmenus={openSubmenus}
+                                submenuPositions={submenuPositions}
+                                onOpenSubmenu={onOpenSubmenu}
+                                onToggleSubmenu={onToggleSubmenu}
+                                onRunCommand={onRunCommand}
+                                onMenuKeyDown={onMenuKeyDown}
+                                executing={executing}
+                            />
+                        </div>,
+                        document.body
+                    )}
+                </div>
+            );
+        }
+
+        const executable = isMenuCommandExecutable(node);
+        const checked = node.checked === true || node.radioChecked === true;
+        return (
+            <button key={path} type="button"
+                role="menuitem"
+                className="foobar-menubar-item"
+                disabled={!executable || executing}
+                title={!executable ? (node.unaddressableReason || 'Comando no disponible') : label}
+                onClick={() => onRunCommand(node)}
+                onKeyDown={onMenuKeyDown}>
+                <span className="foobar-menubar-check">
+                    {checked && <i className="fa fa-check" aria-hidden="true" />}
+                </span>
+                <span className="foobar-menubar-label">{label}</span>
+                <span className="foobar-menubar-submenu-arrow" />
+            </button>
+        );
+    });
+}
+
 export default function FoobarMenuBar({ isDemoMode = false }) {
+    const menuBarRef = useRef(null);
+    const rootMenuRef = useRef(null);
     const sdkRef = useRef(null);
     const loadRevisionRef = useRef(0);
     const executingRef = useRef(false);
     const [items, setItems] = useState([]);
+    const [activeRoot, setActiveRoot] = useState(null);
+    const [rootMenuPosition, setRootMenuPosition] = useState(null);
+    const [openSubmenus, setOpenSubmenus] = useState([]);
+    const [submenuPositions, setSubmenuPositions] = useState({});
     const [loading, setLoading] = useState(!isDemoMode);
     const [executing, setExecuting] = useState(false);
     const [error, setError] = useState('');
+
+    const closeMenus = useCallback(() => {
+        setActiveRoot(null);
+        setRootMenuPosition(null);
+        setOpenSubmenus([]);
+        setSubmenuPositions({});
+    }, []);
 
     const loadMainMenu = useCallback(async () => {
         if (isDemoMode) {
@@ -55,70 +184,128 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
         };
     }, [loadMainMenu]);
 
-    const runCommand = useCallback(async (node, sdk) => {
-        const address = node.guid || node.path;
-        if (!address || !isMenuCommandExecutable(node)) return;
-
-        if (typeof sdk.menu?.runMainMenuCommand !== 'function') {
-            throw new Error('El SDK no expone fb.menu.runMainMenuCommand().');
+    useEffect(() => {
+        if (activeRoot !== null) {
+            rootMenuRef.current?.querySelector('[role="menuitem"]:not(:disabled)')?.focus();
         }
+    }, [activeRoot]);
 
-        const response = await sdk.menu.runMainMenuCommand(
-            address,
-            node.subGuid ? { subGuid: node.subGuid } : undefined
-        );
-        if (response?.success === false) {
-            throw new Error(
-                response.error
-                || response.message
-                || response.code
-                || 'El comando de foobar2000 no se ejecutó.'
-            );
-        }
+    useEffect(() => {
+        const handlePointerDown = (event) => {
+            if (menuBarRef.current?.contains(event.target)) return;
+            if (event.target?.closest?.('[data-foobar-menu-popup="true"]')) return;
+            closeMenus();
+        };
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape' && activeRoot !== null) {
+                event.preventDefault();
+                closeMenus();
+            }
+        };
+
+        document.addEventListener('pointerdown', handlePointerDown);
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [activeRoot, closeMenus]);
+
+    const openSubmenu = useCallback((path, button) => {
+        if (!button) return;
+        const position = getSubmenuPosition(button);
+        setOpenSubmenus((current) => [
+            ...current.filter((candidate) => path.startsWith(candidate + '/')),
+            path
+        ]);
+        setSubmenuPositions((current) => {
+            const next = {};
+            Object.entries(current).forEach(([candidate, value]) => {
+                if (path.startsWith(candidate + '/')) next[candidate] = value;
+            });
+            next[path] = position;
+            return next;
+        });
     }, []);
 
-    const handleRootClick = useCallback(async (node) => {
+    const toggleSubmenu = useCallback((path, button) => {
+        setOpenSubmenus((current) => {
+            if (current.includes(path)) {
+                setSubmenuPositions((positions) => {
+                    const next = { ...positions };
+                    Object.keys(next).forEach((candidate) => {
+                        if (candidate === path || candidate.startsWith(path + '/')) delete next[candidate];
+                    });
+                    return next;
+                });
+                return current.filter((candidate) => candidate !== path && !candidate.startsWith(path + '/'));
+            }
+            openSubmenu(path, button);
+            return current;
+        });
+    }, [openSubmenu]);
+
+    const handleMenuKeyDown = useCallback((event) => {
+        const menu = event.currentTarget;
+        const enabledItems = Array.from(menu.querySelectorAll('[role="menuitem"]:not(:disabled)'));
+        const currentIndex = enabledItems.indexOf(document.activeElement);
+
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            if (enabledItems.length === 0) return;
+            event.preventDefault();
+            const direction = event.key === 'ArrowDown' ? 1 : -1;
+            const nextIndex = currentIndex < 0
+                ? (direction > 0 ? 0 : enabledItems.length - 1)
+                : (currentIndex + direction + enabledItems.length) % enabledItems.length;
+            enabledItems[nextIndex].focus();
+        } else if (event.key === 'Home' || event.key === 'End') {
+            if (enabledItems.length === 0) return;
+            event.preventDefault();
+            enabledItems[event.key === 'Home' ? 0 : enabledItems.length - 1].focus();
+        } else if (event.key === 'ArrowLeft') {
+            if (openSubmenus.length > 0) {
+                event.preventDefault();
+                const closingPath = openSubmenus[openSubmenus.length - 1];
+                setOpenSubmenus((current) => current.filter((path) => path !== closingPath));
+                setSubmenuPositions((current) => {
+                    const next = { ...current };
+                    delete next[closingPath];
+                    return next;
+                });
+            } else {
+                closeMenus();
+            }
+        }
+    }, [closeMenus, openSubmenus]);
+
+    const runCommand = useCallback(async (node) => {
         if (executingRef.current) return;
+        const invocation = getMenuCommandInvocation(node);
+        if (!invocation) return;
+
         executingRef.current = true;
         setExecuting(true);
         setError('');
+        closeMenus();
 
         try {
             const sdk = sdkRef.current || getFooSdk();
-            const children = Array.isArray(node.children) ? node.children : [];
-
-            if (node.type === 'submenu' && children.length > 0) {
-                if (typeof sdk.notification?.showCustomMenu !== 'function') {
-                    throw new Error('El SDK no expone fb.notification.showCustomMenu().');
-                }
-
-                const { items: nativeItems, commandById } = buildMainMenuNativeItems(children);
-                if (nativeItems.length === 0) return;
-
-                // This is a host-owned Win32 popup menu, not a WebView overlay
-                // or a frameless CrayonShell child window.
-                const response = await sdk.notification.showCustomMenu({
-                    items: nativeItems
-                });
-                if (response?.success === false) {
-                    throw new Error(
-                        response.error
-                        || response.message
-                        || response.code
-                        || 'No se pudo abrir el menú nativo de foobar2000.'
-                    );
-                }
-
-                const selectedId = response?.selectedId;
-                if (!selectedId) return;
-                const command = commandById.get(selectedId);
-                if (!command) return;
-
-                await runCommand(command, sdk);
-            } else {
-                await runCommand(node, sdk);
+            if (typeof sdk.menu?.runMainMenuCommand !== 'function') {
+                throw new Error('El SDK no expone fb.menu.runMainMenuCommand().');
             }
 
+            const response = await sdk.menu.runMainMenuCommand(
+                invocation.address,
+                invocation.options
+            );
+            if (response?.success === false) {
+                throw new Error(
+                    response.error
+                    || response.message
+                    || response.code
+                    || 'El comando de foobar2000 no se ejecutó.'
+                );
+            }
             await loadMainMenu();
         } catch (cause) {
             setError(cause?.message || 'No se pudo ejecutar el comando de foobar2000.');
@@ -126,30 +313,72 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
             executingRef.current = false;
             setExecuting(false);
         }
-    }, [loadMainMenu, runCommand]);
+    }, [closeMenus, loadMainMenu]);
+
+    const handleRootMouseEnter = useCallback((rootId, node, button) => {
+        const children = Array.isArray(node.children) ? node.children : [];
+        if (activeRoot === null || activeRoot === rootId || node.type !== 'submenu' || children.length === 0) {
+            return;
+        }
+        setActiveRoot(rootId);
+        setRootMenuPosition(getRootMenuPosition(button));
+        setOpenSubmenus([]);
+        setSubmenuPositions({});
+    }, [activeRoot]);
+
+    const handleRootClick = useCallback((node, rootId, button) => {
+        if (executingRef.current) return;
+        const children = Array.isArray(node.children) ? node.children : [];
+        const hasSubmenu = node.type === 'submenu' && children.length > 0;
+
+        if (!hasSubmenu) {
+            void runCommand(node);
+            return;
+        }
+
+        if (activeRoot === rootId) {
+            closeMenus();
+            return;
+        }
+
+        setActiveRoot(rootId);
+        setRootMenuPosition(getRootMenuPosition(button));
+        setOpenSubmenus([]);
+        setSubmenuPositions({});
+    }, [activeRoot, closeMenus, runCommand]);
+
+    const activeNode = activeRoot === null ? null : items[Number(activeRoot)];
+    const activeChildren = Array.isArray(activeNode?.children) ? activeNode.children : [];
 
     return (
-        <nav className="foobar-menubar" aria-label="Menú principal de foobar2000">
+        <nav ref={menuBarRef} className="foobar-menubar" aria-label="Menú principal de foobar2000">
             {isDemoMode ? (
-                <span className="foobar-menubar-note">Menú principal nativo disponible en foobar2000</span>
+                <span className="foobar-menubar-note">Menú principal disponible en foobar2000</span>
             ) : (
                 <>
                     <div className="foobar-menubar-items">
                         {items.map((node, index) => {
                             if (!node || node.hidden === true || node.type === 'separator') return null;
+                            const rootId = String(index);
                             const hasSubmenu = node.type === 'submenu'
                                 && Array.isArray(node.children)
-                                && node.children.length > 0;
+                                && node.children.some((child) => child && child.hidden !== true);
                             const executable = isMenuCommandExecutable(node);
                             const label = getMenuNodeLabel(node);
+                            const opened = activeRoot === rootId;
+                            const disabled = executing || (hasSubmenu
+                                ? node.enabled === false || node.available === false
+                                : !executable);
 
                             return (
-                                <button key={index} type="button"
-                                    className="foobar-menubar-root-button"
+                                <button key={rootId} type="button"
+                                    className={'foobar-menubar-root-button' + (opened ? ' is-open' : '')}
                                     aria-haspopup={hasSubmenu ? 'menu' : undefined}
-                                    disabled={executing || (hasSubmenu ? false : !executable)}
+                                    aria-expanded={hasSubmenu ? opened : undefined}
+                                    disabled={disabled}
                                     title={hasSubmenu ? 'Abrir menú ' + label : label}
-                                    onClick={() => handleRootClick(node)}>
+                                    onMouseEnter={(event) => handleRootMouseEnter(rootId, node, event.currentTarget)}
+                                    onClick={(event) => handleRootClick(node, rootId, event.currentTarget)}>
                                     {label}
                                 </button>
                             );
@@ -159,6 +388,28 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
                         {loading ? 'Cargando menús…' : error ? 'Menú no disponible' : ''}
                     </div>
                     {error && <span className="sr-only" role="status">{error}</span>}
+                    {activeNode && rootMenuPosition && createPortal(
+                        <div ref={rootMenuRef}
+                            className="foobar-menubar-dropdown"
+                            role="menu"
+                            aria-label={getMenuNodeLabel(activeNode)}
+                            data-foobar-menu-popup="true"
+                            style={{ left: rootMenuPosition.left, top: rootMenuPosition.top }}
+                            onKeyDown={handleMenuKeyDown}>
+                            <MenuEntries
+                                nodes={activeChildren}
+                                pathPrefix={'root-' + activeRoot}
+                                openSubmenus={openSubmenus}
+                                submenuPositions={submenuPositions}
+                                onOpenSubmenu={openSubmenu}
+                                onToggleSubmenu={toggleSubmenu}
+                                onRunCommand={runCommand}
+                                onMenuKeyDown={handleMenuKeyDown}
+                                executing={executing}
+                            />
+                        </div>,
+                        document.body
+                    )}
                 </>
             )}
         </nav>
