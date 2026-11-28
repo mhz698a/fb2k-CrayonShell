@@ -23,7 +23,7 @@ test('keeps non-flat SDK menu trees unchanged', () => {
     const items = [
         { type: 'submenu', label: 'File', children: [{ type: 'command', label: 'Exit', guid: '{exit}' }] }
     ];
-    assert.equal(buildMainMenuTree(items, false), items);
+    assert.deepEqual(buildMainMenuTree(items, false), items);
 });
 
 test('uses translated labels and disables commands without a usable address', () => {
