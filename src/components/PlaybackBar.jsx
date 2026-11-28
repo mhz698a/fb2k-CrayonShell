@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { PLAYBACK_ORDER_NAMES } from '../features/playback/playbackController.js';
 
-const PLAYBACK_ORDERS = [
-    { value: 'default', label: 'Predeterminado' },
-    { value: 'repeat-playlist', label: 'Repetir playlist' },
-    { value: 'repeat-track', label: 'Repetir canción' },
-    { value: 'random', label: 'Aleatorio' }
-];
+const PLAYBACK_ORDER_LABELS = Object.freeze({
+    default: 'Predeterminado',
+    'repeat-playlist': 'Repetir playlist',
+    'repeat-track': 'Repetir canción',
+    random: 'Aleatorio',
+    'shuffle-tracks': 'Mezclar pistas',
+    'shuffle-albums': 'Mezclar álbumes',
+    'shuffle-folders': 'Mezclar carpetas'
+});
+const PLAYBACK_ORDERS = PLAYBACK_ORDER_NAMES.map((value) => ({
+    value,
+    label: PLAYBACK_ORDER_LABELS[value]
+}));
 const FaIcon = ({ name }) => <i className={'fa ' + name} aria-hidden="true" />;
 function runAction(action) {
     if (typeof action !== 'function') return;
