@@ -269,3 +269,67 @@ test('track-change event uses native absolutePath when the other path is stale',
     assert.equal(controller.getState().trackPath, 'D:\\Music\\Rock\\Unrelated.flac');
     controller.stop();
 });
+
+
+test('external DSP status reads the selected preset from the dedicated config API', async () => {
+    const handlers = new Map();
+    const controller = createDspAutoActivationController({
+        isAvailable: () => true,
+        subscribeEvents: (name, handler) => {
+            handlers.set(name, handler);
+            return () => handlers.delete(name);
+        },
+        getSdk: () => ({
+            config: {
+                async getActiveDspPreset() {
+                    return {
+                        success: true,
+                        index: 2,
+                        name: 'Studio Headphones',
+                        isActive: true
+                    };
+                }
+            },
+            dsp: {
+                async getChain() {
+                    return { success: true, activePreset: null };
+                }
+            }
+        })
+    });
+
+    controller.start();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(controller.getState().status, 'active');
+    assert.equal(controller.getState().activePreset, 'Studio Headphones');
+    assert.equal(controller.getState().targetPreset, 'Studio Headphones');
+
+    handlers.get('audio:dspPresetChanged')();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(controller.getState().status, 'active');
+    assert.equal(controller.getState().activePreset, 'Studio Headphones');
+    controller.stop();
+});
+
+test('external DSP status falls back to getChain when config API is unavailable', async () => {
+    const controller = createDspAutoActivationController({
+        isAvailable: () => true,
+        subscribeEvents: () => () => {},
+        getSdk: () => ({
+            dsp: {
+                async getChain() {
+                    return { success: true, activePreset: 'Fallback Preset' };
+                }
+            }
+        })
+    });
+
+    controller.start();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(controller.getState().status, 'active');
+    assert.equal(controller.getState().activePreset, 'Fallback Preset');
+    controller.stop();
+});
