@@ -1014,6 +1014,13 @@ export function usePlaylist() {
 
         unsubscribers.push(subscribe('playlist:focusChanged', (payload = {}) => {
             const playlistGuid = resolvePlaylistGuidFromEvent(payload, playlistsRef.current);
+            console.info('[CrayonShell][playlist-navigation] focusChanged received', {
+                payload,
+                resolvedPlaylistGuid: playlistGuid,
+                activePlaylistGuid: activePlaylistGuidRef.current,
+                ignoredDuringInitialization: initializationInProgressRef.current,
+                ignoredDuringNativeWrite: Boolean(playlistGuid && nativeSelectionMutationRef.current.has(playlistGuid))
+            });
             if (
                 initializationInProgressRef.current
                 || !playlistGuid
@@ -1023,6 +1030,31 @@ export function usePlaylist() {
 
             if (Object.prototype.hasOwnProperty.call(payload, 'to')) {
                 commitFocusedItem(normalizeIndex(payload.to));
+            }
+        }));
+
+        unsubscribers.push(subscribe('playlist:selectionChanged', async (payload = {}) => {
+            const playlistGuid = resolvePlaylistGuidFromEvent(payload, playlistsRef.current);
+            if (
+                !playlistGuid
+                || playlistGuid !== activePlaylistGuidRef.current
+                || nativeSelectionMutationRef.current.has(playlistGuid)
+            ) return;
+
+            try {
+                const selection = await invoke('playlist.getSelection', { playlistGuid });
+                console.info('[CrayonShell][playlist-navigation] selectionChanged received', {
+                    payload,
+                    resolvedPlaylistGuid: playlistGuid,
+                    activePlaylistGuid: activePlaylistGuidRef.current,
+                    selectedIndices: Array.isArray(selection.items) ? selection.items : [],
+                    count: Number(selection.count) || 0
+                });
+            } catch (error) {
+                console.warn('[CrayonShell][playlist-navigation] could not read selection after event', {
+                    playlistGuid,
+                    error
+                });
             }
         }));
 
