@@ -918,7 +918,7 @@ select {
     display: block;
 }
 
-#PlaylistStatus {
+#StatusBar {
     display: flex;
     flex: 0 0 auto;
     align-items: center;
@@ -3886,5 +3886,54 @@ button.play-btn {
 
     .playback-volume-slider {
         width: 78px;
+    }
+}
+
+
+.playlist-status-playback {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 33%;
+    overflow: hidden;
+    padding-left: 10px;
+    border-left: 1px solid rgba(128, 128, 128, .28);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.playlist-status-playback.is-ready {
+    color: #a9d9ae;
+}
+
+.playlist-status-playback.is-connecting,
+.playlist-status-playback.is-degraded {
+    color: #d0bd8b;
+}
+
+.playlist-status-playback.is-error {
+    color: #e6a09a;
+}
+
+.playlist-status-playback.is-disconnected {
+    color: #929292;
+}
+
+@media (max-width: 620px) {
+    #StatusBar {
+        gap: 7px;
+        padding-right: 7px;
+        padding-left: 7px;
+        font-size: 9px;
+    }
+
+    .playlist-status-playback {
+        max-width: 37%;
+        padding-left: 7px;
+    }
+
+    .playlist-status-dsp {
+        max-width: 38%;
+        padding-left: 7px;
     }
 }
