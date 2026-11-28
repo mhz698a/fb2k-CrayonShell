@@ -4,7 +4,10 @@ export const PLAYBACK_ORDER_NAMES = Object.freeze([
     'default',
     'repeat-playlist',
     'repeat-track',
-    'random'
+    'random',
+    'shuffle-tracks',
+    'shuffle-albums',
+    'shuffle-folders'
 ]);
 
 const SNAPSHOT_FIELDS = Object.freeze([
@@ -84,15 +87,7 @@ function getTrackPath(track) {
     return String(track?.absolutePath || track?.path || '');
 }
 
-const PLAYBACK_ORDER_NAMES_BY_INDEX = Object.freeze([
-    'default',
-    'repeat-playlist',
-    'repeat-track',
-    'random',
-    'shuffle-tracks',
-    'shuffle-albums',
-    'shuffle-folders'
-]);
+const PLAYBACK_ORDER_NAMES_BY_INDEX = PLAYBACK_ORDER_NAMES;
 
 function normalizeOrder(response, fallbackName) {
     const rawOrder = response?.order;
