@@ -71,9 +71,7 @@ function MenuEntries({
                         role="menuitem" aria-haspopup="menu" aria-expanded={expanded}
                         disabled={executing || node.enabled === false || node.available === false}
                         onMouseEnter={(event) => onOpenSubmenu(path, event.currentTarget)}
-                        onFocus={(event) => onOpenSubmenu(path, event.currentTarget)}
-                        onClick={(event) => onToggleSubmenu(path, event.currentTarget)}
-                        onKeyDown={onMenuKeyDown}>
+                        onClick={(event) => onOpenSubmenu(path, event.currentTarget)}>
                         <span className="foobar-menubar-check" />
                         <span className="foobar-menubar-label">{label}</span>
                         <i className="fa fa-angle-right foobar-menubar-submenu-arrow" aria-hidden="true" />
@@ -111,8 +109,7 @@ function MenuEntries({
                 className="foobar-menubar-item"
                 disabled={!executable || executing}
                 title={!executable ? (node.unaddressableReason || 'Comando no disponible') : label}
-                onClick={() => onRunCommand(node)}
-                onKeyDown={onMenuKeyDown}>
+                onClick={() => onRunCommand(node)}>
                 <span className="foobar-menubar-check">
                     {checked && <i className="fa fa-check" aria-hidden="true" />}
                 </span>
@@ -227,23 +224,6 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
             return next;
         });
     }, []);
-
-    const toggleSubmenu = useCallback((path, button) => {
-        setOpenSubmenus((current) => {
-            if (current.includes(path)) {
-                setSubmenuPositions((positions) => {
-                    const next = { ...positions };
-                    Object.keys(next).forEach((candidate) => {
-                        if (candidate === path || candidate.startsWith(path + '/')) delete next[candidate];
-                    });
-                    return next;
-                });
-                return current.filter((candidate) => candidate !== path && !candidate.startsWith(path + '/'));
-            }
-            openSubmenu(path, button);
-            return current;
-        });
-    }, [openSubmenu]);
 
     const handleMenuKeyDown = useCallback((event) => {
         const menu = event.currentTarget;
@@ -402,8 +382,7 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
                                 openSubmenus={openSubmenus}
                                 submenuPositions={submenuPositions}
                                 onOpenSubmenu={openSubmenu}
-                                onToggleSubmenu={toggleSubmenu}
-                                onRunCommand={runCommand}
+                                                                onRunCommand={runCommand}
                                 onMenuKeyDown={handleMenuKeyDown}
                                 executing={executing}
                             />
