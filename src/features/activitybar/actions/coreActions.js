@@ -34,7 +34,7 @@ export function registerCoreActivityBarActions(registry) {
         id: 'playlist.manager.toggle',
         label: 'Gestor de playlists',
         category: 'Playlist',
-        description: 'Muestra u oculta el gestor para activar, organizar y administrar playlists.',
+        description: 'Muestra u oculta el panel lateral para activar, organizar y administrar playlists.',
         defaultIcon: 'list-ul',
         isAvailable: callbackAvailability('togglePlaylistManager', 'El gestor de playlists'),
         isActive: (context) => context.playlistManagerOpen === true,
