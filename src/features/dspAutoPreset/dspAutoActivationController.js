@@ -11,16 +11,26 @@ function hasNativePlaybackBridge() {
 }
 
 function subscribePlaybackEvent(eventName, handler) {
-    if (!hasNativePlaybackBridge() || typeof window.fb2k.on !== 'function') {
+    if (!hasNativePlaybackBridge()) return () => {};
+
+    let sdk;
+    try {
+        // Playback events are emitted by foo-webview-sdk, just like the
+        // Playback Controller and the rest of the playlist event subscribers.
+        sdk = getFooSdk();
+    } catch (error) {
+        console.error('[DSP Auto Preset] Could not access the playback event source.', error);
         return () => {};
     }
 
-    const unsubscribe = window.fb2k.on(eventName, handler);
+    if (typeof sdk?.on !== 'function') return () => {};
+
+    const unsubscribe = sdk.on(eventName, handler);
     if (typeof unsubscribe === 'function') return unsubscribe;
 
     return () => {
-        if (typeof window.fb2k.off === 'function') {
-            window.fb2k.off(eventName, handler);
+        if (typeof sdk.off === 'function') {
+            sdk.off(eventName, handler);
         }
     };
 }
