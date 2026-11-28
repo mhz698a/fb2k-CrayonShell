@@ -5,10 +5,20 @@ export function getMenuNodeLabel(node = {}) {
 }
 
 export function isMenuCommandExecutable(node = {}) {
-    const hasAddress = Boolean(
-        (typeof node.guid === 'string' && node.guid.trim())
-        || (typeof node.path === 'string' && node.path.trim())
-    );
+    const isDynamic = node.source === 'mainmenu_dynamic'
+        || node.source === 'contextmenu_dynamic';
+    const hasAddress = isDynamic
+        ? Boolean(
+            typeof node.guid === 'string'
+            && node.guid.trim()
+            && typeof node.subGuid === 'string'
+            && node.subGuid.trim()
+        )
+        : Boolean(
+            (typeof node.guid === 'string' && node.guid.trim())
+            || (typeof node.path === 'string' && node.path.trim())
+        );
+
     return hasAddress
         && node.hidden !== true
         && node.enabled !== false
@@ -71,4 +81,49 @@ export function buildMainMenuTree(items = [], flatFallback = false) {
     });
 
     return roots;
+}
+
+/**
+ * Convert the read-only main-menu tree into the compact popup format consumed
+ * by fb.menu.popup. The map keeps each generated popup id tied to the original
+ * SDK node, including GUID/subGuid for dynamic commands.
+ */
+export function buildMainMenuPopupItems(nodes = []) {
+    const commandById = new Map();
+    let commandSequence = 0;
+
+    function convert(items) {
+        return (Array.isArray(items) ? items : [])
+            .filter((node) => node && node.hidden !== true)
+            .map((node) => {
+                if (node.type === 'separator') {
+                    return { type: 'separator' };
+                }
+
+                const label = getMenuNodeLabel(node);
+                if (node.type === 'submenu') {
+                    const submenu = convert(node.children);
+                    if (submenu.length === 0) return null;
+                    return { label, submenu };
+                }
+
+                const id = 'foobar-main-menu-' + commandSequence++;
+                const enabled = isMenuCommandExecutable(node);
+                const item = {
+                    id,
+                    label,
+                    enabled,
+                    ...(node.checked === true || node.radioChecked === true ? { checked: true } : {})
+                };
+
+                commandById.set(id, node);
+                return item;
+            })
+            .filter(Boolean);
+    }
+
+    return {
+        items: convert(nodes),
+        commandById
+    };
 }
