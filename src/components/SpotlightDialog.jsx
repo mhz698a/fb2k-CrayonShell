@@ -19,18 +19,12 @@ export default function SpotlightDialog({
 
     useEffect(() => {
         if (!open) {
+            if (dialogRef.current?.open) dialogRef.current.close();
             setQuery('');
             setActiveIndex(0);
             return;
         }
 
-        const dialog = dialogRef.current;
-        if (dialog && !dialog.open) dialog.showModal();
-        inputRef.current?.focus();
-    }, [open]);
-
-    useEffect(() => {
-        if (!open) return;
         const dialog = dialogRef.current;
         if (dialog && !dialog.open) dialog.showModal();
         inputRef.current?.focus();
