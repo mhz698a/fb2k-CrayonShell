@@ -4124,3 +4124,219 @@ button.play-btn {
         padding-left: 7px;
     }
 }
+
+
+/* Native foobar2000 main menu. */
+.foobar-menubar {
+    position: relative;
+    z-index: 2100;
+    display: flex;
+    flex: 0 0 29px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 29px;
+    padding: 0 7px;
+    color: #d5d5d5;
+    background: #2b2b2d;
+    border-bottom: 1px solid rgba(128, 128, 128, .28);
+    font-size: 11px;
+}
+
+.foobar-menubar-items {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    height: 100%;
+}
+
+.foobar-menubar-root {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.foobar-menubar-root-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    height: 25px;
+    padding: 0 9px;
+    color: #d5d5d5;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    font: inherit;
+    white-space: nowrap;
+}
+
+.foobar-menubar-root-button:hover:not(:disabled),
+.foobar-menubar-root-button.is-open {
+    color: #ffffff;
+    background: #3b3b3f;
+    border-color: #4c4c51;
+}
+
+.foobar-menubar-root-button:focus-visible,
+.foobar-menubar-item:focus-visible {
+    outline: 1px solid var(--accent-color);
+    outline-offset: -1px;
+}
+
+.foobar-menubar-root-button:disabled {
+    opacity: .42;
+    cursor: not-allowed;
+}
+
+.foobar-menubar-dropdown,
+.foobar-menubar-flyout {
+    position: absolute;
+    z-index: 2200;
+    display: flex;
+    min-width: 218px;
+    max-width: min(420px, calc(100vw - 24px));
+    max-height: min(620px, calc(100vh - 48px));
+    flex-direction: column;
+    gap: 1px;
+    box-sizing: border-box;
+    padding: 5px;
+    overflow: auto;
+    color: #dedede;
+    background: #252526;
+    border: 1px solid #4a4a4d;
+    border-radius: 4px;
+    box-shadow: 0 9px 26px rgba(0, 0, 0, .5);
+    scrollbar-color: #55555a #252526;
+    scrollbar-width: thin;
+}
+
+.foobar-menubar-dropdown {
+    top: calc(100% + 2px);
+    left: 0;
+}
+
+.foobar-menubar-flyout {
+    top: -5px;
+    left: calc(100% - 1px);
+}
+
+.foobar-menubar-submenu {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.foobar-menubar-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 9px;
+    width: 100%;
+    min-height: 27px;
+    padding: 4px 9px;
+    color: #dedede;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.foobar-menubar-item > span:nth-child(2),
+.foobar-menubar-submenu > .foobar-menubar-item > span:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.foobar-menubar-item:hover:not(:disabled),
+.foobar-menubar-submenu.is-open > .foobar-menubar-item {
+    color: #ffffff;
+    background: #3a3d41;
+}
+
+.foobar-menubar-item:disabled {
+    color: #777777;
+    opacity: .6;
+    cursor: default;
+}
+
+.foobar-menubar-item > .fa {
+    flex: 0 0 auto;
+    color: #a5a5a5;
+}
+
+.foobar-menubar-check {
+    display: inline-flex;
+    flex: 0 0 13px;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    color: #9ecb9f;
+}
+
+.foobar-menubar-separator {
+    flex: 0 0 auto;
+    height: 1px;
+    margin: 4px 5px;
+    background: #444448;
+}
+
+.foobar-menubar-feedback,
+.foobar-menubar-note {
+    flex: 0 0 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: #999999;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+}
+
+.foobar-menubar-feedback {
+    max-width: min(320px, 35vw);
+}
+
+.playback-volume-mute {
+    color: #c9c9c9;
+    background: #333337;
+    border-color: #4b4b4f;
+}
+
+.playback-volume-mute:hover:not(:disabled) {
+    color: #ffffff;
+    background: #414146;
+    border-color: #626268;
+}
+
+.playback-volume-mute.is-muted {
+    color: #f0ca79;
+    background: #3d3527;
+    border-color: #80683a;
+}
+
+.playback-volume-mute.is-muted:hover:not(:disabled) {
+    color: #ffe2a0;
+    background: #50442d;
+    border-color: #9a7d45;
+}
+
+@media (max-width: 520px) {
+    .foobar-menubar {
+        padding-right: 4px;
+        padding-left: 4px;
+    }
+
+    .foobar-menubar-root-button {
+        padding-right: 6px;
+        padding-left: 6px;
+    }
+}
