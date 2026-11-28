@@ -1010,6 +1010,58 @@ export function usePlaylist() {
         }
     }, [activePlaylistGuid, isDemoMode, setSelectedItem, setStatusMessage]);
 
+    const focusPlayingTrack = useCallback(async () => {
+        const playlistGuid = activePlaylistGuidRef.current;
+        if (!playlistGuid || !hasBridge()) return;
+
+        try {
+            const [playingTrack, currentTrackResponse] = await Promise.all([
+                invoke('playback.getCurrentTrackIndex', { includeTrackInfo: true })
+                    .catch(() => ({ found: false })),
+                invoke('playback.getCurrentTrack').catch(() => null)
+            ]);
+
+            if (!mountedRef.current || activePlaylistGuidRef.current !== playlistGuid) return;
+
+            const index = resolveCurrentTrackIndex({
+                items: itemsRef.current,
+                playingTrackIndex: playingTrack,
+                currentTrackResponse,
+                activePlaylistGuid: playlistGuid,
+                playlists: playlistsRef.current
+            });
+
+            if (index < 0) {
+                setStatusMessage('La canción en reproducción no está en la playlist activa.');
+                return;
+            }
+
+            let result = null;
+            nativeSelectionMutationRef.current.add(playlistGuid);
+            try {
+                result = await applyPlaylistActivationSelection({
+                    invoke,
+                    playlistGuid,
+                    index
+                });
+            } finally {
+                nativeSelectionMutationRef.current.delete(playlistGuid);
+            }
+
+            if (!mountedRef.current || activePlaylistGuidRef.current !== playlistGuid) return;
+
+            if (result?.applied) {
+                commitFocusedItem(index);
+                requestScroll('focused');
+                setStatusMessage('Active Now Playing: pista ' + (index + 1));
+            } else if (result?.reason === 'active-playlist-changed') {
+                setStatusMessage('La playlist activa cambió antes de enfocar la canción.');
+            }
+        } catch (error) {
+            setStatusMessage('No se pudo enfocar la canción en reproducción', error);
+        }
+    }, [commitFocusedItem, requestScroll, setStatusMessage]);
+
     const changePlaylist = useCallback(async (playlistGuid) => {
         if (!playlistGuid) return;
 
@@ -1292,6 +1344,7 @@ export function usePlaylist() {
         isDemoMode,
         refreshPlaylist,
         changePlaylist,
+        focusPlayingTrack,
         selectItem,
         playItem,
         openNativeContextMenu

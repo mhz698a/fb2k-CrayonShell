@@ -12,6 +12,7 @@ import Sidebar from './components/Sidebar.jsx';
 import PlaylistToolbar from './components/PlaylistToolbar.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
 import PlaylistStatus from './components/PlaylistStatus.jsx';
+import PlaybackBar from './components/PlaybackBar.jsx';
 import MediaPlaybackProbe from './components/MediaPlaybackProbe.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
 import WaveformSeekbar from './components/WaveformSeekbar.jsx';
@@ -237,11 +238,12 @@ export default function App() {
         changePlaylist,
         selectItem,
         playItem,
+        focusPlayingTrack,
         openNativeContextMenu
     } = usePlaylist();
 
-    // Keep one native playback controller alive for the entire application.
-    usePlaybackController();
+    // Keep one native playback controller alive and expose its snapshot/actions to the bar.
+    const playbackController = usePlaybackController();
 
     const playingItem = items.find((item) => item.index === playingItemIndex) || null;
     const playingTrackPath = playingItem?.absolutePath || playingItem?.path || '';
@@ -628,6 +630,11 @@ export default function App() {
                     fileMetadataError={windowsFileMetadataError}
                 />
             </div>
+            <PlaybackBar
+                controller={playbackController}
+                hasCurrentTrack={Boolean(playingItem || playbackController.currentTrack)}
+                onFocusPlayingTrack={focusPlayingTrack}
+            />
             <WaveformSeekbar
                 onCacheControllerChange={handleWaveformCacheActionsChange}
                 onCacheProgressChange={handleWaveformCacheProgressChange}
