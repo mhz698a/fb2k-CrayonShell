@@ -212,9 +212,20 @@ export async function copyPlaylistToClipboard(
     }
 
     if (operation === 'cut') {
-        await invokeOperation('playlist.remove', {
-            playlistGuid: String(playlist.guid)
-        });
+        try {
+            await invokeOperation('playlist.remove', {
+                playlistGuid: String(playlist.guid)
+            });
+        } catch (error) {
+            try {
+                if (typeof writeText === 'function') await writeText('');
+                else demoClipboardText = '';
+            } catch (clipboardError) {
+                error.message += ' No se pudo limpiar el portapapeles: '
+                    + (clipboardError?.message || String(clipboardError));
+            }
+            throw error;
+        }
     }
 
     return {
@@ -265,15 +276,8 @@ export async function pastePlaylistFromClipboard({
         }
 
         if (payload.operation === 'cut') {
-            if (typeof writeText === 'function') {
-                try {
-                    await writeText('');
-                } catch {
-                    // The playlist was restored; a clipboard cleanup failure must not roll it back.
-                }
-            } else {
-                demoClipboardText = '';
-            }
+            if (typeof writeText === 'function') await writeText('');
+            else demoClipboardText = '';
         }
 
         return {
