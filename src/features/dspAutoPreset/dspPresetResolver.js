@@ -4,7 +4,9 @@ import {
 } from './dspAutoPresetSettings.js';
 
 function isInsideFolder(trackPath, folderPath) {
-    return trackPath === folderPath || trackPath.startsWith(folderPath + '\\');
+    // A folder rule applies to tracks below the directory, never to the
+    // directory path itself (for example, while navigating into that folder).
+    return trackPath.startsWith(folderPath + '\\');
 }
 
 /**
