@@ -112,7 +112,7 @@ export default function PlaybackBar({ controller, hasCurrentTrack = false, onFoc
                 <button className="playback-control" type="button" aria-label="Reproducir aleatoriamente"
                     title="Reproducir aleatoriamente" disabled={disabled || isPending('playRandom')}
                     onClick={() => runAction(actions.playRandom)}>
-                    <FaIcon name="fa-random" />
+                    <FaIcon name="fa-question" />
                 </button>
                 <button className={'playback-control playback-control-toggle' + (stopAfterCurrent ? ' is-active' : '')}
                     type="button" aria-label="Detener después de la canción actual" aria-pressed={stopAfterCurrent}
@@ -165,7 +165,7 @@ export default function PlaybackBar({ controller, hasCurrentTrack = false, onFoc
                     onClick={() => runAction(actions.volumeUp)}>
                     <FaIcon name="fa-volume-up" />
                 </button>
-                <button className="playback-control playback-volume-mute" type="button"
+                <button className={'playback-control playback-volume-mute' + (state.muted ? ' is-muted' : '')} type="button"
                     aria-label={state.muted ? 'Activar sonido' : 'Silenciar'}
                     aria-pressed={Boolean(state.muted)}
                     title={state.muted ? 'Activar sonido' : 'Silenciar'}
