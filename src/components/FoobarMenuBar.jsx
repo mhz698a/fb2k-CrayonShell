@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getFooSdk } from '../services/fooSdk.js';
 import {
-    buildMainMenuPopupItems,
+    buildMainMenuNativeItems,
     buildMainMenuTree,
     getMenuNodeLabel,
     isMenuCommandExecutable
@@ -88,25 +88,28 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
             const children = Array.isArray(node.children) ? node.children : [];
 
             if (node.type === 'submenu' && children.length > 0) {
-                if (typeof sdk.menu?.popup !== 'function') {
-                    throw new Error('El SDK no expone fb.menu.popup().');
+                if (typeof sdk.notification?.showCustomMenu !== 'function') {
+                    throw new Error('El SDK no expone fb.notification.showCustomMenu().');
                 }
 
-                const { items: popupItems, commandById } = buildMainMenuPopupItems(children);
-                if (popupItems.length === 0) return;
+                const { items: nativeItems, commandById } = buildMainMenuNativeItems(children);
+                if (nativeItems.length === 0) return;
 
-                // contentSized opens compact popup surfaces instead of drawing
-                // nested submenus inside the fullscreen CrayonShell WebView.
-                const selectedId = await sdk.menu.popup(
-                    popupItems,
-                    undefined,
-                    {
-                        windowModel: 'contentSized',
-                        backdrop: 'acrylic',
-                        backdropDarkMode: true
-                    }
-                );
+                // This is a host-owned Win32 popup menu, not a WebView overlay
+                // or a frameless CrayonShell child window.
+                const response = await sdk.notification.showCustomMenu({
+                    items: nativeItems
+                });
+                if (response?.success === false) {
+                    throw new Error(
+                        response.error
+                        || response.message
+                        || response.code
+                        || 'No se pudo abrir el menú nativo de foobar2000.'
+                    );
+                }
 
+                const selectedId = response?.selectedId;
                 if (!selectedId) return;
                 const command = commandById.get(selectedId);
                 if (!command) return;
