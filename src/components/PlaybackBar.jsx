@@ -14,6 +14,8 @@ function runAction(action) {
 
 export default function PlaybackBar({ controller, hasCurrentTrack = false, onFocusPlayingTrack }) {
     const [volumeDraft, setVolumeDraft] = useState(null);
+    const [volumeInteractionActive, setVolumeInteractionActive] = useState(false);
+    const volumeInteractionRef = useRef(false);
     const volumeDraftRef = useRef(null);
     const pendingVolumeRef = useRef(null);
     const volumeTimerRef = useRef(null);
@@ -41,7 +43,7 @@ export default function PlaybackBar({ controller, hasCurrentTrack = false, onFoc
         const operation = volumeQueueRef.current.catch(() => {}).then(() => actions.setVolume?.(nextVolume));
         volumeQueueRef.current = operation.catch(() => {});
         operation.then(() => {
-            if (pendingVolumeRef.current === null && volumeDraftRef.current === nextVolume) {
+            if (!volumeInteractionRef.current && pendingVolumeRef.current === null && volumeDraftRef.current === nextVolume) {
                 volumeDraftRef.current = null;
                 setVolumeDraft(null);
             }
@@ -50,13 +52,25 @@ export default function PlaybackBar({ controller, hasCurrentTrack = false, onFoc
 
     const scheduleVolume = useCallback((rawValue) => {
         const value = Math.max(0, Math.min(100, Number(rawValue) || 0));
+        volumeInteractionRef.current = true;
+        setVolumeInteractionActive(true);
         volumeDraftRef.current = value;
         pendingVolumeRef.current = value;
         setVolumeDraft(value);
         if (volumeTimerRef.current === null) volumeTimerRef.current = window.setTimeout(flushVolume, 45);
     }, [flushVolume]);
 
-    const finishVolumeChange = useCallback(() => flushVolume(), [flushVolume]);
+    const finishVolumeChange = useCallback(() => {
+        volumeInteractionRef.current = false;
+        setVolumeInteractionActive(false);
+        flushVolume();
+        volumeQueueRef.current.catch(() => {}).then(() => {
+            if (!volumeInteractionRef.current && pendingVolumeRef.current === null) {
+                volumeDraftRef.current = null;
+                setVolumeDraft(null);
+            }
+        });
+    }, [flushVolume]);
 
     useEffect(() => () => {
         if (volumeTimerRef.current !== null) window.clearTimeout(volumeTimerRef.current);
@@ -130,12 +144,20 @@ export default function PlaybackBar({ controller, hasCurrentTrack = false, onFoc
                 </button>
                 <label className="playback-volume-slider">
                     <span className="sr-only">Volumen</span>
-                    <input type="range" min="0" max="100" step="1" aria-label="Volumen"
-                        aria-valuetext={Math.round(volume) + '%'} value={volume}
-                        disabled={disabled || !volumeKnown}
-                        onChange={(event) => scheduleVolume(event.target.value)}
-                        onPointerUp={finishVolumeChange} onPointerCancel={finishVolumeChange}
-                        onKeyUp={finishVolumeChange} onBlur={finishVolumeChange} />
+                    <span className="playback-volume-range">
+                        <input type="range" min="0" max="100" step="1" aria-label="Volumen"
+                            aria-valuetext={Math.round(volume) + '%'} value={volume}
+                            disabled={disabled || !volumeKnown}
+                            onChange={(event) => scheduleVolume(event.target.value)}
+                            onPointerDown={() => { volumeInteractionRef.current = true; setVolumeInteractionActive(true); }}
+                            onPointerUp={finishVolumeChange} onPointerCancel={finishVolumeChange}
+                            onKeyDown={() => { volumeInteractionRef.current = true; setVolumeInteractionActive(true); }}
+                            onKeyUp={finishVolumeChange} onBlur={finishVolumeChange} />
+                        {volumeInteractionActive && <output className="playback-volume-tooltip"
+                            style={{ left: Math.max(8, Math.min(92, volume)) + '%' }} aria-hidden="true">
+                            {Math.round(volume)}%
+                        </output>}
+                    </span>
                 </label>
                 <button className="playback-control playback-volume-step" type="button"
                     aria-label="Subir volumen" title="Subir volumen"
@@ -151,7 +173,6 @@ export default function PlaybackBar({ controller, hasCurrentTrack = false, onFoc
                     onClick={() => runAction(actions.toggleMute)}>
                     <FaIcon name={state.muted || Number(state.volume) === 0 ? 'fa-volume-off' : 'fa-volume-up'} />
                 </button>
-                <span className="playback-volume-value">{Math.round(volume)}%</span>
             </div>
         </section>
     );
