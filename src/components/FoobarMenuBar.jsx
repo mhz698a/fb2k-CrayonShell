@@ -120,7 +120,13 @@ function MenuEntries({
     });
 }
 
-export default function FoobarMenuBar({ isDemoMode = false }) {
+export default function FoobarMenuBar({
+    isDemoMode = false,
+    contentView = 'playlist',
+    propertiesVisible = false,
+    onToggleProperties,
+    onExecuteAction
+}) {
     const menuBarRef = useRef(null);
     const rootMenuRef = useRef(null);
     const sdkRef = useRef(null);
@@ -379,6 +385,38 @@ export default function FoobarMenuBar({ isDemoMode = false }) {
                     </div>
                     <div className="foobar-menubar-feedback" aria-live="polite">
                         {loading ? 'Cargando menús…' : error ? 'Menú no disponible' : ''}
+                    </div>
+                    <div className="foobar-menubar-actions" role="toolbar" aria-label="Acciones de playlist">
+                        <button id="MediaViewToggle" type="button"
+                            className="foobar-menubar-action"
+                            aria-label={contentView === 'playlist' ? 'Mostrar visor de video' : 'Mostrar playlist'}
+                            aria-pressed={contentView === 'video'}
+                            title={contentView === 'playlist' ? 'Mostrar visor de video' : 'Mostrar playlist'}
+                            onClick={() => onExecuteAction?.('ui.toggleContentView')}>
+                            <i className={'fa ' + (contentView === 'playlist' ? 'fa-film' : 'fa-list')} aria-hidden="true" />
+                        </button>
+                        <button id="PlaylistRefresh" type="button"
+                            className="foobar-menubar-action"
+                            aria-label="Actualizar playlist"
+                            title="Actualizar playlist"
+                            onClick={() => onExecuteAction?.('playlist.refresh')}>
+                            <i className="fa fa-refresh" aria-hidden="true" />
+                        </button>
+                        <button id="PropertiesToggle" type="button"
+                            className={'foobar-menubar-action' + (propertiesVisible ? ' is-active' : '')}
+                            aria-label={propertiesVisible ? 'Ocultar propiedades' : 'Mostrar propiedades'}
+                            aria-pressed={propertiesVisible}
+                            title={propertiesVisible ? 'Ocultar propiedades' : 'Mostrar propiedades'}
+                            onClick={onToggleProperties}>
+                            <i className="fa fa-info-circle" aria-hidden="true" />
+                        </button>
+                        <button id="MediaDiagnostics" type="button"
+                            className="foobar-menubar-action"
+                            aria-label="Abrir diagnóstico multimedia"
+                            title="Abrir diagnóstico multimedia"
+                            onClick={() => onExecuteAction?.('diagnostics.open')}>
+                            <i className="fa fa-stethoscope" aria-hidden="true" />
+                        </button>
                     </div>
                     {error && <span className="sr-only" role="status">{error}</span>}
                     {activeNode && rootMenuPosition && createPortal(
