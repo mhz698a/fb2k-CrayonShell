@@ -10,7 +10,6 @@ import { useExternalToolsConfig } from './features/activitybar/hooks/useExternal
 import { useActivityBarConfig } from './features/activitybar/hooks/useActivityBarConfig.js';
 import { useActivityBarActions } from './features/activitybar/hooks/useActivityBarActions.js';
 import Sidebar from './components/Sidebar.jsx';
-import PlaylistManager from './components/PlaylistManager.jsx';
 import SpotlightDialog from './components/SpotlightDialog.jsx';
 import PlaylistTable from './components/PlaylistTable.jsx';
 import StatusBar from './components/StatusBar.jsx';
@@ -79,9 +78,9 @@ function AppContent() {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
     const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
     const [sidebarView, setSidebarView] = useState(readSidebarView);
+    const playlistManagerOpen = !sidebarCollapsed && sidebarView === 'playlists';
     const [propertiesCollapsed, setPropertiesCollapsed] = useState(readPropertiesCollapsed);
     const [propertiesWidth, setPropertiesWidth] = useState(readPropertiesWidth);
-    const [playlistManagerOpen, setPlaylistManagerOpen] = useState(false);
     const [spotlightOpen, setSpotlightOpen] = useState(false);
     const [contentView, setContentView] = useState('playlist');
     const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
@@ -114,7 +113,7 @@ function AppContent() {
     }, [sidebarCollapsed, sidebarView]);
 
     const selectSidebarView = useCallback((view) => {
-        const nextView = view === 'yearbook' ? 'yearbook' : 'library';
+        const nextView = view === 'yearbook' || view === 'playlists' ? view : 'library';
         if (!sidebarCollapsed && sidebarView === nextView) {
             setSidebarCollapsed(true);
             return;
@@ -128,8 +127,8 @@ function AppContent() {
     }, []);
 
     const togglePlaylistManager = useCallback(() => {
-        setPlaylistManagerOpen((value) => !value);
-    }, []);
+        selectSidebarView('playlists');
+    }, [selectSidebarView]);
 
     const openSpotlight = useCallback(() => setSpotlightOpen(true), []);
     const closeSpotlight = useCallback(() => setSpotlightOpen(false), []);
@@ -259,7 +258,7 @@ function AppContent() {
     const activateManagedPlaylist = useCallback(async (playlistGuid) => {
         const activated = await changePlaylist(playlistGuid);
         if (!activated) throw new Error('No se pudo activar la playlist seleccionada.');
-        setPlaylistManagerOpen(false);
+        setSidebarCollapsed(true);
     }, [changePlaylist]);
 
     useEffect(() => {
@@ -549,6 +548,11 @@ function AppContent() {
                     activeView={sidebarView}
                     externalTools={externalToolsConfig}
                     onOpenSettings={openExternalToolsSettings}
+                    playlists={playlists}
+                    activePlaylistGuid={activePlaylistGuid}
+                    onActivatePlaylist={activateManagedPlaylist}
+                    onClosePlaylistManager={() => setSidebarCollapsed(true)}
+                    onRefreshPlaylists={refreshPlaylist}
                 />
 
                 <div
@@ -588,23 +592,13 @@ function AppContent() {
 
                 <main className="main-playlist">
                     <section id="PlaylistPanel" aria-label="Playlist">
-                        <PlaylistManager
-                            open={playlistManagerOpen}
-                            playlists={playlists}
-                            activePlaylistGuid={activePlaylistGuid}
-                            onActivate={activateManagedPlaylist}
-                            onClose={() => setPlaylistManagerOpen(false)}
-                            onRefresh={refreshPlaylist}
-                        />
-
-
                         {isDemoMode && (
                             <div className="demo-notice">
                                 Modo de demostración: los datos no proceden de foobar2000.
                             </div>
                         )}
 
-                        <div className={'playlist-content' + (playlistManagerOpen ? ' is-hidden' : '')}>
+                        <div className="playlist-content">
                             <div
                                 className={'playlist-list-view' + (contentView === 'playlist' ? '' : ' is-hidden')}
                                 aria-hidden={contentView !== 'playlist'}
