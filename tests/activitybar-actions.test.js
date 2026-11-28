@@ -367,6 +367,8 @@ test('El catálogo principal registra las acciones de interfaz y herramientas', 
         openDiagnostics: () => undefined,
         openActivityBarManager: () => undefined,
         activityBarManagerOpen: false,
+        togglePlaylistManager: () => undefined,
+        playlistManagerOpen: true,
         sidebarCollapsed: false,
         contentView: 'video'
     });
@@ -374,11 +376,14 @@ test('El catálogo principal registra las acciones de interfaz y herramientas', 
     assert.deepEqual(catalog.map((action) => action.id), [
         'ui.toggleSidebar',
         'ui.toggleContentView',
+        'playlist.manager.toggle',
         'playlist.refresh',
         'diagnostics.open',
         'externalTools.configure',
         'activitybar.manage'
     ]);
     assert.equal(catalog.find((action) => action.id === 'ui.toggleSidebar').active, true);
+    assert.equal(catalog.find((action) => action.id === 'playlist.manager.toggle').available, true);
+    assert.equal(catalog.find((action) => action.id === 'playlist.manager.toggle').active, true);
     assert.equal(catalog.find((action) => action.id === 'activitybar.manage').available, true);
 });
