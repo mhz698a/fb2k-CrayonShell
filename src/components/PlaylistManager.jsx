@@ -274,24 +274,26 @@ export default function PlaylistManager({
                 aria-label="Lista de playlists" tabIndex={0} onKeyDown={handleListKeyDown}>
                 {playlists.map((playlist) => {
                     const stats = statistics[playlist.guid];
+                    const unknownDurationCount = Number(stats?.unknownDurationCount) || 0;
+                    const unknownSizeCount = Number(stats?.unknownSizeCount) || 0;
                     const duration = stats && !stats.error
-                        ? (stats.unknownDurationCount === stats.trackCount && stats.trackCount > 0
+                        ? (unknownDurationCount === stats.trackCount && stats.trackCount > 0
                             ? 'N/D'
-                            : (stats.unknownDurationCount > 0 ? '≥ ' : '') + formatTrackDuration(stats.durationSeconds))
+                            : (unknownDurationCount > 0 ? '≥ ' : '') + formatTrackDuration(stats.durationSeconds))
                         : stats?.error ? 'Duración no disponible' : 'Calculando duración…';
                     const size = stats && !stats.error
-                        ? (stats.knownSizeCount === 0 && stats.unknownSizeCount > 0
+                        ? (stats.knownSizeCount === 0 && unknownSizeCount > 0
                             ? 'N/D'
-                            : (stats.unknownSizeCount > 0 ? '≥ ' : '') + formatByteSize(stats.fileSizeBytes))
+                            : (unknownSizeCount > 0 ? '≥ ' : '') + formatByteSize(stats.fileSizeBytes))
                         : stats?.error ? 'Tamaño no disponible' : 'Calculando tamaño…';
                     const statTitle = stats?.error
                         ? stats.error
                         : [
-                            stats.unknownDurationCount > 0
-                                ? stats.unknownDurationCount + ' pistas sin duración disponible'
+                            unknownDurationCount > 0
+                                ? unknownDurationCount + ' pistas sin duración disponible'
                                 : '',
-                            stats.unknownSizeCount > 0
-                                ? stats.unknownSizeCount + ' pistas sin tamaño de archivo disponible'
+                            unknownSizeCount > 0
+                                ? unknownSizeCount + ' pistas sin tamaño de archivo disponible'
                                 : ''
                         ].filter(Boolean).join(' · ') || 'Duración y tamaño total';
 
