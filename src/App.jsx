@@ -266,6 +266,7 @@ export default function App() {
     );
     const selectedItemIndex = focusedItem >= 0 ? focusedItem : playingItemIndex;
     const selectedItem = items.find((item) => item.index === selectedItemIndex) || null;
+    const playingItem = items.find((item) => item.index === playingItemIndex) || null;
     const {
         properties: trackProperties,
         loading: propertiesLoading,
