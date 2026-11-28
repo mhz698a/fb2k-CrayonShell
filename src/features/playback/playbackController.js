@@ -488,11 +488,14 @@ export function createPlaybackController({
         next: () => runAction('next', 'next'),
         playRandom: () => runAction('playRandom', 'random'),
         setPlaybackOrder: (order) => {
-            const value = String(order || '').trim();
-            if (!PLAYBACK_ORDER_NAMES.includes(value)) {
-                return Promise.reject(new TypeError('Playback Order no admitido: ' + value));
+            const value = typeof order === 'number'
+                ? PLAYBACK_ORDER_NAMES[order]
+                : String(order || '').trim();
+            const index = PLAYBACK_ORDER_NAMES.indexOf(value);
+            if (index < 0) {
+                return Promise.reject(new TypeError('Playback Order no admitido: ' + order));
             }
-            return runAction('setPlaybackOrder', 'setOrder', [value], (response) => {
+            return runAction('setPlaybackOrder', 'setOrder', [index], (response) => {
                 markEvent('order', {
                     order: normalizeOrder(response, value),
                     orderKnown: true
