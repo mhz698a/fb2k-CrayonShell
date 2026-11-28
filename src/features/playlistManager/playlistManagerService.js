@@ -96,7 +96,7 @@ export async function loadPlaylistStatistics(
 
     rows.forEach((track) => {
         const duration = parseTrackDuration(track.duration);
-        if (duration === null) unknownDurationCount += 1;
+        if (duration === null || duration === 0) unknownDurationCount += 1;
         else durationSeconds += duration;
 
         const size = Number(track.fileSize);
@@ -105,7 +105,7 @@ export async function loadPlaylistStatistics(
             && track.fileSize !== undefined
             && String(track.fileSize).trim() !== ''
             && Number.isFinite(size)
-            && size > 0
+            && size >= 0
         ) {
             fileSizeBytes += size;
             knownSizeCount += 1;
